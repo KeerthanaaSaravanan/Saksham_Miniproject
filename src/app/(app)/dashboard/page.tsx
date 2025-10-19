@@ -40,8 +40,8 @@ import { getSubjectsForGrade, SubjectCategory } from '@/lib/subjects';
 import { useCollection } from '@/firebase/firestore/use-collection';
 import Image from 'next/image';
 import { PlaceHolderImages } from '@/lib/placeholder-images';
-import { Bar, BarChart, ResponsiveContainer, XAxis, YAxis, Tooltip } from "recharts"
-import { ChartConfig, ChartContainer, ChartTooltipContent } from '@/components/ui/chart';
+import { Bar, BarChart, ResponsiveContainer, XAxis, YAxis } from "recharts"
+import { ChartConfig, ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart';
 
 interface Exam {
   id: string;
@@ -372,4 +372,3 @@ export default function DashboardPage() {
       </main>
     </div>
   );
-}
