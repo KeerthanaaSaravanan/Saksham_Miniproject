@@ -41,14 +41,9 @@ import { useUser, useAuth } from '@/firebase';
 import { useRouter } from 'next/navigation';
 import { Skeleton } from '../ui/skeleton';
 import Link from 'next/link';
+import { useAccessibilityPanel } from '../accessibility/accessibility-panel-provider';
+import { accessibilityModules } from '../accessibility/modules';
 
-const accessibilityFeatures = [
-  { icon: Eye, label: 'Visual', href: '/settings/accessibility' },
-  { icon: Ear, label: 'Hearing', href: '/settings/accessibility' },
-  { icon: Hand, label: 'Motor', href: '/settings/accessibility' },
-  { icon: BookOpen, label: 'Learning', href: '/settings/accessibility' },
-  { icon: Brain, label: 'Cognitive', href: '/settings/accessibility' },
-];
 
 const notifications = [
     {
@@ -79,7 +74,8 @@ const notifications = [
 
 export function RightSidebar() {
   const { setTheme, theme } = useTheme();
-  const { setIsOpen } = useChatbot();
+  const { setIsOpen: setIsChatbotOpen } = useChatbot();
+  const { setOpenModule } = useAccessibilityPanel();
   const { user, isUserLoading } = useUser();
   const auth = useAuth();
   const router = useRouter();
@@ -124,6 +120,10 @@ export function RightSidebar() {
             <DropdownMenuItem onClick={() => router.push('/settings/profile')}>
                 <Settings className="mr-2 h-4 w-4" />
                 <span>Profile Settings</span>
+            </DropdownMenuItem>
+             <DropdownMenuItem onClick={() => router.push('/settings/accessibility')}>
+                <Brain className="mr-2 h-4 w-4" />
+                <span>All Accessibility</span>
             </DropdownMenuItem>
             <DropdownMenuSeparator />
             <DropdownMenuItem onClick={handleSignOut}>
@@ -174,7 +174,7 @@ export function RightSidebar() {
         
         <TooltipProvider>
              <Tooltip>
-                <TooltipTrigger onClick={() => setIsOpen((prev) => !prev)}>
+                <TooltipTrigger onClick={() => setIsChatbotOpen((prev) => !prev)}>
                      <div className="p-3 rounded-full bg-blue-500/10 hover:bg-blue-500/20 transition-colors">
                         <Sparkles className="h-6 w-6 text-blue-500" />
                     </div>
@@ -201,19 +201,17 @@ export function RightSidebar() {
 
       <div className="flex flex-col items-center gap-4">
         <TooltipProvider>
-          {accessibilityFeatures.map((feature) => {
-            const Icon = feature.icon;
+          {accessibilityModules.map((module) => {
+            const Icon = module.icon;
             return (
-              <Tooltip key={feature.label}>
-                <TooltipTrigger asChild>
-                  <Link href={feature.href}>
-                     <div className="p-2 rounded-full hover:bg-muted transition-colors">
-                        <Icon className="h-6 w-6 text-muted-foreground" />
-                     </div>
-                  </Link>
+              <Tooltip key={module.id}>
+                <TooltipTrigger onClick={() => setOpenModule(module.id)}>
+                   <div className="p-2 rounded-full hover:bg-muted transition-colors">
+                      <Icon className="h-6 w-6 text-muted-foreground" />
+                   </div>
                 </TooltipTrigger>
                 <TooltipContent side="left">
-                  <p>{feature.label} Accessibility</p>
+                  <p>{module.title} Settings</p>
                 </TooltipContent>
               </Tooltip>
             );

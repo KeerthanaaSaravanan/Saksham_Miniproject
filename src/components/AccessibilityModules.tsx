@@ -1,122 +1,17 @@
 'use client';
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
-import {
-  Eye, Ear, Hand, BookOpen, Brain, Volume2, Mic, Navigation, Headphones, Type, Presentation, Zap, Bot,
-  ScanEye, Save, SpellCheck, Focus, Palette, Layout, Clock, Heart, MousePointer,
-} from 'lucide-react';
 import { Checkbox } from './ui/checkbox';
 import { Label } from './ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
+import { Save } from 'lucide-react';
+import { accessibilityModules } from './accessibility/modules';
 
 export default function AccessibilityModules({ userProfile, onSettingsUpdate }: { userProfile?: any, onSettingsUpdate?: (settings: any) => void }) {
   
-  const [moduleSettings, setModuleSettings] = useState({
-    // Visual
-    textToSpeech: false,
-    speechToText: false,
-    voiceNavigation: false,
-    highContrast: false,
-    largeText: false,
-    // Hearing
-    realTimeCaptions: false,
-    signLanguageAvatar: false,
-    visualAlerts: false,
-    chatbotHelp: false,
-    // Motor
-    voiceCommandNavigation: false,
-    eyeTracking: false,
-    gestureRecognition: false,
-    autoSave: false,
-    predictiveText: false,
-    // SLD
-    aiTextSimplifier: false,
-    dyslexiaFriendlyFont: false,
-    wordHighlighting: false,
-    aiSpellCheck: false,
-    readAloud: false,
-    // Cognitive
-    focusMode: false,
-    guidedNavigation: false,
-    timeReminders: false,
-    emotionAwareAgent: false,
-    simplifiedLayout: false,
-  });
-  
+  const [moduleSettings, setModuleSettings] = useState<{[key: string]: boolean}>({});
   const [isSaving, setIsSaving] = useState(false);
-
-  const accessibilityModules = [
-    {
-      id: 'visual',
-      title: 'Visual Disability',
-      subtitle: 'Blind / Low Vision',
-      icon: Eye,
-      iconColor: 'text-blue-500',
-      features: [
-        { key: 'textToSpeech', label: 'Text-to-Speech (TTS)', icon: Volume2 },
-        { key: 'speechToText', label: 'Speech-to-Text (STT)', icon: Mic },
-        { key: 'voiceNavigation', label: 'Audio Navigation', icon: Navigation },
-        { key: 'highContrast', label: 'High Contrast Mode', icon: Palette },
-        { key: 'largeText', label: 'Large Text Mode', icon: Type },
-      ]
-    },
-    {
-      id: 'hearing',
-      title: 'Hearing Disability',
-      subtitle: 'Deaf / Hard of Hearing',
-      icon: Ear,
-      iconColor: 'text-purple-500',
-      features: [
-        { key: 'realTimeCaptions', label: 'Real-time Captions', icon: Type },
-        { key: 'signLanguageAvatar', label: 'AI Sign Language Avatar', icon: Presentation },
-        { key: 'visualAlerts', label: 'Visual Pop-up Alerts', icon: Zap },
-        { key: 'chatbotHelp', label: 'Text-based Chatbot Help', icon: Bot }
-      ]
-    },
-    {
-      id: 'motor',
-      title: 'Motor Disability',
-      subtitle: 'Limited Hand Movement / Paralysis',
-      icon: Hand,
-      iconColor: 'text-orange-500',
-      features: [
-        { key: 'voiceCommandNavigation', label: 'Voice Command Navigation', icon: Mic },
-        { key: 'eyeTracking', label: 'Eye-tracking Control (Coming Soon)', icon: ScanEye },
-        { key: 'gestureRecognition', label: 'AI Gesture Recognition (Coming Soon)', icon: Hand },
-        { key: 'autoSave', label: 'Auto-save Answers', icon: Save },
-        { key: 'predictiveText', label: 'Predictive Typing', icon: Type },
-      ]
-    },
-    {
-      id: 'sld',
-      title: 'Specific Learning Disability',
-      subtitle: 'Dyslexia, Dysgraphia, etc.',
-      icon: BookOpen,
-      iconColor: 'text-green-500',
-      features: [
-        { key: 'aiTextSimplifier', label: 'AI Text Simplifier', icon: Brain },
-        { key: 'dyslexiaFriendlyFont', label: 'Dyslexia-friendly Fonts', icon: Type },
-        { key: 'wordHighlighting', label: 'Word Highlighting', icon: Focus },
-        { key: 'aiSpellCheck', label: 'AI Spell-check', icon: SpellCheck },
-        { key: 'readAloud', label: 'Read-aloud Support', icon: Volume2 }
-      ]
-    },
-    {
-      id: 'cognitive',
-      title: 'Cognitive Disability',
-      subtitle: 'Autism, ADHD, etc.',
-      icon: Brain,
-      iconColor: 'text-sky-500',
-      features: [
-        { key: 'focusMode', label: 'Focus Mode (Calm Visuals)', icon: Palette },
-        { key: 'guidedNavigation', label: 'Step-by-step Guidance', icon: MousePointer },
-        { key: 'timeReminders', label: 'Gentle Time Reminders', icon: Clock },
-        { key: 'emotionAwareAgent', label: 'Emotion-aware AI Agent (Coming Soon)', icon: Heart },
-        { key: 'simplifiedLayout', label: 'Simplified Layout', icon: Layout },
-      ]
-    }
-  ];
-
+  
   // Load initial state from user profile
   useEffect(() => {
     if (userProfile?.accessibility_profile) {
@@ -125,7 +20,7 @@ export default function AccessibilityModules({ userProfile, onSettingsUpdate }: 
       const newSettings: { [key: string]: boolean } = {};
       accessibilityModules.forEach(module => {
         module.features.forEach(feature => {
-            newSettings[feature.key] = !!profile[feature.key as keyof typeof profile];
+            newSettings[feature.key] = !!profile[feature.key];
         });
       });
       
@@ -175,7 +70,7 @@ export default function AccessibilityModules({ userProfile, onSettingsUpdate }: 
                 <CardContent className="p-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                     {module.features.map((feature) => {
                         const FeatureIcon = feature.icon;
-                        const isChecked = moduleSettings[feature.key as keyof typeof moduleSettings];
+                        const isChecked = moduleSettings[feature.key as keyof typeof moduleSettings] || false;
                         const isDisabled = feature.label.includes('(Coming Soon)');
 
                         return (

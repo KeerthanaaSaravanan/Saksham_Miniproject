@@ -1,0 +1,113 @@
+
+'use client';
+
+import { useState, useEffect } from 'react';
+import { Card, CardHeader, CardTitle, CardContent, CardDescription, CardFooter } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Checkbox } from '../ui/checkbox';
+import { Label } from '../ui/label';
+import { Save, X } from 'lucide-react';
+import { cn } from '@/lib/utils';
+import type { AccessibilityModule } from './modules';
+
+interface AccessibilityFlyoutProps {
+    module: AccessibilityModule;
+    isOpen: boolean;
+    onClose: () => void;
+    userProfile: any;
+    onSettingsUpdate: (settings: any) => Promise<void>;
+}
+
+export function AccessibilityFlyout({ module, isOpen, onClose, userProfile, onSettingsUpdate }: AccessibilityFlyoutProps) {
+  const [moduleSettings, setModuleSettings] = useState<{[key: string]: boolean}>({});
+  const [isSaving, setIsSaving] = useState(false);
+  const IconComponent = module.icon;
+
+  useEffect(() => {
+    if (userProfile?.accessibility_profile) {
+      const profile = userProfile.accessibility_profile;
+      const newSettings: { [key: string]: boolean } = {};
+      module.features.forEach(feature => {
+        newSettings[feature.key] = !!profile[feature.key];
+      });
+      setModuleSettings(newSettings);
+    } else {
+       // Initialize with all false if no profile
+       const newSettings: { [key: string]: boolean } = {};
+       module.features.forEach(feature => {
+        newSettings[feature.key] = false;
+       });
+       setModuleSettings(newSettings);
+    }
+  }, [userProfile, module.features]);
+
+  const handleSaveSettings = async () => {
+    setIsSaving(true);
+    // We need to merge with existing settings from other modules
+    const fullSettings = { ...(userProfile?.accessibility_profile || {}), ...moduleSettings };
+    await onSettingsUpdate(fullSettings);
+    setIsSaving(false);
+    onClose();
+  };
+
+  const toggleFeature = (featureKey: string) => {
+    setModuleSettings(prev => ({
+      ...prev,
+      [featureKey]: !prev[featureKey]
+    }));
+  };
+
+  if (!isOpen) {
+    return null;
+  }
+
+  return (
+    <div className="fixed bottom-6 right-24 z-50">
+      <Card className="w-[400px] h-[600px] flex flex-col shadow-2xl animate-in fade-in-0 zoom-in-95 slide-in-from-bottom-2">
+        <CardHeader className="border-b flex flex-row items-center justify-between">
+            <div className="flex items-center gap-3">
+              <IconComponent className={cn("h-6 w-6", module.iconColor)} />
+              <div>
+                <CardTitle>{module.title}</CardTitle>
+                <CardDescription>{module.subtitle}</CardDescription>
+              </div>
+            </div>
+          <Button variant="ghost" size="icon" onClick={onClose}>
+            <X className="h-4 w-4" />
+          </Button>
+        </CardHeader>
+        <CardContent className="flex-1 p-6 space-y-6 overflow-y-auto">
+          {module.features.map((feature) => {
+              const FeatureIcon = feature.icon;
+              const isChecked = moduleSettings[feature.key] || false;
+              const isDisabled = feature.label.includes('(Coming Soon)');
+
+              return (
+              <div key={feature.key} className="flex items-center space-x-4 p-3 rounded-lg hover:bg-muted/50 transition-colors">
+                  <Checkbox 
+                      id={feature.key}
+                      checked={isChecked && !isDisabled}
+                      onCheckedChange={() => toggleFeature(feature.key)}
+                      disabled={isDisabled}
+                  />
+                  <Label htmlFor={feature.key} className={`flex-1 flex items-center gap-3 ${isDisabled ? 'cursor-not-allowed text-muted-foreground' : 'cursor-pointer'}`}>
+                      <FeatureIcon className="h-5 w-5" />
+                      <div>
+                        <p className="font-semibold">{feature.label}</p>
+                        {feature.description && <p className="text-xs text-muted-foreground font-normal">{feature.description}</p>}
+                      </div>
+                  </Label>
+              </div>
+              );
+          })}
+        </CardContent>
+        <CardFooter className="border-t pt-4 flex justify-end">
+            <Button onClick={handleSaveSettings} disabled={isSaving}>
+                <Save className="mr-2 h-4 w-4" />
+                {isSaving ? 'Saving...' : 'Save Settings'}
+            </Button>
+        </CardFooter>
+      </Card>
+    </div>
+  );
+}
