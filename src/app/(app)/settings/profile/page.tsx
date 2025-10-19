@@ -65,28 +65,38 @@ export default function ProfileSettingsPage() {
 
   useEffect(() => {
     if (user && firestore) {
-      const initialPhoto = user.photoURL || `https://picsum.photos/seed/${user.uid}/128/128`;
+      const initialPhoto = user.photoURL || `https://i.ibb.co/ckT3nJc/m1.png`;
       setName(user.displayName || '');
       setProfileImage(initialPhoto);
-      setNewProfileImage(initialPhoto); // Initialize newProfileImage with current photo
+      setNewProfileImage(initialPhoto);
       
       const fetchUserProfile = async () => {
         setIsProfileLoading(true);
         const userDocRef = doc(firestore, 'users', user.uid);
-        const userDocSnap = await getDoc(userDocRef);
-        if (userDocSnap.exists()) {
-          const userData = userDocSnap.data();
-          setGrade(userData.grade || '');
-          setStream(userData.stream || '');
+        try {
+            const userDocSnap = await getDoc(userDocRef);
+            if (userDocSnap.exists()) {
+              const userData = userDocSnap.data();
+              setGrade(userData.grade || '');
+              setStream(userData.stream || '');
+            }
+        } catch (error) {
+            console.error("Error fetching user profile:", error);
+            toast({
+                variant: 'destructive',
+                title: 'Could not load profile',
+                description: 'Please check your connection and try again.'
+            })
+        } finally {
+            setIsProfileLoading(false);
         }
-        setIsProfileLoading(false);
       };
 
       fetchUserProfile();
     } else if (!isUserLoading) {
         setIsProfileLoading(false);
     }
-  }, [user, firestore, isUserLoading]);
+  }, [user, firestore, isUserLoading, toast]);
 
   const selectedGradeConfig = gradeConfig[grade as keyof typeof gradeConfig];
   
@@ -227,7 +237,7 @@ export default function ProfileSettingsPage() {
                     <Skeleton className="h-4 w-20" />
                     <Skeleton className="h-12 w-full" />
                   </div>
-                  <div className="space-y-2">
+                   <div className="space-y-2">
                     <Skeleton className="h-4 w-20" />
                     <Skeleton className="h-12 w-full" />
                   </div>
@@ -310,3 +320,5 @@ export default function ProfileSettingsPage() {
     </div>
   );
 }
+
+    
