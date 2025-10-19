@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, useRef }from 'react';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
@@ -9,12 +9,14 @@ import { Timer } from '@/components/Timer';
 import { useProctoring } from '@/hooks/use-proctoring';
 import { useToast } from '@/hooks/use-toast';
 import type { SelectedExamDetails, AssessmentQuestion } from '@/app/(app)/assessment/[examId]/page';
-import { Flag, Loader2 } from 'lucide-react';
+import { Flag, Loader2, Volume2, Mic, MicOff } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { RightSidebar } from './right-sidebar';
 import { useExamMode } from '@/hooks/use-exam-mode';
 import { Input } from '../ui/input';
 import { Textarea } from '../ui/textarea';
+import { useAccessibilityPanel } from '../accessibility/accessibility-panel-provider';
+import { getTTS } from '@/lib/actions/chatbot';
 
 interface ExamLayoutProps {
     exam: SelectedExamDetails;
@@ -30,6 +32,15 @@ export function ExamLayout({ exam, onTimeUp, isSubmitting }: ExamLayoutProps) {
     const [reviewFlags, setReviewFlags] = useState<Record<string, boolean>>({});
     const { toast } = useToast();
     const { setIsExamMode } = useExamMode();
+    const { userProfile } = useAccessibilityPanel();
+    const [isTTSSpeaking, setIsTTSSpeaking] = useState(false);
+    const [isSTTRecording, setIsSTTRecording] = useState(false);
+    const recognitionRef = useRef<any>(null);
+    const audioRef = useRef<HTMLAudioElement | null>(null);
+
+    const accessibility = userProfile?.accessibility_profile || {};
+    const isTextToSpeechEnabled = accessibility.textToSpeech || accessibility.readAloud;
+    const isSpeechToTextEnabled = accessibility.speechToText || accessibility.voiceCommandNavigation;
 
     useEffect(() => {
         setIsExamMode(true);
@@ -68,7 +79,59 @@ export function ExamLayout({ exam, onTimeUp, isSubmitting }: ExamLayoutProps) {
     }
 
     const activeQuestion: AssessmentQuestion = exam.questions[activeQuestionIndex];
+
+     const playTTS = async (text: string) => {
+        if (isTTSSpeaking) return;
+        setIsTTSSpeaking(true);
+        try {
+            const result = await getTTS(text);
+            if ('media' in result && audioRef.current) {
+                audioRef.current.src = result.media;
+                audioRef.current.play();
+                audioRef.current.onended = () => setIsTTSSpeaking(false);
+            } else {
+                setIsTTSSpeaking(false);
+            }
+        } catch (error) {
+            console.error("TTS Error:", error);
+            setIsTTSSpeaking(false);
+        }
+    };
     
+    const toggleSTT = (questionId: string) => {
+        if (isSTTRecording) {
+            recognitionRef.current?.stop();
+        } else {
+            startSTT(questionId);
+        }
+    };
+
+    const startSTT = (questionId: string) => {
+        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+        if (!SpeechRecognition) {
+            toast({ variant: 'destructive', title: "Unsupported", description: "Your browser doesn't support speech recognition."});
+            return;
+        }
+
+        recognitionRef.current = new SpeechRecognition();
+        recognitionRef.current.continuous = false;
+        recognitionRef.current.interimResults = false;
+        recognitionRef.current.lang = 'en-US';
+
+        recognitionRef.current.onstart = () => setIsSTTRecording(true);
+        recognitionRef.current.onend = () => setIsSTTRecording(false);
+        recognitionRef.current.onerror = (event: any) => {
+            console.error("STT Error:", event.error);
+            setIsSTTRecording(false);
+        };
+        recognitionRef.current.onresult = (event: any) => {
+            const transcript = event.results[0][0].transcript;
+            handleAnswerChange(questionId, answers[questionId] ? answers[questionId] + ' ' + transcript : transcript);
+        };
+
+        recognitionRef.current.start();
+    };
+
     const getQuestionStatus = (index: number): AnswerStatus => {
         const questionId = exam.questions[index].id;
         if(reviewFlags[questionId]) return 'review';
@@ -79,6 +142,17 @@ export function ExamLayout({ exam, onTimeUp, isSubmitting }: ExamLayoutProps) {
     const renderQuestionInput = (question: AssessmentQuestion) => {
         const questionId = question.id;
         const value = answers[questionId] || '';
+
+        const sttButton = isSpeechToTextEnabled && ['short-answer', 'long-answer', 'fillup'].includes(question.type || '') && (
+            <Button
+              size="icon"
+              variant={isSTTRecording ? 'destructive' : 'outline'}
+              onClick={() => toggleSTT(questionId)}
+              className="ml-2"
+            >
+              {isSTTRecording ? <MicOff /> : <Mic />}
+            </Button>
+        );
 
         switch (question.type) {
             case 'mcq':
@@ -94,6 +168,11 @@ export function ExamLayout({ exam, onTimeUp, isSubmitting }: ExamLayoutProps) {
                                 <Label htmlFor={`q${activeQuestionIndex}-o${i}`} className="font-normal text-base flex-1 cursor-pointer">
                                     {option}
                                 </Label>
+                                {isTextToSpeechEnabled && (
+                                    <Button size="icon" variant="ghost" onClick={() => playTTS(option)} disabled={isTTSSpeaking}>
+                                        <Volume2 className={isTTSSpeaking ? "animate-pulse" : ""} />
+                                    </Button>
+                                )}
                             </div>
                         ))}
                     </RadioGroup>
@@ -101,21 +180,26 @@ export function ExamLayout({ exam, onTimeUp, isSubmitting }: ExamLayoutProps) {
             case 'fillup':
             case 'short-answer':
                 return (
-                    <Input 
-                        className="mt-4"
-                        placeholder="Your answer"
-                        value={value}
-                        onChange={(e) => handleAnswerChange(questionId, e.target.value)}
-                    />
+                    <div className="flex items-center mt-4">
+                        <Input 
+                            placeholder="Your answer"
+                            value={value}
+                            onChange={(e) => handleAnswerChange(questionId, e.target.value)}
+                        />
+                        {sttButton}
+                    </div>
                 );
             case 'long-answer':
                  return (
-                    <Textarea
-                        className="mt-4 min-h-[150px]"
-                        placeholder="Your detailed answer"
-                        value={value}
-                        onChange={(e) => handleAnswerChange(questionId, e.target.value)}
-                    />
+                    <div className="flex items-start mt-4">
+                        <Textarea
+                            className="min-h-[150px]"
+                            placeholder="Your detailed answer"
+                            value={value}
+                            onChange={(e) => handleAnswerChange(questionId, e.target.value)}
+                        />
+                        {sttButton}
+                    </div>
                 );
             default:
                  return (
@@ -131,6 +215,11 @@ export function ExamLayout({ exam, onTimeUp, isSubmitting }: ExamLayoutProps) {
                                 <Label htmlFor={`q${activeQuestionIndex}-o${i}`} className="font-normal text-base flex-1 cursor-pointer">
                                     {option}
                                 </Label>
+                                 {isTextToSpeechEnabled && (
+                                    <Button size="icon" variant="ghost" onClick={() => playTTS(option)} disabled={isTTSSpeaking}>
+                                        <Volume2 className={isTTSSpeaking ? "animate-pulse" : ""} />
+                                    </Button>
+                                )}
                             </div>
                         ))}
                     </RadioGroup>
@@ -142,7 +231,13 @@ export function ExamLayout({ exam, onTimeUp, isSubmitting }: ExamLayoutProps) {
     const reviewedCount = Object.keys(reviewFlags).filter(k => reviewFlags[k]).length;
 
     return (
-        <div className="fixed inset-0 bg-background flex noselect" onContextMenu={(e) => e.preventDefault()}>
+        <div className={cn(
+            "fixed inset-0 bg-background flex noselect",
+            accessibility.dyslexiaFriendlyFont && "font-dyslexic",
+            accessibility.highContrast && "dark",
+            accessibility.largeText && "text-lg"
+        )} onContextMenu={(e) => e.preventDefault()}>
+            <audio ref={audioRef} className="hidden" />
             {/* Left Panel: Question Palette */}
             <div className="w-64 border-r bg-card flex flex-col p-4">
                 <h3 className="font-bold text-lg mb-1">Questions</h3>
@@ -194,7 +289,14 @@ export function ExamLayout({ exam, onTimeUp, isSubmitting }: ExamLayoutProps) {
                     <div className="p-8">
                         {activeQuestion && (
                             <div>
-                                <h2 className="text-lg font-semibold mb-6">Question {activeQuestionIndex + 1} of {exam.questions.length}</h2>
+                                <div className="flex items-center justify-between mb-6">
+                                    <h2 className="text-lg font-semibold">Question {activeQuestionIndex + 1} of {exam.questions.length}</h2>
+                                     {isTextToSpeechEnabled && (
+                                        <Button size="icon" variant="outline" onClick={() => playTTS(activeQuestion.question)} disabled={isTTSSpeaking}>
+                                            <Volume2 className={isTTSSpeaking ? "animate-pulse" : ""} />
+                                        </Button>
+                                    )}
+                                </div>
                                 <p className="text-xl mb-6">{activeQuestion.question}</p>
                                 {renderQuestionInput(activeQuestion)}
                             </div>

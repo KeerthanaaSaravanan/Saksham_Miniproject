@@ -23,6 +23,7 @@ export default {
         poppins: ['Poppins', 'sans-serif'],
         montserrat: ['Montserrat', 'sans-serif'],
         inter: ['Inter', 'sans-serif'],
+        dyslexic: ['Open Dyslexic', 'sans-serif'],
       },
       colors: {
         background: 'hsl(var(--background))',
