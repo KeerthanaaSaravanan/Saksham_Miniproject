@@ -29,7 +29,10 @@ export default function LoginForm() {
   const handleAuthError = (error: any) => {
     console.error('Authentication error:', error);
     let description = 'An unknown error occurred. Please try again.';
-    if (error.code === 'auth/unauthorized-domain') {
+    if (error.code === 'auth/network-request-failed') {
+      description =
+        'A network error occurred. Please check your connection and ensure this domain is added to the authorized domains in your Firebase console.';
+    } else if (error.code === 'auth/unauthorized-domain') {
       description =
         'This domain is not authorized for authentication. Please add it to the authorized domains in your Firebase console.';
     } else if (
@@ -123,7 +126,7 @@ export default function LoginForm() {
         router.push('/dashboard');
     } catch (error: any) {
         console.error("Failed to update profile", error);
-        toast({ variant: 'destructive', title: 'Profile Update Failed', description: error.message });
+        handleAuthError(error);
     }
   }
 
