@@ -1,5 +1,6 @@
 'use client';
 import { useState, useEffect } from 'react';
+import { Button } from '@/components/ui/button';
 import { Eye, Ear, Hand, BookOpen, Brain, Volume2, Type, Mic, Headphones, Navigation, Focus, Heart, Zap, SpellCheck, Save, MousePointer, ScanEye, Bot, Palette, Layout, Clock, Presentation } from 'lucide-react';
 
 export default function AccessibilityModules({ userProfile, onSettingsUpdate }: { userProfile?: any, onSettingsUpdate?: (settings: any) => void }) {
@@ -46,6 +47,8 @@ export default function AccessibilityModules({ userProfile, onSettingsUpdate }: 
     emotionAwareAgent: false,
     simplifiedLayout: false,
   });
+  
+  const [isSaving, setIsSaving] = useState(false);
 
   const accessibilityModules = [
     {
@@ -129,28 +132,41 @@ export default function AccessibilityModules({ userProfile, onSettingsUpdate }: 
     }
   ];
 
-  // Auto-activate modules based on user profile
+  // Load initial state from user profile
   useEffect(() => {
     if (userProfile?.accessibility_profile) {
       const profile = userProfile.accessibility_profile;
       
-      const newActiveModules = { ...activeModules };
-      const newSettings = { ...moduleSettings };
-
-      if (profile.preferredSupport?.includes('visual')) newActiveModules.visual = true;
-      if (profile.preferredSupport?.includes('hearing')) newActiveModules.hearing = true;
-      if (profile.preferredSupport?.includes('motor')) newActiveModules.motor = true;
-      if (profile.preferredSupport?.includes('sld')) newActiveModules.sld = true;
-      if (profile.preferredSupport?.includes('cognitive')) newActiveModules.cognitive = true;
-
-      // You could also pre-select certain features based on the profile
-      // For now, we just activate the main modules.
+      const newActiveModules = {
+        visual: !!profile.visual,
+        hearing: !!profile.hearing,
+        motor: !!profile.motor,
+        sld: !!profile.sld,
+        cognitive: !!profile.cognitive,
+      };
+      
+      const newSettings: { [key: string]: boolean } = {};
+      accessibilityModules.forEach(module => {
+        module.features.forEach(feature => {
+            newSettings[feature.key] = !!profile[feature.key as keyof typeof profile];
+        });
+      });
       
       setActiveModules(newActiveModules);
-      onSettingsUpdate?.(newSettings);
+      setModuleSettings(newSettings as any);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [userProfile]);
+
+  const handleSaveSettings = async () => {
+    setIsSaving(true);
+    const finalSettings = {
+        ...activeModules,
+        ...moduleSettings,
+    };
+    await onSettingsUpdate?.(finalSettings);
+    setIsSaving(false);
+  };
 
   const toggleModule = (moduleId: keyof typeof activeModules) => {
     setActiveModules(prev => ({
@@ -160,12 +176,10 @@ export default function AccessibilityModules({ userProfile, onSettingsUpdate }: 
   };
 
   const toggleFeature = (featureKey: keyof typeof moduleSettings) => {
-    const newSettings = {
-      ...moduleSettings,
-      [featureKey]: !moduleSettings[featureKey]
-    };
-    setModuleSettings(newSettings);
-    onSettingsUpdate?.(newSettings);
+    setModuleSettings(prev => ({
+      ...prev,
+      [featureKey]: !prev[featureKey]
+    }));
   };
 
   return (
@@ -176,7 +190,7 @@ export default function AccessibilityModules({ userProfile, onSettingsUpdate }: 
           Your Personalized AI Modules
         </h2>
         <p className="font-inter text-lg text-muted-foreground max-w-2xl mx-auto">
-          These intelligent features activate automatically to enhance your examination experience.
+          These intelligent features activate automatically to enhance your examination experience. You can customize them below.
         </p>
       </div>
 
@@ -187,7 +201,7 @@ export default function AccessibilityModules({ userProfile, onSettingsUpdate }: 
             Currently Active
           </h3>
           <span className="text-sm font-inter text-primary">
-            {Object.values(activeModules).filter(Boolean).length} of 5 modules active
+            {Object.values(activeModules).filter(Boolean).length} of {accessibilityModules.length} modules active
           </span>
         </div>
         <div className="flex flex-wrap gap-2">
@@ -201,6 +215,9 @@ export default function AccessibilityModules({ userProfile, onSettingsUpdate }: 
               </div>
             );
           })}
+           {Object.values(activeModules).filter(Boolean).length === 0 && (
+                <p className="text-sm text-muted-foreground">No modules active. Select one below to get started.</p>
+           )}
         </div>
       </div>
 
@@ -306,6 +323,14 @@ export default function AccessibilityModules({ userProfile, onSettingsUpdate }: 
         })}
       </div>
 
+      {/* Save Button */}
+       <div className="text-center p-6 bg-card rounded-2xl border flex justify-center">
+        <Button onClick={handleSaveSettings} disabled={isSaving} size="lg">
+            {isSaving ? <Save className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
+            {isSaving ? "Saving..." : "Save My Preferences"}
+        </Button>
+      </div>
+
       {/* AI Status */}
       <div className="text-center p-6 bg-primary/10 rounded-2xl border border-primary/20">
         <div className="flex items-center justify-center space-x-3 mb-2">
@@ -321,5 +346,3 @@ export default function AccessibilityModules({ userProfile, onSettingsUpdate }: 
     </div>
   );
 }
-
-    

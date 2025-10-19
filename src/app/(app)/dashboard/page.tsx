@@ -48,6 +48,37 @@ interface Exam {
   startTime: Timestamp;
 }
 
+interface AccessibilityProfile {
+  visual?: boolean;
+  hearing?: boolean;
+  motor?: boolean;
+  sld?: boolean;
+  cognitive?: boolean;
+}
+
+const getPersonalizedGreeting = (name: string, profile?: AccessibilityProfile): string => {
+    if (!profile) {
+        return `Here's what's on your schedule. Let's get started.`;
+    }
+    if (profile.visual) {
+        return "We’ve fine-tuned your view and added enhanced voice guidance for a smoother experience.";
+    }
+    if (profile.hearing) {
+        return "We’ve made sure everything you need is clearly on-screen with visual alerts ready for you.";
+    }
+    if (profile.motor) {
+        return "We’ve made your controls hands-free and easier to navigate — just speak or move naturally.";
+    }
+    if (profile.sld) {
+        return "We’ve made your screen simpler and your reading experience smoother for better focus.";
+    }
+    if (profile.cognitive) {
+        return "We’ve set up a calm, step-by-step exam view to help you stay relaxed and focused.";
+    }
+    return `Here's what's on your schedule. Let's get started.`;
+};
+
+
 export default function DashboardPage() {
   const router = useRouter();
   const auth = useAuth();
@@ -56,22 +87,40 @@ export default function DashboardPage() {
   const [grade, setGrade] = useState('');
   const [subjects, setSubjects] = useState<Subject[]>([]);
   const [isProfileLoading, setIsProfileLoading] = useState(true);
+  const [accessibilityProfile, setAccessibilityProfile] = useState<AccessibilityProfile | undefined>(undefined);
+  const [welcomeMessage, setWelcomeMessage] = useState('');
 
   useEffect(() => {
     if (user && firestore) {
       const fetchUserProfile = async () => {
         setIsProfileLoading(true);
         const userDocRef = doc(firestore, 'users', user.uid);
+        const accessibilityProfileRef = doc(firestore, 'users', user.uid, 'accessibility_profile', 'settings');
+        
         try {
-          const userDocSnap = await getDoc(userDocRef);
+          const [userDocSnap, accessibilityDocSnap] = await Promise.all([
+              getDoc(userDocRef),
+              getDoc(accessibilityProfileRef)
+          ]);
+          
           if (userDocSnap.exists()) {
             const userData = userDocSnap.data();
             const userGrade = userData.grade || '';
             setGrade(userGrade);
             setSubjects(getSubjectsForGrade(userGrade));
           }
+
+          if (accessibilityDocSnap.exists()) {
+              const profileData = accessibilityDocSnap.data() as AccessibilityProfile;
+              setAccessibilityProfile(profileData);
+              setWelcomeMessage(getPersonalizedGreeting(user.displayName || 'Student', profileData));
+          } else {
+              setWelcomeMessage(getPersonalizedGreeting(user.displayName || 'Student'));
+          }
+
         } catch (error) {
           console.error('Error fetching user profile:', error);
+          setWelcomeMessage(getPersonalizedGreeting(user.displayName || 'Student'));
         } finally {
           setIsProfileLoading(false);
         }
@@ -79,6 +128,7 @@ export default function DashboardPage() {
       fetchUserProfile();
     } else if (!isUserLoading) {
       setIsProfileLoading(false);
+      setWelcomeMessage(getPersonalizedGreeting('Student'));
     }
   }, [user, firestore, isUserLoading]);
 
@@ -123,9 +173,9 @@ export default function DashboardPage() {
                 <>
                   <div className="text-3xl">👋</div>
                   <div>
-                    <h2 className="text-3xl font-bold">Hello {userName}!</h2>
-                    <p className="opacity-80">
-                      Here's what's on your schedule. Let's get started.
+                    <h2 className="text-3xl font-bold">Welcome back, {userName}!</h2>
+                    <p className="opacity-80 max-w-lg">
+                        {welcomeMessage}
                     </p>
                   </div>
                 </>
