@@ -22,10 +22,16 @@ export default function LoginForm() {
 
   const handleAuthError = (error: any) => {
     console.error("Authentication error:", error);
+    let description = "An unknown error occurred. Please try again.";
+    if (error.code === 'auth/unauthorized-domain') {
+      description = "This domain is not authorized for authentication. Please add it to the authorized domains in your Firebase console.";
+    } else if (error.message) {
+      description = error.message;
+    }
     toast({
       variant: "destructive",
       title: "Authentication Failed",
-      description: error.message || "An unknown error occurred. Please try again.",
+      description: description,
     });
   };
 
