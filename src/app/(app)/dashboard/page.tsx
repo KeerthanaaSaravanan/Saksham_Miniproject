@@ -175,19 +175,7 @@ export default function DashboardPage() {
     return PlaceHolderImages.find(img => img.id === subjectId)?.imageUrl || 'https://picsum.photos/seed/placeholder/600/400';
   };
 
-  const handleSignOut = () => {
-    if (auth) {
-      auth.signOut();
-    }
-    router.push('/');
-  };
-
   const userName = user?.displayName || 'Student';
-  const userInitial =
-    userName
-      .split(' ')
-      .map((n) => n[0])
-      .join('') || 'U';
   const isLoading = isUserLoading || isProfileLoading;
 
   return (
@@ -210,41 +198,6 @@ export default function DashboardPage() {
                 </>
               )}
             </div>
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Avatar className="h-12 w-12 cursor-pointer border-2 border-white/50">
-                  {isLoading ? (
-                    <Skeleton className="h-12 w-12 rounded-full" />
-                  ) : (
-                    <>
-                      <AvatarImage src={user?.photoURL || ''} alt={userName} />
-                      <AvatarFallback>{userInitial}</AvatarFallback>
-                    </>
-                  )}
-                </Avatar>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent className="w-56" align="end">
-                <DropdownMenuLabel>My Account</DropdownMenuLabel>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem
-                  onClick={() => router.push('/settings/profile')}
-                >
-                  <User className="mr-2 h-4 w-4" />
-                  <span>Profile Settings</span>
-                </DropdownMenuItem>
-                <DropdownMenuItem
-                  onClick={() => router.push('/settings/accessibility')}
-                >
-                  <Settings className="mr-2 h-4 w-4" />
-                  <span>Accessibility</span>
-                </DropdownMenuItem>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={handleSignOut}>
-                  <LogOut className="mr-2 h-4 w-4" />
-                  <span>Log out</span>
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
           </div>
           { !isLoading && grade &&
             <div className="mt-6 flex gap-2">
