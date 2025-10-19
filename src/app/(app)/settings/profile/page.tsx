@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useState, useRef, useCallback, useEffect } from 'react';
@@ -154,10 +155,16 @@ export default function ProfileSettingsPage() {
             description: 'Your new photo has been saved.',
         });
     } catch (error: any) {
+        let description = 'An unknown error occurred. Please try again.';
+        if (error.code === 'auth/network-request-failed') {
+          description = 'A network error occurred. Please check your connection and ensure this domain is added to the authorized domains in your Firebase console.';
+        } else if (error.message) {
+          description = error.message;
+        }
         toast({
             variant: 'destructive',
             title: 'Photo Update Failed',
-            description: error.message,
+            description: description,
         });
     } finally {
         setIsPhotoSaving(false);
