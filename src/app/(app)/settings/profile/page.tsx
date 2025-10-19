@@ -13,7 +13,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { User, GraduationCap, Save, Loader2 } from 'lucide-react';
+import { User, GraduationCap, Save, Loader2, Image as ImageIcon } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import {
   Select,
@@ -27,6 +27,7 @@ import { updateProfile } from 'firebase/auth';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { Skeleton } from '@/components/ui/skeleton';
 import { avatars } from '@/lib/avatars';
+import { AvatarSelector } from '@/components/AvatarSelector';
 
 const gradeConfig = {
   'Class 6': { subjects: true },
@@ -48,20 +49,20 @@ export default function ProfileSettingsPage() {
   const [name, setName] = useState('');
   const [grade, setGrade] = useState('');
   const [stream, setStream] = useState('');
+  const [currentAvatarUrl, setCurrentAvatarUrl] = useState(avatars[0].url);
   const [isSaving, setIsSaving] = useState(false);
+  const [isPhotoSaving, setIsPhotoSaving] = useState(false);
   const [isProfileLoading, setIsProfileLoading] = useState(true);
-  
-  // Use a static default avatar
-  const defaultAvatar = avatars[0].url;
 
   const { toast } = useToast();
 
   useEffect(() => {
     if (user && firestore) {
-      setName(user.displayName || '');
-      
       const fetchUserProfile = async () => {
         setIsProfileLoading(true);
+        setName(user.displayName || '');
+        setCurrentAvatarUrl(user.photoURL || avatars[0].url);
+        
         const userDocRef = doc(firestore, 'users', user.uid);
         try {
             const userDocSnap = await getDoc(userDocRef);
@@ -100,20 +101,18 @@ export default function ProfileSettingsPage() {
     setIsSaving(true);
     
     try {
-      // We are only updating the displayName, grade and stream now.
-      await updateProfile(user, {
-        displayName: name,
-      });
+      await updateProfile(user, { displayName: name });
 
       const userDocRef = doc(firestore, "users", user.uid);
       await setDoc(userDocRef, {
+          displayName: name,
           grade: grade,
           stream: stream,
       }, { merge: true });
 
       toast({
         title: 'Profile Updated',
-        description: 'Your changes have been saved successfully.',
+        description: 'Your personal information has been saved.',
       });
     } catch (error: any) {
        toast({
@@ -123,6 +122,37 @@ export default function ProfileSettingsPage() {
       });
     } finally {
       setIsSaving(false);
+    }
+  };
+
+  const handleSavePhoto = async () => {
+    if (!user) {
+        toast({ variant: 'destructive', title: 'Not authenticated' });
+        return;
+    }
+    setIsPhotoSaving(true);
+    try {
+        await updateProfile(user, {
+            photoURL: currentAvatarUrl,
+        });
+        toast({
+            title: 'Avatar Updated!',
+            description: 'Your new profile picture has been saved.',
+        });
+    } catch (error: any) {
+        let description = 'An unknown error occurred.';
+        if (error.code === 'auth/network-request-failed') {
+            description = 'Network error. Please check your connection or authorize this domain in your Firebase console.';
+        } else {
+            description = error.message;
+        }
+        toast({
+            variant: 'destructive',
+            title: 'Photo Upload Failed',
+            description,
+        });
+    } finally {
+        setIsPhotoSaving(false);
     }
   };
   
@@ -143,7 +173,7 @@ export default function ProfileSettingsPage() {
             <CardHeader>
               <CardTitle>Profile Picture</CardTitle>
               <CardDescription>
-                This is your current avatar.
+                Select a new avatar for your profile.
               </CardDescription>
             </CardHeader>
             <CardContent className="flex flex-col items-center gap-6">
@@ -151,16 +181,32 @@ export default function ProfileSettingsPage() {
                  <Skeleton className="w-32 h-32 rounded-full" />
               ) : (
                 <Avatar className="w-32 h-32 border-4 border-primary/20">
-                  <AvatarImage src={user?.photoURL || defaultAvatar} alt={name} />
+                  <AvatarImage src={currentAvatarUrl} alt={name} />
                   <AvatarFallback className="text-4xl">
                     {userInitial}
                   </AvatarFallback>
                 </Avatar>
               )}
-                <p className="text-sm text-muted-foreground text-center">
-                    Avatar selection is currently disabled.
-                </p>
+               <AvatarSelector
+                currentAvatarUrl={currentAvatarUrl}
+                onSelect={setCurrentAvatarUrl}
+               />
             </CardContent>
+             <CardFooter>
+              <Button
+                size="lg"
+                onClick={handleSavePhoto}
+                disabled={isPhotoSaving || isLoading}
+                className="w-full"
+              >
+                {isPhotoSaving ? (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                ) : (
+                  <ImageIcon className="mr-2 h-4 w-4" />
+                )}
+                {isPhotoSaving ? 'Saving...' : 'Save Avatar'}
+              </Button>
+            </CardFooter>
           </Card>
         </div>
 
