@@ -228,7 +228,7 @@ export default function ProfileSettingsPage() {
                     <Upload className="mr-2" />
                     Choose a file
                   </Button>
-                  <input
+                  <Input
                     type="file"
                     ref={fileInputRef}
                     className="hidden"
@@ -396,3 +396,4 @@ export default function ProfileSettingsPage() {
   );
 }
 
+    
