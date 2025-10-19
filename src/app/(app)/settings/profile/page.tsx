@@ -1,5 +1,3 @@
-
-
 'use client';
 
 import { useState, useRef, useCallback, useEffect } from 'react';
@@ -36,8 +34,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { useUser } from '@/firebase';
+import { useUser, useFirestore } from '@/firebase';
 import { updateProfile } from 'firebase/auth';
+import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { Skeleton } from '@/components/ui/skeleton';
 
 const gradeConfig = {
@@ -56,6 +55,7 @@ const gradeConfig = {
 
 export default function ProfileSettingsPage() {
   const { user, isUserLoading } = useUser();
+  const firestore = useFirestore();
   const [name, setName] = useState('');
   const [grade, setGrade] = useState('');
   const [stream, setStream] = useState('');
@@ -63,6 +63,7 @@ export default function ProfileSettingsPage() {
   const [newProfileImage, setNewProfileImage] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [isPhotoSaving, setIsPhotoSaving] = useState(false);
+  const [isProfileLoading, setIsProfileLoading] = useState(true);
 
   const [isCameraOn, setIsCameraOn] = useState(false);
   const [cameraError, setCameraError] = useState<string | null>(null);
@@ -73,13 +74,27 @@ export default function ProfileSettingsPage() {
   const { toast } = useToast();
 
   useEffect(() => {
-    if (user) {
+    if (user && firestore) {
       setName(user.displayName || '');
       setProfileImage(user.photoURL || `https://picsum.photos/seed/${user.uid}/128/128`);
-      // In a real app, you'd fetch grade/stream from your Firestore user profile document
-      setGrade('Class 10'); // Placeholder
+      
+      const fetchUserProfile = async () => {
+        setIsProfileLoading(true);
+        const userDocRef = doc(firestore, 'users', user.uid);
+        const userDocSnap = await getDoc(userDocRef);
+        if (userDocSnap.exists()) {
+          const userData = userDocSnap.data();
+          setGrade(userData.grade || '');
+          setStream(userData.stream || '');
+        }
+        setIsProfileLoading(false);
+      };
+
+      fetchUserProfile();
+    } else if (!isUserLoading) {
+        setIsProfileLoading(false);
     }
-  }, [user]);
+  }, [user, firestore, isUserLoading]);
 
   const selectedGradeConfig = gradeConfig[grade as keyof typeof gradeConfig];
   
@@ -172,8 +187,8 @@ export default function ProfileSettingsPage() {
   };
 
   const handleSaveChanges = async () => {
-    if (!user) {
-      toast({ variant: 'destructive', title: 'Not authenticated' });
+    if (!user || !firestore) {
+      toast({ variant: 'destructive', title: 'Not authenticated or database not ready' });
       return;
     }
     setIsSaving(true);
@@ -183,8 +198,11 @@ export default function ProfileSettingsPage() {
         displayName: name,
       });
 
-      // Also update grade/stream in your Firestore database here.
-      console.log('Saving profile info:', { name, grade, stream });
+      const userDocRef = doc(firestore, "users", user.uid);
+      await setDoc(userDocRef, {
+          grade: grade,
+          stream: stream,
+      }, { merge: true });
 
       toast({
         title: 'Profile Updated',
@@ -351,7 +369,7 @@ export default function ProfileSettingsPage() {
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
-               {isUserLoading ? (
+               {isUserLoading || isProfileLoading ? (
                 <div className="space-y-6">
                   <div className="space-y-2">
                     <Skeleton className="h-4 w-20" />
@@ -424,7 +442,7 @@ export default function ProfileSettingsPage() {
               <Button
                 size="lg"
                 onClick={handleSaveChanges}
-                disabled={isSaving || isUserLoading}
+                disabled={isSaving || isUserLoading || isProfileLoading}
               >
                 {isSaving ? (
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />

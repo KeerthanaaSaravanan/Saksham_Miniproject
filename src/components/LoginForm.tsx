@@ -15,6 +15,8 @@ import { useToast } from '@/hooks/use-toast';
 import { Loader2 } from 'lucide-react';
 import Link from 'next/link';
 import StudentDetailsForm from './StudentDetailsForm';
+import { doc, setDoc } from 'firebase/firestore';
+import { useFirestore } from '@/firebase';
 
 export default function LoginForm() {
   const [email, setEmail] = useState('');
@@ -24,6 +26,7 @@ export default function LoginForm() {
   const router = useRouter();
   const auth = useAuth();
   const { user } = useUser();
+  const firestore = useFirestore();
   const { toast } = useToast();
 
   const handleAuthError = (error: any) => {
@@ -109,15 +112,21 @@ export default function LoginForm() {
   };
 
   const onDetailsComplete = async (details: {name: string, grade: string, stream: string}) => {
-    if (!user) {
-        toast({ variant: 'destructive', title: 'Error', description: 'No authenticated user found.' });
+    if (!user || !firestore) {
+        toast({ variant: 'destructive', title: 'Error', description: 'User or database not available.' });
         return;
     }
     try {
         await updateProfile(user, {
             displayName: details.name,
         });
-        // Here you would also save grade/stream to Firestore against the user's UID.
+        
+        const userDocRef = doc(firestore, "users", user.uid);
+        await setDoc(userDocRef, {
+            grade: details.grade,
+            stream: details.stream,
+        }, { merge: true });
+        
         console.log('Student details saved to profile:', details);
         toast({
             title: 'Profile Complete!',
