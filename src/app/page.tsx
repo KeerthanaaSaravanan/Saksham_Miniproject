@@ -3,15 +3,19 @@
 import { useState, useEffect } from 'react';
 import WelcomeSection from '@/components/welcome-section';
 import LoginForm from '@/components/LoginForm';
-import { Eye, GraduationCap, Heart } from 'lucide-react';
+import { AdminLoginForm } from '@/components/AdminLoginForm';
+import { Eye, GraduationCap, Heart, User, Briefcase } from 'lucide-react';
+import { cn } from '@/lib/utils';
+
+type LoginMode = 'student' | 'faculty';
 
 export default function HomePage() {
   const [showWelcome, setShowWelcome] = useState(true);
   const [isClient, setIsClient] = useState(false);
+  const [loginMode, setLoginMode] = useState<LoginMode>('student');
 
   useEffect(() => {
     setIsClient(true);
-    // Auto-hide welcome after 4 seconds
     const timer = setTimeout(() => {
       setShowWelcome(false);
     }, 4000);
@@ -45,7 +49,7 @@ export default function HomePage() {
         ></div>
       </div>
       <div className="relative w-full max-w-6xl mx-auto grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-12 items-center">
-        <div className="text-center lg:text-left space-y-8">
+        <div className="text-center lg:text-left space-y-8 animate-fade-in">
           <div className="space-y-4">
             <div className="flex items-center justify-center lg:justify-start space-x-3">
               <div className="w-12 h-12 bg-gradient-to-r from-primary to-accent rounded-xl flex items-center justify-center shadow-lg animate-pulse">
@@ -110,8 +114,30 @@ export default function HomePage() {
           </div>
         </div>
 
-        <div className="w-full max-w-sm mx-auto">
-           <LoginForm />
+        <div className="w-full max-w-md mx-auto">
+           <div className="bg-card rounded-2xl shadow-xl border p-1.5 flex gap-1.5 mb-4">
+            <button
+                onClick={() => setLoginMode('student')}
+                className={cn(
+                    "w-full flex items-center justify-center gap-2 rounded-xl py-2.5 text-sm font-medium transition-colors",
+                    loginMode === 'student' ? 'bg-primary text-primary-foreground shadow' : 'hover:bg-muted/50'
+                )}
+            >
+                <User className="h-4 w-4" />
+                Student
+            </button>
+            <button
+                onClick={() => setLoginMode('faculty')}
+                className={cn(
+                    "w-full flex items-center justify-center gap-2 rounded-xl py-2.5 text-sm font-medium transition-colors",
+                    loginMode === 'faculty' ? 'bg-primary text-primary-foreground shadow' : 'hover:bg-muted/50'
+                )}
+            >
+                <Briefcase className="h-4 w-4" />
+                Faculty
+            </button>
+           </div>
+           {loginMode === 'student' ? <LoginForm /> : <AdminLoginForm />}
         </div>
       </div>
     </div>
