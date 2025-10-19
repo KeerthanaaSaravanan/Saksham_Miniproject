@@ -10,6 +10,7 @@ import {
   ChevronRight,
   ClipboardList,
   Target,
+  TrendingUp,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
@@ -39,6 +40,8 @@ import { getSubjectsForGrade, SubjectCategory } from '@/lib/subjects';
 import { useCollection } from '@/firebase/firestore/use-collection';
 import Image from 'next/image';
 import { PlaceHolderImages } from '@/lib/placeholder-images';
+import { Bar, BarChart, ResponsiveContainer, XAxis, YAxis, Tooltip } from "recharts"
+import { ChartConfig, ChartContainer, ChartTooltipContent } from '@/components/ui/chart';
 
 interface Exam {
   id: string;
@@ -55,6 +58,23 @@ interface AccessibilityProfile {
   sld?: boolean;
   cognitive?: boolean;
 }
+
+const chartData = [
+  { month: "January", desktop: 186 },
+  { month: "February", desktop: 305 },
+  { month: "March", desktop: 237 },
+  { month: "April", desktop: 73 },
+  { month: "May", desktop: 209 },
+  { month: "June", desktop: 214 },
+]
+
+const chartConfig = {
+  desktop: {
+    label: "Score",
+    color: "hsl(var(--primary))",
+  },
+} satisfies ChartConfig
+
 
 const getPersonalizedGreeting = (name: string, profile?: AccessibilityProfile): string => {
     if (!profile) {
@@ -298,26 +318,55 @@ export default function DashboardPage() {
         </section>
 
         <section className="mt-8">
-          <h3 className="text-xl font-bold text-foreground mb-4">My Performance</h3>
-           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <Card className="bg-card/80 border">
-                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                        <CardTitle className="text-sm font-medium">Completed Exams</CardTitle>
-                        <ClipboardList className="h-4 w-4 text-muted-foreground" />
+          <h3 className="text-xl font-bold text-foreground mb-4">Progress & Improvement</h3>
+           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <Card className="lg:col-span-2 bg-card/80 border">
+                    <CardHeader>
+                        <CardTitle>Recent Performance</CardTitle>
+                        <CardDescription>Your scores from the last 6 assessments.</CardDescription>
                     </CardHeader>
                     <CardContent>
-                        <p className="text-xs text-muted-foreground">No results yet. Complete an exam to see your performance.</p>
+                         <ChartContainer config={chartConfig} className="h-[250px] w-full">
+                            <BarChart accessibilityLayer data={chartData}>
+                                <XAxis
+                                    dataKey="month"
+                                    tickLine={false}
+                                    tickMargin={10}
+                                    axisLine={false}
+                                    tickFormatter={(value) => value.slice(0, 3)}
+                                />
+                                <YAxis />
+                                <ChartTooltip content={<ChartTooltipContent />} />
+                                <Bar dataKey="desktop" fill="var(--color-desktop)" radius={4} />
+                            </BarChart>
+                        </ChartContainer>
                     </CardContent>
                 </Card>
-                 <Card className="bg-card/80 border">
-                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                        <CardTitle className="text-sm font-medium">Practice Test Scores</CardTitle>
-                        <Target className="h-4 w-4 text-muted-foreground" />
-                    </CardHeader>
-                    <CardContent>
-                        <p className="text-xs text-muted-foreground">No practice tests taken yet. Head to the practice zone!</p>
-                    </CardContent>
-                </Card>
+                 <div className="space-y-6">
+                    <Card className="bg-card/80 border">
+                        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                            <CardTitle className="text-sm font-medium">Average Score</CardTitle>
+                            <TrendingUp className="h-4 w-4 text-muted-foreground" />
+                        </CardHeader>
+                        <CardContent>
+                            <div className="text-2xl font-bold">82%</div>
+                            <p className="text-xs text-muted-foreground">+5% from last month</p>
+                        </CardContent>
+                    </Card>
+                    <Card className="bg-card/80 border">
+                        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                            <CardTitle className="text-sm font-medium">Improvement Areas</CardTitle>
+                            <Brain className="h-4 w-4 text-muted-foreground" />
+                        </CardHeader>
+                        <CardContent>
+                           <div className="flex flex-col space-y-1 mt-2">
+                             <p className="text-sm font-medium">∙ Algebra II</p>
+                             <p className="text-sm font-medium">∙ Organic Chemistry</p>
+                             <p className="text-sm font-medium">∙ Data Structures</p>
+                           </div>
+                        </CardContent>
+                    </Card>
+                 </div>
            </div>
         </section>
       </main>
