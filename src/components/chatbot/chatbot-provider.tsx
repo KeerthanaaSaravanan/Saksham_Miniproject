@@ -2,7 +2,6 @@
 
 import React, { createContext, useState, useContext } from 'react';
 import { Chatbot } from './chatbot';
-import { ChatbotToggle } from './chatbot-toggle';
 
 interface ChatbotContextType {
   isOpen: boolean;
@@ -26,7 +25,6 @@ export function ChatbotProvider({ children }: { children: React.ReactNode }) {
     <ChatbotContext.Provider value={{ isOpen, setIsOpen }}>
       {children}
       <Chatbot />
-      <ChatbotToggle />
     </ChatbotContext.Provider>
   );
 }
