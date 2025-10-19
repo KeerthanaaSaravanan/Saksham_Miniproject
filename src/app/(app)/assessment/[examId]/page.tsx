@@ -4,8 +4,8 @@ import {
   useToast,
 } from '@/components/ui/use-toast';
 import { Loader2 } from 'lucide-react';
-import { useState, useEffect, useCallback } from 'react';
-import { useUser, useFirestore, errorEmitter, FirestorePermissionError } from '@/firebase';
+import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useUser, useFirestore, errorEmitter, FirestorePermissionError, useMemoFirebase } from '@/firebase';
 import { collection, doc, Timestamp, getDocs, writeBatch, serverTimestamp } from 'firebase/firestore';
 import { ExamLayout } from '@/components/layout/exam-layout';
 import { useDoc } from '@/firebase/firestore/use-doc';
@@ -41,7 +41,7 @@ export default function AssessmentPage({ params }: { params: { examId: string }}
   const { user } = useUser();
   const firestore = useFirestore();
 
-  const examRef = useMemo(() => {
+  const examRef = useMemoFirebase(() => {
     if (!firestore || !params.examId) return null;
     return doc(firestore, 'exams', params.examId);
   }, [firestore, params.examId]);
