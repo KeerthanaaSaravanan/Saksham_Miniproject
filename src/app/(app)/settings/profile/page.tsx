@@ -57,8 +57,8 @@ export default function ProfileSettingsPage() {
   const { toast } = useToast();
 
   useEffect(() => {
-    // Only proceed if user and firestore are available
-    if (user && firestore) {
+    // Only proceed if user is loaded and firestore is available
+    if (!isUserLoading && user && firestore) {
       const fetchUserProfile = async () => {
         setIsProfileLoading(true);
         setName(user.displayName || '');
@@ -77,7 +77,7 @@ export default function ProfileSettingsPage() {
             toast({
                 variant: 'destructive',
                 title: 'Could not load profile',
-                description: error.code === 'unavailable' ? 'Could not connect to the database. Please check your connection.' : 'An error occurred while loading your profile.',
+                description: 'An error occurred while loading your profile.',
             })
         } finally {
             setIsProfileLoading(false);
@@ -85,15 +85,8 @@ export default function ProfileSettingsPage() {
       };
 
       fetchUserProfile();
-    } else if (!isUserLoading && !firestore) { // If not loading and firestore is missing
-        setIsProfileLoading(false);
-        toast({
-            variant: 'destructive',
-            title: 'Database connection not available',
-            description: 'Could not connect to Firestore. Please try again later.',
-        });
-    } else if (!isUserLoading) { // If not loading and user is null
-        setIsProfileLoading(false);
+    } else if (!isUserLoading) { // If not loading and user is null, or firestore is null
+        setIsProfileLoading(false); // Stop loading as there's nothing to fetch
     }
   }, [user, firestore, isUserLoading, toast]);
 
