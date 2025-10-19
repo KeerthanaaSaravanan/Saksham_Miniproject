@@ -30,49 +30,50 @@ export default function DashboardPage() {
   return (
     <div className="space-y-8 text-foreground">
        <main>
-        <div className="bg-gradient-to-r from-primary to-accent p-8 rounded-xl relative overflow-hidden text-white shadow-lg flex justify-between items-center">
-          <div className="flex items-center gap-4">
-            <div className="text-3xl">👋</div>
-            <div>
-              <h2 className="text-3xl font-bold">Hello Arjun Sharma!</h2>
-              <p className="opacity-80">Your AI learning companion has fine-tuned your interface for optimal clarity and comfort.</p>
+        <div className="bg-gradient-to-r from-primary to-accent p-8 rounded-xl relative overflow-hidden text-white shadow-lg">
+          <div className="flex justify-between items-start">
+            <div className="flex items-center gap-4">
+              <div className="text-3xl">👋</div>
+              <div>
+                <h2 className="text-3xl font-bold">Hello Arjun Sharma!</h2>
+                <p className="opacity-80">Your AI learning companion has fine-tuned your interface for optimal clarity and comfort.</p>
+              </div>
             </div>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                  <Avatar className="h-12 w-12 cursor-pointer border-2 border-white/50">
+                      <AvatarImage src="https://picsum.photos/seed/arjun/64/64" alt="Arjun Sharma" />
+                      <AvatarFallback>AS</AvatarFallback>
+                  </Avatar>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent className="w-56" align="end">
+                  <DropdownMenuLabel>My Account</DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem>
+                      <Upload className="mr-2 h-4 w-4" />
+                      <span>Change Photo</span>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem>
+                      <User className="mr-2 h-4 w-4" />
+                      <span>Update Name</span>
+                  </DropdownMenuItem>
+                   <DropdownMenuItem>
+                      <GraduationCap className="mr-2 h-4 w-4" />
+                      <span>Change Grade</span>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => router.push('/settings/accessibility')}>
+                      <Settings className="mr-2 h-4 w-4" />
+                      <span>Accessibility</span>
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={handleSignOut}>
+                      <LogOut className="mr-2 h-4 w-4" />
+                      <span>Log out</span>
+                  </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-                <Avatar className="h-12 w-12 cursor-pointer border-2 border-white/50">
-                    <AvatarImage src="https://picsum.photos/seed/arjun/64/64" alt="Arjun Sharma" />
-                    <AvatarFallback>AS</AvatarFallback>
-                </Avatar>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent className="w-56" align="end">
-                <DropdownMenuLabel>My Account</DropdownMenuLabel>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem>
-                    <Upload className="mr-2 h-4 w-4" />
-                    <span>Change Photo</span>
-                </DropdownMenuItem>
-                <DropdownMenuItem>
-                    <User className="mr-2 h-4 w-4" />
-                    <span>Update Name</span>
-                </DropdownMenuItem>
-                 <DropdownMenuItem>
-                    <GraduationCap className="mr-2 h-4 w-4" />
-                    <span>Change Grade</span>
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => router.push('/settings/accessibility')}>
-                    <Settings className="mr-2 h-4 w-4" />
-                    <span>Accessibility</span>
-                </DropdownMenuItem>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={handleSignOut}>
-                    <LogOut className="mr-2 h-4 w-4" />
-                    <span>Log out</span>
-                </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        </div>
-        <div className="mt-6 grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
+          <div className="mt-6 grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
             <div className="bg-white/20 p-4 rounded-lg flex items-center gap-3">
               <Brain className="w-5 h-5"/>
               <span>AI Optimization <br/> 5 modules active</span>
@@ -86,6 +87,7 @@ export default function DashboardPage() {
               <span>Voice Assistant <br/> Always listening</span>
             </div>
           </div>
+        </div>
 
         <section className="mt-8">
           <h3 className="text-xl font-bold mb-4 text-foreground">AI-Enhanced Academic Journey</h3>
