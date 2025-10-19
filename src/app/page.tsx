@@ -1,8 +1,17 @@
+'use client';
+import { useState } from 'react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { School, LogIn, Sparkles } from 'lucide-react';
+import WelcomeSection from '@/components/welcome-section';
 
 export default function LandingPage() {
+  const [showWelcome, setShowWelcome] = useState(true);
+
+  if (showWelcome) {
+    return <WelcomeSection onComplete={() => setShowWelcome(false)} />;
+  }
+  
   return (
     <div className="flex flex-col min-h-screen">
       <header className="px-4 lg:px-6 h-16 flex items-center bg-card border-b">
