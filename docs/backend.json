@@ -1,0 +1,444 @@
+{
+  "entities": {
+    "User": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "User",
+      "type": "object",
+      "description": "Represents a user in the Saksham application.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the User entity."
+        },
+        "firebaseUid": {
+          "type": "string",
+          "description": "The unique user ID provided by Firebase Authentication."
+        },
+        "email": {
+          "type": "string",
+          "description": "User's email address.",
+          "format": "email"
+        },
+        "displayName": {
+          "type": "string",
+          "description": "User's display name."
+        },
+        "photoURL": {
+          "type": "string",
+          "description": "URL of the user's profile picture.",
+          "format": "uri"
+        },
+        "disabled": {
+          "type": "boolean",
+          "description": "Indicates if the user account is disabled."
+        },
+        "role": {
+          "type": "string",
+          "description": "User's role within the application (e.g., student, teacher, admin)."
+        },
+        "gradeLevel": {
+          "type": "string",
+          "description": "The grade level of the user."
+        }
+      },
+      "required": [
+        "id",
+        "firebaseUid",
+        "email",
+        "displayName",
+        "role"
+      ]
+    },
+    "LearningModule": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "LearningModule",
+      "type": "object",
+      "description": "Represents a learning module within the Saksham application.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the LearningModule entity."
+        },
+        "title": {
+          "type": "string",
+          "description": "Title of the learning module."
+        },
+        "description": {
+          "type": "string",
+          "description": "Description of the learning module."
+        },
+        "contentURL": {
+          "type": "string",
+          "description": "URL to the learning module content.",
+          "format": "uri"
+        },
+        "format": {
+          "type": "string",
+          "description": "Format of the learning module (e.g., audio, video, text)."
+        },
+        "gradeLevel": {
+          "type": "string",
+          "description": "Grade level for which the learning module is designed."
+        },
+        "subject": {
+          "type": "string",
+          "description": "Subject of the learning module."
+        }
+      },
+      "required": [
+        "id",
+        "title",
+        "contentURL",
+        "format",
+        "gradeLevel",
+        "subject"
+      ]
+    },
+    "Exam": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Exam",
+      "type": "object",
+      "description": "Represents an exam or assessment.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the Exam entity."
+        },
+        "title": {
+          "type": "string",
+          "description": "Title of the exam."
+        },
+        "description": {
+          "type": "string",
+          "description": "Description of the exam."
+        },
+        "startTime": {
+          "type": "string",
+          "description": "Date and time when the exam starts.",
+          "format": "date-time"
+        },
+        "endTime": {
+          "type": "string",
+          "description": "Date and time when the exam ends.",
+          "format": "date-time"
+        },
+        "gradeLevel": {
+          "type": "string",
+          "description": "Grade level for which the exam is designed."
+        },
+        "subject": {
+          "type": "string",
+          "description": "Subject of the exam."
+        }
+      },
+      "required": [
+        "id",
+        "title",
+        "startTime",
+        "endTime",
+        "gradeLevel",
+        "subject"
+      ]
+    },
+    "Question": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Question",
+      "type": "object",
+      "description": "Represents a question within an exam.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the Question entity."
+        },
+        "examId": {
+          "type": "string",
+          "description": "Reference to Exam. (Relationship: Exam 1:N Question)"
+        },
+        "text": {
+          "type": "string",
+          "description": "Text of the question."
+        },
+        "type": {
+          "type": "string",
+          "description": "Type of question (e.g., multiple choice, true/false)."
+        },
+        "difficulty": {
+          "type": "string",
+          "description": "Difficulty level of the question."
+        },
+        "correctAnswer": {
+          "type": "string",
+          "description": "Correct answer to the question."
+        }
+      },
+      "required": [
+        "id",
+        "examId",
+        "text",
+        "type",
+        "difficulty",
+        "correctAnswer"
+      ]
+    },
+    "StudentExamAttempt": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "StudentExamAttempt",
+      "type": "object",
+      "description": "Represents a student's attempt at an exam.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the StudentExamAttempt entity."
+        },
+        "userId": {
+          "type": "string",
+          "description": "Reference to User. (Relationship: User 1:N StudentExamAttempt)"
+        },
+        "examId": {
+          "type": "string",
+          "description": "Reference to Exam. (Relationship: Exam 1:N StudentExamAttempt)"
+        },
+        "startTime": {
+          "type": "string",
+          "description": "Date and time when the student started the exam.",
+          "format": "date-time"
+        },
+        "endTime": {
+          "type": "string",
+          "description": "Date and time when the student finished the exam.",
+          "format": "date-time"
+        },
+        "score": {
+          "type": "number",
+          "description": "Student's score on the exam."
+        }
+      },
+      "required": [
+        "id",
+        "userId",
+        "examId",
+        "startTime",
+        "endTime",
+        "score"
+      ]
+    },
+    "StudentAnswer": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "StudentAnswer",
+      "type": "object",
+      "description": "Represents a student's answer to a question in an exam attempt.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the StudentAnswer entity."
+        },
+        "studentExamAttemptId": {
+          "type": "string",
+          "description": "Reference to StudentExamAttempt. (Relationship: StudentExamAttempt 1:N StudentAnswer)"
+        },
+        "questionId": {
+          "type": "string",
+          "description": "Reference to Question. (Relationship: Question 1:N StudentAnswer)"
+        },
+        "answer": {
+          "type": "string",
+          "description": "Student's answer to the question."
+        },
+        "isCorrect": {
+          "type": "boolean",
+          "description": "Indicates if the student's answer is correct."
+        }
+      },
+      "required": [
+        "id",
+        "studentExamAttemptId",
+        "questionId",
+        "answer",
+        "isCorrect"
+      ]
+    },
+    "AccessibilityProfile": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "AccessibilityProfile",
+      "type": "object",
+      "description": "Represents a user's accessibility profile, detailing specific needs and preferences.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the AccessibilityProfile entity."
+        },
+        "userId": {
+          "type": "string",
+          "description": "Reference to User. (Relationship: User 1:1 AccessibilityProfile)"
+        },
+        "visualNeeds": {
+          "type": "string",
+          "description": "Description of visual accessibility needs."
+        },
+        "hearingNeeds": {
+          "type": "string",
+          "description": "Description of auditory accessibility needs."
+        },
+        "motorNeeds": {
+          "type": "string",
+          "description": "Description of motor accessibility needs."
+        },
+        "cognitiveNeeds": {
+          "type": "string",
+          "description": "Description of cognitive accessibility needs."
+        },
+        "preferredInterface": {
+          "type": "string",
+          "description": "User's preferred interface configuration."
+        }
+      },
+      "required": [
+        "id",
+        "userId"
+      ]
+    }
+  },
+  "auth": {
+    "providers": [
+      "password",
+      "anonymous"
+    ]
+  },
+  "firestore": {
+    "structure": [
+      {
+        "path": "/users/{userId}",
+        "definition": {
+          "entityName": "User",
+          "schema": {
+            "$ref": "#/backend/entities/User"
+          },
+          "description": "Stores user profile information. Path-based ownership enforced for private user data.",
+          "params": [
+            {
+              "name": "userId",
+              "description": "The Firebase UID of the user."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/learning_modules/{learningModuleId}",
+        "definition": {
+          "entityName": "LearningModule",
+          "schema": {
+            "$ref": "#/backend/entities/LearningModule"
+          },
+          "description": "Stores learning modules accessible by grade level. Includes 'gradeLevel' for secure list operations (QAPs).",
+          "params": [
+            {
+              "name": "learningModuleId",
+              "description": "Unique identifier for the learning module."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/exams/{examId}",
+        "definition": {
+          "entityName": "Exam",
+          "schema": {
+            "$ref": "#/backend/entities/Exam"
+          },
+          "description": "Stores exam information. Includes 'gradeLevel' for secure list operations (QAPs).",
+          "params": [
+            {
+              "name": "examId",
+              "description": "Unique identifier for the exam."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/exams/{examId}/questions/{questionId}",
+        "definition": {
+          "entityName": "Question",
+          "schema": {
+            "$ref": "#/backend/entities/Question"
+          },
+          "description": "Stores questions associated with an exam. (Exam 1:N Question)",
+          "params": [
+            {
+              "name": "examId",
+              "description": "Reference to Exam."
+            },
+            {
+              "name": "questionId",
+              "description": "Unique identifier for the question."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/users/{userId}/exam_attempts/{studentExamAttemptId}",
+        "definition": {
+          "entityName": "StudentExamAttempt",
+          "schema": {
+            "$ref": "#/backend/entities/StudentExamAttempt"
+          },
+          "description": "Stores student exam attempts. (User 1:N StudentExamAttempt).",
+          "params": [
+            {
+              "name": "userId",
+              "description": "The Firebase UID of the user."
+            },
+            {
+              "name": "studentExamAttemptId",
+              "description": "Unique identifier for the student exam attempt."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/users/{userId}/exam_attempts/{studentExamAttemptId}/answers/{studentAnswerId}",
+        "definition": {
+          "entityName": "StudentAnswer",
+          "schema": {
+            "$ref": "#/backend/entities/StudentAnswer"
+          },
+          "description": "Stores student answers for a specific exam attempt. (StudentExamAttempt 1:N StudentAnswer).",
+          "params": [
+            {
+              "name": "userId",
+              "description": "The Firebase UID of the user."
+            },
+            {
+              "name": "studentExamAttemptId",
+              "description": "Unique identifier for the student exam attempt."
+            },
+            {
+              "name": "studentAnswerId",
+              "description": "Unique identifier for the student answer."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/users/{userId}/accessibility_profile/{accessibilityProfileId}",
+        "definition": {
+          "entityName": "AccessibilityProfile",
+          "schema": {
+            "$ref": "#/backend/entities/AccessibilityProfile"
+          },
+          "description": "Stores user's accessibility profile. (User 1:1 AccessibilityProfile)",
+          "params": [
+            {
+              "name": "userId",
+              "description": "The Firebase UID of the user."
+            },
+            {
+              "name": "accessibilityProfileId",
+              "description": "Unique identifier for the accessibility profile."
+            }
+          ]
+        }
+      }
+    ],
+    "reasoning": "This Firestore structure is designed to support the Saksham application's core features, focusing on accessibility, personalized learning, and secure exam administration. The structure emphasizes authorization independence and adheres to QAPs.  \n\n**Authorization Independence (Denormalization):**\n\n*   `StudentExamAttempt` includes `userId` and `examId`. `StudentAnswer` includes `studentExamAttemptId` and `questionId`. This denormalization avoids the need for `get()` calls in security rules to validate ownership or access rights, ensuring atomic operations.\n*   `LearningModule` and `Exam` store `gradeLevel`. This denormalization enables secure list operations (QAPs) by allowing queries filtered by `gradeLevel` without requiring client-side filtering.\n\n**Structural Segregation:**\n\n*   User profiles (`/users/{userId}`) are separated from learning modules and exams, ensuring that user-specific data is isolated and access-controlled.\n\n**Access Modeling:**\n\n*   Private User Data: User profiles are stored under `/users/{userId}`, providing path-based ownership for private data.\n*   Hierarchical Ownership:  Student exam attempts and student answers are nested under `/users/{userId}` to represent the user's activity and ownership. This structure facilitates secure access rules based on user IDs.\n\n**QAPs (Rules are not Filters):**\n\n*   Storing `gradeLevel` within `LearningModule` and `Exam` enables secure list operations. Security rules can validate access based on the user's `gradeLevel` without needing to fetch individual documents.\n\n**Invariants:**\n\n*   The structure supports integrity by organizing related data hierarchically. For instance, answers are stored within student attempts, ensuring that answers are always associated with a valid attempt and exam."
+  }
+}
