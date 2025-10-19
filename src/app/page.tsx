@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import WelcomeSection from '@/components/welcome-section';
 import LoginForm from '@/components/LoginForm';
 import { AdminLoginForm } from '@/components/AdminLoginForm';
-import { Eye, GraduationCap, Heart, User, Briefcase } from 'lucide-react';
+import { Brain, GraduationCap, Mic, User, Briefcase, CheckSquare } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 type LoginMode = 'student' | 'faculty';
@@ -81,28 +81,28 @@ export default function HomePage() {
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 max-w-lg mx-auto lg:mx-0">
             <div className="flex flex-col items-center lg:items-start space-y-2 p-3 bg-card rounded-lg border hover:shadow-md transition-all duration-200">
               <div className="w-10 h-10 bg-primary/10 rounded-lg flex items-center justify-center">
-                <Eye className="w-5 h-5 text-primary" />
+                <Brain className="w-5 h-5 text-primary" />
               </div>
               <span className="font-inter text-sm text-muted-foreground text-center lg:text-left">
-                AI Vision Assistant
-              </span>
-            </div>
-
-            <div className="flex flex-col items-center lg:items-start space-y-2 p-3 bg-card rounded-lg border hover:shadow-md transition-all duration-200">
-              <div className="w-10 h-10 bg-accent/10 rounded-lg flex items-center justify-center">
-                <Heart className="w-5 h-5 text-accent" />
-              </div>
-              <span className="font-inter text-sm text-muted-foreground text-center lg:text-left">
-                Emotion-Aware AI
+                AI Optimization
               </span>
             </div>
 
             <div className="flex flex-col items-center lg:items-start space-y-2 p-3 bg-card rounded-lg border hover:shadow-md transition-all duration-200">
               <div className="w-10 h-10 bg-blue-500/10 rounded-lg flex items-center justify-center">
-                <GraduationCap className="w-5 h-5 text-blue-500" />
+                <CheckSquare className="w-5 h-5 text-blue-500" />
               </div>
               <span className="font-inter text-sm text-muted-foreground text-center lg:text-left">
                 Smart Proctoring
+              </span>
+            </div>
+            
+            <div className="flex flex-col items-center lg:items-start space-y-2 p-3 bg-card rounded-lg border hover:shadow-md transition-all duration-200">
+              <div className="w-10 h-10 bg-accent/10 rounded-lg flex items-center justify-center">
+                <Mic className="w-5 h-5 text-accent" />
+              </div>
+              <span className="font-inter text-sm text-muted-foreground text-center lg:text-left">
+                Voice Assistant
               </span>
             </div>
           </div>
