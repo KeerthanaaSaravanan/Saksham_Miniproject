@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -35,6 +35,9 @@ import { Loader2, Sparkles } from 'lucide-react';
 import { ExamLayout } from '@/components/layout/exam-layout';
 import type { SelectedExamDetails, AssessmentQuestion } from '@/app/(app)/assessment/[examId]/page';
 import { useRouter } from 'next/navigation';
+import { PracticeResults } from '@/components/PracticeResults';
+import type { PracticeHistoryEntry } from '@/components/PracticeResults';
+
 
 const formSchema = z.object({
   subject: z.string().min(2, 'Subject must be at least 2 characters.'),
@@ -56,9 +59,23 @@ export default function PracticePage() {
   const [isLoading, setIsLoading] = useState(false);
   const [exam, setExam] = useState<SelectedExamDetails | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [history, setHistory] = useState<PracticeHistoryEntry[]>([]);
+  const [isClient, setIsClient] = useState(false);
   const router = useRouter();
 
   const { toast } = useToast();
+
+  useEffect(() => {
+    setIsClient(true);
+    try {
+      const savedHistory = localStorage.getItem('practiceHistory');
+      if (savedHistory) {
+        setHistory(JSON.parse(savedHistory));
+      }
+    } catch (error) {
+      console.error("Could not load practice history from localStorage", error);
+    }
+  }, []);
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -134,15 +151,16 @@ export default function PracticePage() {
         };
         const updatedHistory = [newHistoryEntry, ...existingHistory];
         localStorage.setItem('practiceHistory', JSON.stringify(updatedHistory));
+        setHistory(updatedHistory);
         
         toast({ title: "Exam Submitted!", description: "Your results have been saved." });
-        router.push('/results');
+        setExam(null);
+        router.refresh();
 
     } catch (error) {
         console.error("Failed to save to localStorage", error);
         toast({ variant: 'destructive', title: "Save Failed", description: "Could not save your results." });
     } finally {
-        setExam(null); 
         setIsSubmitting(false);
     }
   }, [exam, isSubmitting, toast, router]);
@@ -159,60 +177,66 @@ export default function PracticePage() {
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex justify-between items-start">
-        <div>
-          <h1 className="text-3xl font-bold font-headline">AI Practice Zone</h1>
-          <p className="text-muted-foreground">
-            Generate custom exams to sharpen your skills.
-          </p>
+    <div className="space-y-8">
+      <div className="space-y-6">
+        <div className="flex justify-between items-start">
+          <div>
+            <h1 className="text-3xl font-bold font-headline">AI Practice Zone</h1>
+            <p className="text-muted-foreground">
+              Generate custom exams to sharpen your skills.
+            </p>
+          </div>
         </div>
+
+        <Card>
+          <Form {...form}>
+            <form onSubmit={form.handleSubmit(onGenerate)}>
+              <CardHeader>
+                <CardTitle>Create a Practice Exam</CardTitle>
+                <CardDescription>
+                  Let AI build a tailored practice session for you.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <FormField control={form.control} name="subject" render={({ field }) => (
+                        <FormItem><FormLabel>Subject</FormLabel><FormControl><Input placeholder="e.g., Biology" {...field} /></FormControl><FormMessage /></FormItem>
+                    )} />
+                    <FormField control={form.control} name="lesson" render={({ field }) => (
+                        <FormItem><FormLabel>Lesson / Topic</FormLabel><FormControl><Input placeholder="e.g., Cell Structure" {...field} /></FormControl><FormMessage /></FormItem>
+                    )} />
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <FormField control={form.control} name="questionType" render={({ field }) => (
+                        <FormItem><FormLabel>Question Type</FormLabel><Select onValueChange={field.onChange} defaultValue={field.value}><FormControl><SelectTrigger><SelectValue placeholder="Select a type" /></SelectTrigger></FormControl><SelectContent>
+                                    <SelectItem value="mcq">Multiple Choice</SelectItem>
+                                    <SelectItem value="fillup">Fill in the Blanks</SelectItem>
+                                    <SelectItem value="short-answer">Short Answer</SelectItem>
+                                    <SelectItem value="long-answer">Long Answer</SelectItem>
+                                </SelectContent></Select><FormMessage /></FormItem>
+                    )} />
+                    <FormField control={form.control} name="questionCount" render={({ field }) => (
+                        <FormItem><FormLabel>Number of Questions</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>
+                    )} />
+                    <FormField control={form.control} name="duration" render={({ field }) => (
+                        <FormItem><FormLabel>Time (minutes)</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>
+                    )} />
+                </div>
+              </CardContent>
+              <CardFooter>
+                <Button type="submit" disabled={isLoading}>
+                  {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Sparkles className="mr-2 h-4 w-4" />}
+                  {isLoading ? 'Generating...' : 'Generate Exam'}
+                </Button>
+              </CardFooter>
+            </form>
+          </Form>
+        </Card>
       </div>
 
-      <Card>
-        <Form {...form}>
-          <form onSubmit={form.handleSubmit(onGenerate)}>
-            <CardHeader>
-              <CardTitle>Create a Practice Exam</CardTitle>
-              <CardDescription>
-                Let AI build a tailored practice session for you.
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <FormField control={form.control} name="subject" render={({ field }) => (
-                      <FormItem><FormLabel>Subject</FormLabel><FormControl><Input placeholder="e.g., Biology" {...field} /></FormControl><FormMessage /></FormItem>
-                  )} />
-                  <FormField control={form.control} name="lesson" render={({ field }) => (
-                      <FormItem><FormLabel>Lesson / Topic</FormLabel><FormControl><Input placeholder="e.g., Cell Structure" {...field} /></FormControl><FormMessage /></FormItem>
-                  )} />
-              </div>
-               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <FormField control={form.control} name="questionType" render={({ field }) => (
-                      <FormItem><FormLabel>Question Type</FormLabel><Select onValueChange={field.onChange} defaultValue={field.value}><FormControl><SelectTrigger><SelectValue placeholder="Select a type" /></SelectTrigger></FormControl><SelectContent>
-                                  <SelectItem value="mcq">Multiple Choice</SelectItem>
-                                  <SelectItem value="fillup">Fill in the Blanks</SelectItem>
-                                  <SelectItem value="short-answer">Short Answer</SelectItem>
-                                  <SelectItem value="long-answer">Long Answer</SelectItem>
-                              </SelectContent></Select><FormMessage /></FormItem>
-                  )} />
-                  <FormField control={form.control} name="questionCount" render={({ field }) => (
-                      <FormItem><FormLabel>Number of Questions</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>
-                  )} />
-                  <FormField control={form.control} name="duration" render={({ field }) => (
-                      <FormItem><FormLabel>Time (minutes)</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>
-                  )} />
-              </div>
-            </CardContent>
-            <CardFooter>
-              <Button type="submit" disabled={isLoading}>
-                {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Sparkles className="mr-2 h-4 w-4" />}
-                {isLoading ? 'Generating...' : 'Generate Exam'}
-              </Button>
-            </CardFooter>
-          </form>
-        </Form>
-      </Card>
+      <div className="mt-12">
+        <PracticeResults history={history} isClient={isClient} />
+      </div>
     </div>
   );
 }
