@@ -1,19 +1,21 @@
 'use client';
 
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import { Card, CardHeader, CardTitle, CardContent, CardFooter } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { Send, User, Bot, Loader2 } from 'lucide-react';
+import { Send, User, Bot, Loader2, Mic, MicOff } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useChatbot } from './chatbot-provider';
 import { getChatbotResponse } from '@/lib/actions/chatbot';
+import { useRouter } from 'next/navigation';
 
 type Message = {
   role: 'user' | 'assistant';
   content: string;
+  isAudio?: boolean;
 };
 
 export function Chatbot() {
@@ -26,7 +28,12 @@ export function Chatbot() {
   ]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [isRecording, setIsRecording] = useState(false);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
+  const recognitionRef = useRef<any>(null);
+  const audioRef = useRef<HTMLAudioElement>(null);
+  const router = useRouter();
+
 
   useEffect(() => {
     if (scrollAreaRef.current) {
@@ -34,11 +41,33 @@ export function Chatbot() {
     }
   }, [messages]);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!input.trim()) return;
+  const handleNavigation = useCallback((path: string) => {
+    router.push(path);
+  },[router]);
 
-    const userMessage: Message = { role: 'user', content: input };
+  const processCommand = useCallback((command: string) => {
+    const lowerCaseCommand = command.toLowerCase();
+    if (lowerCaseCommand.includes('navigate to') || lowerCaseCommand.includes('go to') || lowerCaseCommand.includes('open')) {
+        if(lowerCaseCommand.includes('dashboard')) {
+            handleNavigation('/dashboard');
+        } else if (lowerCaseCommand.includes('assessment')) {
+            handleNavigation('/assessment');
+        } else if (lowerCaseCommand.includes('profile')) {
+            handleNavigation('/profiling');
+        } else if (lowerCaseCommand.includes('admin')) {
+            handleNavigation('/admin/dashboard');
+        }
+    }
+  }, [handleNavigation]);
+
+  const handleSubmit = async (e: React.FormEvent, voiceInput?: string) => {
+    e.preventDefault();
+    const messageContent = voiceInput || input;
+    if (!messageContent.trim()) return;
+
+    processCommand(messageContent);
+
+    const userMessage: Message = { role: 'user', content: messageContent };
     setMessages(prev => [...prev, userMessage]);
     setInput('');
     setIsLoading(true);
@@ -46,8 +75,8 @@ export function Chatbot() {
     const pastMessages = messages.slice(-5); // Send last 5 messages for context
 
     const res = await getChatbotResponse({
-        userMessage: input,
-        modality: 'text',
+        userMessage: messageContent,
+        modality: voiceInput ? 'voice' : 'text',
         pastMessages: pastMessages
     });
 
@@ -57,9 +86,56 @@ export function Chatbot() {
         const errorMessage: Message = { role: 'assistant', content: `Error: ${res.error}`};
         setMessages(prev => [...prev, errorMessage]);
     } else {
-        const assistantMessage: Message = { role: 'assistant', content: res.response };
+        const isAudio = res.modality === 'voice';
+        const assistantMessage: Message = { role: 'assistant', content: res.response, isAudio };
         setMessages(prev => [...prev, assistantMessage]);
+        if(isAudio && audioRef.current) {
+            audioRef.current.src = res.response;
+            audioRef.current.play();
+        }
     }
+  };
+
+  const toggleRecording = () => {
+    if (isRecording) {
+      recognitionRef.current?.stop();
+    } else {
+      startRecording();
+    }
+  };
+
+  const startRecording = () => {
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SpeechRecognition) {
+      alert("Your browser does not support speech recognition.");
+      return;
+    }
+
+    recognitionRef.current = new SpeechRecognition();
+    recognitionRef.current.continuous = false;
+    recognitionRef.current.interimResults = false;
+    recognitionRef.current.lang = 'en-US';
+
+    recognitionRef.current.onstart = () => {
+      setIsRecording(true);
+    };
+
+    recognitionRef.current.onend = () => {
+      setIsRecording(false);
+    };
+
+    recognitionRef.current.onerror = (event: any) => {
+      console.error("Speech recognition error:", event.error);
+      setIsRecording(false);
+    };
+
+    recognitionRef.current.onresult = (event: any) => {
+      const transcript = event.results[0][0].transcript;
+      setInput(transcript);
+      handleSubmit(new Event('submit'), transcript);
+    };
+
+    recognitionRef.current.start();
   };
 
   if (!isOpen) {
@@ -98,7 +174,11 @@ export function Chatbot() {
                         : 'bg-muted'
                     )}
                   >
-                    {message.content}
+                    {message.isAudio ? (
+                        <audio controls src={message.content} className="w-full" />
+                    ) : (
+                        message.content
+                    )}
                   </div>
                   {message.role === 'user' && (
                     <Avatar className="w-8 h-8">
@@ -124,13 +204,17 @@ export function Chatbot() {
           <form onSubmit={handleSubmit} className="flex w-full items-center space-x-2">
             <Input
               id="message"
-              placeholder="Type your message..."
+              placeholder="Type or use mic..."
               className="flex-1"
               autoComplete="off"
               value={input}
               onChange={(e) => setInput(e.target.value)}
               disabled={isLoading}
             />
+            <Button type="button" size="icon" onClick={toggleRecording} disabled={isLoading} variant={isRecording ? 'destructive' : 'ghost'}>
+              {isRecording ? <MicOff className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
+              <span className="sr-only">{isRecording ? 'Stop recording' : 'Start recording'}</span>
+            </Button>
             <Button type="submit" size="icon" disabled={isLoading}>
               <Send className="h-4 w-4" />
               <span className="sr-only">Send</span>
@@ -138,6 +222,7 @@ export function Chatbot() {
           </form>
         </CardFooter>
       </Card>
+      <audio ref={audioRef} className="hidden" />
     </div>
   );
 }
