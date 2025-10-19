@@ -9,6 +9,7 @@ import {
   LogOut,
   Brain,
   Zap,
+  HelpCircle,
 } from 'lucide-react';
 
 export default function StudentSidebar({ student }: { student?: any }) {
@@ -46,6 +47,11 @@ export default function StudentSidebar({ student }: { student?: any }) {
       icon: Brain,
       label: 'Accessibility Settings',
       href: '/settings/accessibility',
+    },
+    {
+      icon: HelpCircle,
+      label: 'Help & Guidance',
+      href: '/help',
     },
     {
       icon: LogOut,

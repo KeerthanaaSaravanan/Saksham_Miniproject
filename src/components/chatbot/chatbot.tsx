@@ -6,7 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { Send, User, Bot, Loader2, Mic, MicOff } from 'lucide-react';
+import { Send, User, Bot, Loader2, Mic, MicOff, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useChatbot } from './chatbot-provider';
 import { getChatbotResponse } from '@/lib/actions/chatbot';
@@ -19,7 +19,7 @@ type Message = {
 };
 
 export function Chatbot() {
-  const { isOpen } = useChatbot();
+  const { isOpen, setIsOpen } = useChatbot();
   const [messages, setMessages] = useState<Message[]>([
     {
       role: 'assistant',
@@ -145,10 +145,13 @@ export function Chatbot() {
   return (
     <div className="fixed bottom-24 right-6 z-50">
       <Card className="w-[350px] h-[500px] flex flex-col shadow-2xl">
-        <CardHeader className="border-b">
+        <CardHeader className="border-b flex flex-row items-center justify-between">
           <CardTitle className="font-headline flex items-center gap-2">
             <Bot /> AI Assistant
           </CardTitle>
+          <Button variant="ghost" size="icon" onClick={() => setIsOpen(false)}>
+            <X className="h-4 w-4" />
+          </Button>
         </CardHeader>
         <CardContent className="flex-1 p-0 overflow-hidden">
           <ScrollArea className="h-full p-4" ref={scrollAreaRef}>

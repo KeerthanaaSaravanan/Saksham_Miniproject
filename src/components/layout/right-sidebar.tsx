@@ -123,12 +123,14 @@ export function RightSidebar() {
                 <TooltipContent side="left"><p>AI Assistant</p></TooltipContent>
             </Tooltip>
              <Tooltip>
-                <TooltipTrigger>
+                <TooltipTrigger asChild>
+                  <Link href="/help">
                     <div className="p-3 rounded-full hover:bg-muted transition-colors">
                         <HelpCircle className="h-6 w-6 text-muted-foreground" />
                     </div>
+                  </Link>
                 </TooltipTrigger>
-                <TooltipContent side="left"><p>Help</p></TooltipContent>
+                <TooltipContent side="left"><p>Help & Guidance</p></TooltipContent>
             </Tooltip>
         </TooltipProvider>
 
