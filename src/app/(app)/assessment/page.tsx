@@ -14,7 +14,7 @@ import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2, BookOpen, ArrowLeft } from 'lucide-react';
 import { useState, useEffect } from 'react';
-import { useUser, useFirestore, useMemoFirebase } from '@/firebase';
+import { useUser, useFirestore, useMemoFirebase, errorEmitter, FirestorePermissionError } from '@/firebase';
 import { collection, query, where, getDoc, doc, Timestamp, getDocs } from 'firebase/firestore';
 import { useCollection } from '@/firebase/firestore/use-collection';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -53,9 +53,17 @@ export default function AssessmentPage() {
     if (user && firestore) {
       const fetchUserProfile = async () => {
         const userDocRef = doc(firestore, 'users', user.uid);
-        const userDocSnap = await getDoc(userDocRef);
-        if (userDocSnap.exists()) {
-          setGrade(userDocSnap.data().grade || '');
+        try {
+            const userDocSnap = await getDoc(userDocRef);
+            if (userDocSnap.exists()) {
+              setGrade(userDocSnap.data().grade || '');
+            }
+        } catch (error: any) {
+            const permissionError = new FirestorePermissionError({
+              path: userDocRef.path,
+              operation: 'get',
+            });
+            errorEmitter.emit('permission-error', permissionError);
         }
       };
       fetchUserProfile();
@@ -89,8 +97,11 @@ export default function AssessmentPage() {
 
         setSelectedExam({ ...exam, questions });
     } catch (error: any) {
-        toast({ variant: 'destructive', title: 'Failed to load exam', description: error.message });
-        console.error("Error loading questions: ", error);
+        const permissionError = new FirestorePermissionError({
+            path: `exams/${exam.id}/questions`,
+            operation: 'list',
+        });
+        errorEmitter.emit('permission-error', permissionError);
     } finally {
         setIsLoadingExam(false);
     }
@@ -202,5 +213,3 @@ export default function AssessmentPage() {
     </div>
   );
 }
-
-    
