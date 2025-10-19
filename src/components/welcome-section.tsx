@@ -5,6 +5,7 @@ import { GraduationCap, CheckCircle } from 'lucide-react';
 export default function WelcomeSection({ onComplete }: { onComplete: () => void }) {
   const [currentStep, setCurrentStep] = useState(0);
   const [isPlaying, setIsPlaying] = useState(false);
+  const [isClient, setIsClient] = useState(false);
 
   const welcomeSteps = [
     {
@@ -26,26 +27,34 @@ export default function WelcomeSection({ onComplete }: { onComplete: () => void 
   ];
 
   useEffect(() => {
+    setIsClient(true);
+  }, []);
+
+  useEffect(() => {
+    if (!isClient) return;
+
     setIsPlaying(true);
     const stepTimer = setInterval(() => {
       setCurrentStep((prev) => {
         if (prev < welcomeSteps.length - 1) {
           return prev + 1;
         }
+        // Last step, do not auto-advance, but trigger onComplete after a delay
+        clearInterval(stepTimer); 
+        setTimeout(onComplete, 2500);
         return prev;
       });
     }, 2500);
 
-    const completeTimer = setTimeout(() => {
-        onComplete();
-    }, (welcomeSteps.length + 1) * 2500 - 1000);
-
 
     return () => {
         clearInterval(stepTimer);
-        clearTimeout(completeTimer);
     };
-  }, [onComplete]);
+  }, [isClient, onComplete, welcomeSteps.length]);
+
+  if (!isClient) {
+    return null; // Or a loading spinner
+  }
 
   const currentWelcome = welcomeSteps[currentStep];
   const IconComponent = currentWelcome.icon;
