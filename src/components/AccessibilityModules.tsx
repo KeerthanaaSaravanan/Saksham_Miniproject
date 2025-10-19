@@ -1,6 +1,6 @@
 'use client';
 import { useState, useEffect } from 'react';
-import { Eye, Ear, Hand, BookOpen, Brain, Volume2, Type, Mic, Headphones, Navigation, Focus, Heart, Zap } from 'lucide-react';
+import { Eye, Ear, Hand, BookOpen, Brain, Volume2, Type, Mic, Headphones, Navigation, Focus, Heart, Zap, SpellCheck, Save, MousePointer, ScanEye, Bot, Palette, Layout, Clock, Presentation } from 'lucide-react';
 
 export default function AccessibilityModules({ userProfile, onSettingsUpdate }: { userProfile?: any, onSettingsUpdate?: (settings: any) => void }) {
   const [activeModules, setActiveModules] = useState({
@@ -14,39 +14,37 @@ export default function AccessibilityModules({ userProfile, onSettingsUpdate }: 
   const [moduleSettings, setModuleSettings] = useState({
     // Visual Assistance Settings
     textToSpeech: false,
-    voiceNavigation: false,
-    handwritingRecognition: false,
     speechToText: false,
+    voiceNavigation: false,
     audioOptimizer: false,
+    handwritingRecognition: false,
     
     // Hearing Assistance Settings
     realTimeCaptions: false,
     signLanguageAvatar: false,
     visualAlerts: false,
-    chatbotMode: false,
+    chatbotHelp: false,
     
     // Motor Assistance Settings
-    voiceUIControl: false,
+    voiceCommandNavigation: false,
     eyeTracking: false,
     gestureRecognition: false,
     autoSave: false,
     predictiveText: false,
-    nodBlinkSelection: false,
     
     // SLD Assistance Settings
-    aiParaphrasing: false,
-    dyslexiaFont: false,
+    aiTextSimplifier: false,
+    dyslexiaFriendlyFont: false,
     wordHighlighting: false,
-    spellCorrection: false,
+    aiSpellCheck: false,
     readAloud: false,
     
     // Cognitive Support Settings
-    calmTheme: false,
-    guidedInterface: false,
+    focusMode: false,
+    guidedNavigation: false,
     timeReminders: false,
-    emotionAware: false,
+    emotionAwareAgent: false,
     simplifiedLayout: false,
-    progressTracking: false
   });
 
   const accessibilityModules = [
@@ -56,14 +54,14 @@ export default function AccessibilityModules({ userProfile, onSettingsUpdate }: 
       icon: Eye,
       description: 'AI-powered visual support for enhanced clarity',
       dignityMessage: "We've fine-tuned your view for better clarity",
-      bgColor: 'bg-gradient-to-r from-[#DDF7F5] to-[#C3F3EC]',
-      iconColor: 'text-[#38C5B0]',
+      bgColor: 'bg-gradient-to-r from-blue-100 to-blue-200 dark:from-blue-900/50 dark:to-blue-800/50',
+      iconColor: 'text-blue-500',
       features: [
-        { key: 'textToSpeech', label: 'Smart Text-to-Speech', icon: Volume2 },
+        { key: 'textToSpeech', label: 'Text-to-Speech (TTS)', icon: Volume2 },
+        { key: 'speechToText', label: 'Speech-to-Text (STT)', icon: Mic },
         { key: 'voiceNavigation', label: 'Voice Navigation', icon: Navigation },
+        { key: 'audioOptimizer', label: 'AI Audio Optimizer', icon: Headphones },
         { key: 'handwritingRecognition', label: 'Handwriting Recognition', icon: Hand },
-        { key: 'speechToText', label: 'Speech-to-Text Answers', icon: Mic },
-        { key: 'audioOptimizer', label: 'AI Audio Optimizer', icon: Headphones }
       ]
     },
     {
@@ -72,63 +70,61 @@ export default function AccessibilityModules({ userProfile, onSettingsUpdate }: 
       icon: Ear,
       description: 'Visual communication and alert systems',
       dignityMessage: "We've optimized your communication experience",
-      bgColor: 'bg-gradient-to-r from-[#EFE9FF] to-[#E0D4FF]',
-      iconColor: 'text-[#8B5CF6]',
+      bgColor: 'bg-gradient-to-r from-purple-100 to-purple-200 dark:from-purple-900/50 dark:to-purple-800/50',
+      iconColor: 'text-purple-500',
       features: [
         { key: 'realTimeCaptions', label: 'Real-time Captions', icon: Type },
-        { key: 'signLanguageAvatar', label: 'Sign Language Avatar', icon: Hand },
-        { key: 'visualAlerts', label: 'Visual Alerts', icon: Zap },
-        { key: 'chatbotMode', label: 'Text-based Interaction', icon: Brain }
+        { key: 'signLanguageAvatar', label: 'AI Sign Language Avatar', icon: Presentation },
+        { key: 'visualAlerts', label: 'Visual Pop-up Alerts', icon: Zap },
+        { key: 'chatbotHelp', label: 'Text-based Chatbot Help', icon: Bot }
       ]
     },
     {
       id: 'motor',
-      title: 'Motor Assistance',
+      title: 'Motor Disabilities',
       icon: Hand,
       description: 'Touch-free controls and smart automation',
       dignityMessage: "We've made your controls smoother and easier to use",
-      bgColor: 'bg-gradient-to-r from-[#FFF1E4] to-[#FFEBD6]',
-      iconColor: 'text-[#FF983B]',
+      bgColor: 'bg-gradient-to-r from-orange-100 to-orange-200 dark:from-orange-900/50 dark:to-orange-800/50',
+      iconColor: 'text-orange-500',
       features: [
-        { key: 'voiceUIControl', label: 'Voice UI Control', icon: Mic },
-        { key: 'eyeTracking', label: 'Eye-tracking Navigation', icon: Eye },
-        { key: 'gestureRecognition', label: 'Gesture Recognition', icon: Hand },
-        { key: 'autoSave', label: 'Continuous Auto-save', icon: Zap },
-        { key: 'predictiveText', label: 'Predictive Text Input', icon: Type },
-        { key: 'nodBlinkSelection', label: 'Nod/Blink Selection', icon: Focus }
+        { key: 'voiceCommandNavigation', label: 'Voice Command Navigation', icon: Mic },
+        { key: 'eyeTracking', label: 'Eye-tracking Control', icon: ScanEye },
+        { key: 'gestureRecognition', label: 'AI Gesture Recognition', icon: Hand },
+        { key: 'autoSave', label: 'Auto-save Answers', icon: Save },
+        { key: 'predictiveText', label: 'Predictive Typing', icon: Type },
       ]
     },
     {
       id: 'sld',
-      title: 'Learning Support',
+      title: 'Learning Disabilities',
       icon: BookOpen,
       description: 'AI-enhanced learning and comprehension tools',
       dignityMessage: "We've enhanced your learning experience",
-      bgColor: 'bg-gradient-to-r from-[#E4F3FF] to-[#D6E9FF]',
-      iconColor: 'text-[#3B82F6]',
+      bgColor: 'bg-gradient-to-r from-green-100 to-green-200 dark:from-green-900/50 dark:to-green-800/50',
+      iconColor: 'text-green-500',
       features: [
-        { key: 'aiParaphrasing', label: 'AI Question Simplification', icon: Brain },
-        { key: 'dyslexiaFont', label: 'Dyslexia-friendly Typography', icon: Type },
+        { key: 'aiTextSimplifier', label: 'AI Text Simplifier', icon: Brain },
+        { key: 'dyslexiaFriendlyFont', label: 'Dyslexia-friendly Fonts', icon: Type },
         { key: 'wordHighlighting', label: 'Word Highlighting', icon: Focus },
-        { key: 'spellCorrection', label: 'Smart Spell Correction', icon: BookOpen },
-        { key: 'readAloud', label: 'Read-aloud with Tracking', icon: Volume2 }
+        { key: 'aiSpellCheck', label: 'AI Spell-check', icon: SpellCheck },
+        { key: 'readAloud', label: 'Read-aloud Support', icon: Volume2 }
       ]
     },
     {
       id: 'cognitive',
-      title: 'Cognitive Support',
+      title: 'Cognitive Disabilities',
       icon: Brain,
       description: 'Stress-free environment with gentle guidance',
       dignityMessage: "We've optimized your focus environment",
-      bgColor: 'bg-gradient-to-r from-[#F0F9FF] to-[#E0F2FE]',
-      iconColor: 'text-[#0EA5E9]',
+      bgColor: 'bg-gradient-to-r from-sky-100 to-sky-200 dark:from-sky-900/50 dark:to-sky-800/50',
+      iconColor: 'text-sky-500',
       features: [
-        { key: 'calmTheme', label: 'Calming Visual Theme', icon: Heart },
-        { key: 'guidedInterface', label: 'Step-by-step Guidance', icon: Navigation },
-        { key: 'timeReminders', label: 'Gentle Time Reminders', icon: Brain },
-        { key: 'emotionAware', label: 'Emotion-aware AI Support', icon: Heart },
-        { key: 'simplifiedLayout', label: 'Simplified Interface', icon: Focus },
-        { key: 'progressTracking', label: 'Progress Visualization', icon: Zap }
+        { key: 'focusMode', label: 'Focus Mode (Calm Visuals)', icon: Palette },
+        { key: 'guidedNavigation', label: 'Step-by-step Guidance', icon: MousePointer },
+        { key: 'timeReminders', label: 'Gentle Time Reminders', icon: Clock },
+        { key: 'emotionAwareAgent', label: 'Emotion-aware AI Agent', icon: Heart },
+        { key: 'simplifiedLayout', label: 'Simplified Layout', icon: Layout },
       ]
     }
   ];
@@ -138,47 +134,19 @@ export default function AccessibilityModules({ userProfile, onSettingsUpdate }: 
     if (userProfile?.accessibility_profile) {
       const profile = userProfile.accessibility_profile;
       
-      // Silently activate appropriate modules
       const newActiveModules = { ...activeModules };
       const newSettings = { ...moduleSettings };
 
-      if (profile.preferredSupport?.includes('visual')) {
-        newActiveModules.visual = true;
-        newSettings.textToSpeech = true;
-        newSettings.voiceNavigation = true;
-        newSettings.audioOptimizer = true;
-      }
+      if (profile.preferredSupport?.includes('visual')) newActiveModules.visual = true;
+      if (profile.preferredSupport?.includes('hearing')) newActiveModules.hearing = true;
+      if (profile.preferredSupport?.includes('motor')) newActiveModules.motor = true;
+      if (profile.preferredSupport?.includes('sld')) newActiveModules.sld = true;
+      if (profile.preferredSupport?.includes('cognitive')) newActiveModules.cognitive = true;
 
-      if (profile.preferredSupport?.includes('hearing')) {
-        newActiveModules.hearing = true;
-        newSettings.realTimeCaptions = true;
-        newSettings.visualAlerts = true;
-        newSettings.chatbotMode = true;
-      }
-
-      if (profile.preferredSupport?.includes('motor')) {
-        newActiveModules.motor = true;
-        newSettings.voiceUIControl = true;
-        newSettings.autoSave = true;
-        newSettings.predictiveText = true;
-      }
-
-      if (profile.preferredSupport?.includes('sld')) {
-        newActiveModules.sld = true;
-        newSettings.aiParaphrasing = true;
-        newSettings.dyslexiaFont = true;
-        newSettings.spellCorrection = true;
-      }
-
-      if (profile.preferredSupport?.includes('cognitive')) {
-        newActiveModules.cognitive = true;
-        newSettings.calmTheme = true;
-        newSettings.guidedInterface = true;
-        newSettings.emotionAware = true;
-      }
-
+      // You could also pre-select certain features based on the profile
+      // For now, we just activate the main modules.
+      
       setActiveModules(newActiveModules);
-      setModuleSettings(newSettings);
       onSettingsUpdate?.(newSettings);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -224,7 +192,7 @@ export default function AccessibilityModules({ userProfile, onSettingsUpdate }: 
         </div>
         <div className="flex flex-wrap gap-2">
           {accessibilityModules.map((module) => {
-            if (!activeModules[module.id]) return null;
+            if (!activeModules[module.id as keyof typeof activeModules]) return null;
             const IconComponent = module.icon;
             return (
               <div key={module.id} className={`${module.bgColor} px-4 py-2 rounded-full flex items-center space-x-2`}>
@@ -248,7 +216,7 @@ export default function AccessibilityModules({ userProfile, onSettingsUpdate }: 
               className={`bg-card rounded-2xl p-6 border transition-all duration-300 ${
                 isActive 
                   ? 'border-primary shadow-lg' 
-                  : 'border-border hover:border-primary hover:shadow-md'
+                  : 'border-border hover:border-primary/80 hover:shadow-md'
               }`}
             >
               {/* Module Header */}
@@ -353,3 +321,5 @@ export default function AccessibilityModules({ userProfile, onSettingsUpdate }: 
     </div>
   );
 }
+
+    
