@@ -16,7 +16,7 @@ import {
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
-import { MoreHorizontal, Users, BookCopy, FilePlus, BarChart } from 'lucide-react';
+import { MoreHorizontal, Users, BookCopy, FilePlus, BarChart, CheckSquare, Clock } from 'lucide-react';
 import { Progress } from '@/components/ui/progress';
 
 const students = [
@@ -27,38 +27,63 @@ const students = [
   { name: 'Kenji Tanaka', email: 'kenji.t@example.com', progress: 88, disability: 'N/A', avatar: 'https://picsum.photos/seed/kenji/40/40' },
 ];
 
-const adminActions = [
-    { title: 'Student Analytics', description: 'Monitor student progress and engagement.', icon: BarChart, link: '#' },
-    { title: 'Manage Content', description: 'Upload and organize learning materials.', icon: BookCopy, link: '#' },
-    { title: 'Create Assessments', description: 'Build new question banks and exams.', icon: FilePlus, link: '/assessment' },
-    { title: 'Manage Users', description: 'Add or remove students and teachers.', icon: Users, link: '#' },
-];
-
 export default function AdminDashboardPage() {
   return (
-    <div className="space-y-6">
-       <div>
-        <h1 className="text-3xl font-bold font-headline">Admin Portal</h1>
-        <p className="text-muted-foreground">
-          Manage students, content, and assessments with AI-powered insights.
-        </p>
+    <div className="space-y-6 text-white">
+      <header className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-black dark:text-white">Faculty Dashboard</h1>
+          <p className="text-muted-foreground">Welcome back, Dr. Evelyn Reed!</p>
+        </div>
+         <div className="flex items-center gap-4">
+            <div className="w-8 h-8 rounded-full bg-teal-500 flex items-center justify-center font-bold">ER</div>
+        </div>
+      </header>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <Card className="bg-gray-800 border-gray-700">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Total Students</CardTitle>
+                <Users className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+                <div className="text-2xl font-bold">1,254</div>
+                <p className="text-xs text-muted-foreground">+120 from last month</p>
+            </CardContent>
+        </Card>
+         <Card className="bg-gray-800 border-gray-700">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Assessments Created</CardTitle>
+                <FilePlus className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+                <div className="text-2xl font-bold">340</div>
+                <p className="text-xs text-muted-foreground">+25 this week</p>
+            </CardContent>
+        </Card>
+        <Card className="bg-gray-800 border-gray-700">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Pending Reviews</CardTitle>
+                <Clock className="h-4 w-4 text-muted-foreground text-amber-400" />
+            </CardHeader>
+            <CardContent>
+                <div className="text-2xl font-bold">8</div>
+                <p className="text-xs text-muted-foreground">3 high priority</p>
+            </CardContent>
+        </Card>
+        <Card className="bg-gray-800 border-gray-700">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Active Exams</CardTitle>
+                <CheckSquare className="h-4 w-4 text-muted-foreground text-teal-400" />
+            </CardHeader>
+            <CardContent>
+                <div className="text-2xl font-bold">12</div>
+                <p className="text-xs text-muted-foreground">Across 5 subjects</p>
+            </CardContent>
+        </Card>
       </div>
 
-      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
-        {adminActions.map((action) => (
-            <Card key={action.title} className="hover:shadow-md transition-shadow">
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                    <CardTitle className="text-sm font-medium">{action.title}</CardTitle>
-                    <action.icon className="h-4 w-4 text-muted-foreground" />
-                </CardHeader>
-                <CardContent>
-                    <p className="text-xs text-muted-foreground">{action.description}</p>
-                </CardContent>
-            </Card>
-        ))}
-      </div>
-
-      <Card>
+      <Card className="bg-gray-800 border-gray-700">
         <CardHeader>
           <CardTitle>Student Progress</CardTitle>
           <CardDescription>An overview of all student activity.</CardDescription>
@@ -66,7 +91,7 @@ export default function AdminDashboardPage() {
         <CardContent>
           <Table>
             <TableHeader>
-              <TableRow>
+              <TableRow className="border-gray-700">
                 <TableHead>Student</TableHead>
                 <TableHead>Accessibility Need</TableHead>
                 <TableHead>Overall Progress</TableHead>
@@ -77,7 +102,7 @@ export default function AdminDashboardPage() {
             </TableHeader>
             <TableBody>
               {students.map((student) => (
-                <TableRow key={student.email}>
+                <TableRow key={student.email} className="border-gray-700">
                   <TableCell>
                     <div className="flex items-center gap-4">
                       <Avatar className="h-9 w-9">
@@ -85,17 +110,17 @@ export default function AdminDashboardPage() {
                         <AvatarFallback>{student.name.charAt(0)}</AvatarFallback>
                       </Avatar>
                       <div className="grid gap-1">
-                        <p className="text-sm font-medium leading-none">{student.name}</p>
+                        <p className="text-sm font-medium leading-none text-white">{student.name}</p>
                         <p className="text-xs text-muted-foreground">{student.email}</p>
                       </div>
                     </div>
                   </TableCell>
                   <TableCell>
-                    <Badge variant="outline">{student.disability}</Badge>
+                    <Badge variant="outline" className="border-gray-600">{student.disability}</Badge>
                   </TableCell>
                   <TableCell>
                     <div className="flex items-center gap-2">
-                        <Progress value={student.progress} className="w-24" />
+                        <Progress value={student.progress} className="w-24 bg-gray-700" />
                         <span className="text-xs text-muted-foreground">{student.progress}%</span>
                     </div>
                   </TableCell>
