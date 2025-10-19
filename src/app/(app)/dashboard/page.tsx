@@ -260,7 +260,7 @@ export default function DashboardPage() {
                                 )}
                             </CardContent>
                             <CardFooter>
-                                    <Button variant="outline" className="w-full" onClick={() => router.push('/practice')}>
+                                    <Button variant="outline" className="w-full" onClick={() => router.push(`/practice?subject=${encodeURIComponent(subject.name)}`)}>
                                         <Target className="mr-2 h-4 w-4" />
                                         Take a Practice Test
                                     </Button>

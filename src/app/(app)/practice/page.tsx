@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, Suspense } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -34,7 +34,7 @@ import { useToast } from '@/hooks/use-toast';
 import { Loader2, Sparkles } from 'lucide-react';
 import { ExamLayout } from '@/components/layout/exam-layout';
 import type { SelectedExamDetails, AssessmentQuestion } from '@/app/(app)/assessment/[examId]/page';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { PracticeResults } from '@/components/PracticeResults';
 import type { PracticeHistoryEntry } from '@/components/PracticeResults';
 
@@ -55,15 +55,27 @@ type Result = {
   isCorrect: boolean;
 };
 
-export default function PracticePage() {
+function PracticePageComponent() {
   const [isLoading, setIsLoading] = useState(false);
   const [exam, setExam] = useState<SelectedExamDetails | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [history, setHistory] = useState<PracticeHistoryEntry[]>([]);
   const [isClient, setIsClient] = useState(false);
   const router = useRouter();
+  const searchParams = useSearchParams();
 
   const { toast } = useToast();
+
+  const form = useForm<z.infer<typeof formSchema>>({
+    resolver: zodResolver(formSchema),
+    defaultValues: {
+      subject: '',
+      lesson: '',
+      questionType: 'mcq',
+      questionCount: 5,
+      duration: 10,
+    },
+  });
 
   useEffect(() => {
     setIsClient(true);
@@ -75,18 +87,22 @@ export default function PracticePage() {
     } catch (error) {
       console.error("Could not load practice history from localStorage", error);
     }
-  }, []);
 
-  const form = useForm<z.infer<typeof formSchema>>({
-    resolver: zodResolver(formSchema),
-    defaultValues: {
-      subject: 'Physics',
-      lesson: 'Laws of Motion',
-      questionType: 'mcq',
-      questionCount: 5,
-      duration: 10,
-    },
-  });
+    const subjectFromQuery = searchParams.get('subject');
+    if (subjectFromQuery) {
+        form.setValue('subject', subjectFromQuery);
+        form.setValue('lesson', ''); // Clear lesson when subject changes
+    } else {
+       form.reset({
+          subject: 'Physics',
+          lesson: 'Laws of Motion',
+          questionType: 'mcq',
+          questionCount: 5,
+          duration: 10,
+        });
+    }
+  }, [searchParams, form]);
+
 
   async function onGenerate(values: z.infer<typeof formSchema>) {
     setIsLoading(true);
@@ -155,7 +171,7 @@ export default function PracticePage() {
         
         toast({ title: "Exam Submitted!", description: "Your results have been saved." });
         setExam(null);
-        router.refresh();
+        router.push('/practice'); // Go back to practice page
 
     } catch (error) {
         console.error("Failed to save to localStorage", error);
@@ -239,4 +255,12 @@ export default function PracticePage() {
       </div>
     </div>
   );
+}
+
+export default function PracticePage() {
+    return (
+        <Suspense fallback={<div>Loading...</div>}>
+            <PracticePageComponent />
+        </Suspense>
+    )
 }
