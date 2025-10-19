@@ -41,14 +41,14 @@ export function ExamLayout({ exam, onTimeUp, isSubmitting }: ExamLayoutProps) {
           toast({
             variant: 'destructive',
             title: 'Warning: Left Exam Tab',
-            description: 'Leaving the exam tab is prohibited. Further violations will result in automatic submission.',
+            description: 'This is your only warning. Leaving again will automatically submit your exam.',
           });
         },
         onViolationLimitReached: () => {
           toast({
             variant: 'destructive',
             title: 'Exam Automatically Submitted',
-            description: 'You have left the exam tab too many times.',
+            description: 'You have left the exam tab more than once.',
           });
           onTimeUp(answers);
         }

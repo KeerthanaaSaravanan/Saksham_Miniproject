@@ -134,9 +134,9 @@ export default function AssessmentListPage() {
             <AlertDialogHeader>
               <AlertDialogTitle>Start Attempt: {examToConfirm.title}</AlertDialogTitle>
               <AlertDialogDescription>
-                This exam will open in a new, fullscreen tab to ensure a secure testing environment.
-                You will have a time limit of {examToConfirm.durationMinutes || 60} minutes. 
-                Leaving the exam tab is not permitted.
+                This exam will open in a new, fullscreen tab. You will have a time limit of {examToConfirm.durationMinutes || 60} minutes. 
+                <br /><br />
+                <strong className="text-destructive">Warning:</strong> Leaving the exam tab or window is not permitted. The exam will be terminated after a single warning if you switch tabs.
                 <br /><br />
                 Are you sure you wish to start now?
               </AlertDialogDescription>

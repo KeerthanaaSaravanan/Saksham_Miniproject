@@ -2,7 +2,7 @@
 
 import { useEffect, useRef } from 'react';
 
-const VIOLATION_LIMIT = 3;
+const VIOLATION_LIMIT = 2;
 
 interface ProctoringOptions {
   isActive: boolean;
@@ -22,10 +22,11 @@ export function useProctoring({ isActive, onLeave, onViolationLimitReached }: Pr
     const handleVisibilityChange = () => {
       if (document.hidden) {
         violationCount.current += 1;
-        onLeave();
         
         if (violationCount.current >= VIOLATION_LIMIT) {
           onViolationLimitReached();
+        } else {
+          onLeave();
         }
       }
     };
