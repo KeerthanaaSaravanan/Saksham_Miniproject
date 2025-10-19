@@ -8,7 +8,6 @@ import {
   BarChart3,
   Upload,
   Settings,
-  HelpCircle,
   LogOut,
   Brain,
   ChevronDown,
@@ -42,7 +41,7 @@ export default function FacultySidebar({ faculty }: { faculty?: any }) {
     {
       icon: Upload,
       label: "Upload Papers",
-      href: "#"
+      href: "/admin/upload"
     }
   ];
 
