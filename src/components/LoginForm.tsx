@@ -8,40 +8,76 @@ import { Separator } from '@/components/ui/separator';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/firebase';
-import { GoogleAuthProvider, signInWithPopup, createUserWithEmailAndPassword } from 'firebase/auth';
+import { GoogleAuthProvider, signInWithPopup, createUserWithEmailAndPassword, signInWithEmailAndPassword } from 'firebase/auth';
+import { useToast } from '@/hooks/use-toast';
+import { Loader2 } from 'lucide-react';
 
 export default function LoginForm() {
   const [email, setEmail] = useState('');
-  const [password, setPassword] = useState(''); // Added for completeness, though hidden in UI
+  const [password, setPassword] = useState('');
+  const [isLoading, setIsLoading] = useState<null | 'google' | 'email'>(null);
   const router = useRouter();
   const auth = useAuth();
+  const { toast } = useToast();
+
+  const handleAuthError = (error: any) => {
+    console.error("Authentication error:", error);
+    toast({
+      variant: "destructive",
+      title: "Authentication Failed",
+      description: error.message || "An unknown error occurred. Please try again.",
+    });
+  };
 
   const handleGoogleSignIn = async () => {
-    const provider = new GoogleAuthProvider();
     if (!auth) {
       console.error("Auth service is not available.");
       return;
     }
+    setIsLoading('google');
     try {
+      const provider = new GoogleAuthProvider();
       await signInWithPopup(auth, provider);
       router.push('/dashboard');
     } catch (error) {
-      console.error("Error during Google sign-in:", error);
+      handleAuthError(error);
+    } finally {
+      setIsLoading(null);
     }
   };
 
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
-     if (!auth) {
+    if (!auth) {
       console.error("Auth service is not available.");
       return;
     }
+     if (!password) {
+      toast({
+        variant: "destructive",
+        title: "Password required",
+        description: "Please enter a password to sign up.",
+      });
+      return;
+    }
+    setIsLoading('email');
     try {
-      // Using a placeholder password as it's not in the UI
-      await createUserWithEmailAndPassword(auth, email, password || 'defaultPassword');
+      await createUserWithEmailAndPassword(auth, email, password);
       router.push('/dashboard');
-    } catch (error) {
-        console.error("Error during email sign-up:", error);
+    } catch (error: any) {
+        if (error.code === 'auth/email-already-in-use') {
+            // If email is already in use, try to sign in instead.
+            try {
+                await signInWithEmailAndPassword(auth, email, password);
+                router.push('/dashboard');
+            } catch (signInError) {
+                handleAuthError(signInError);
+            }
+        } else {
+            handleAuthError(error);
+        }
+    } finally {
+      setIsLoading(null);
     }
   };
 
@@ -58,9 +94,9 @@ export default function LoginForm() {
     <div className="bg-card rounded-2xl shadow-xl border p-8 space-y-6">
        <h1 className="text-3xl font-semibold text-center text-foreground">Create your account</h1>
       
-      <Button variant="outline" className="w-full h-12 text-base" onClick={handleGoogleSignIn}>
-        <GoogleIcon />
-        Sign up with Google
+      <Button variant="outline" className="w-full h-12 text-base" onClick={handleGoogleSignIn} disabled={!!isLoading}>
+        {isLoading === 'google' ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <GoogleIcon />}
+        {isLoading === 'google' ? 'Signing in...' : 'Sign up with Google'}
       </Button>
 
       <div className="flex items-center w-full">
@@ -80,6 +116,20 @@ export default function LoginForm() {
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             required
+            disabled={!!isLoading}
+          />
+        </div>
+         <div className="space-y-2">
+          <Label htmlFor="password">Password</Label>
+          <Input
+            id="password"
+            type="password"
+            placeholder="Enter your password"
+            className="h-12"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            required
+            disabled={!!isLoading}
           />
         </div>
         <p className="text-xs text-muted-foreground">
@@ -89,14 +139,19 @@ export default function LoginForm() {
             </Link>
             .
         </p>
-        <Button type="submit" className="w-full h-12 bg-foreground text-background hover:bg-foreground/90">
-          Sign up
+        <Button type="submit" className="w-full h-12 bg-foreground text-background hover:bg-foreground/90" disabled={!!isLoading}>
+          {isLoading === 'email' && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+          Continue
         </Button>
       </form>
 
       <p className="text-sm text-muted-foreground text-center">
         Already have an account?{' '}
-        <Link href="#" className="underline hover:text-primary">
+        <Link href="#" className="underline hover:text-primary" onClick={(e) => {
+            e.preventDefault();
+            // This is a simple way to hint at login, the main button handles both
+            toast({ title: "Please enter your details", description: "Enter your email and password to log in or sign up."});
+        }}>
           Log in
         </Link>
       </p>
