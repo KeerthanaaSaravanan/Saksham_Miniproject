@@ -34,6 +34,7 @@ import { useToast } from '@/hooks/use-toast';
 import { Loader2, Sparkles, Check, X } from 'lucide-react';
 import { ExamLayout } from '@/components/layout/exam-layout';
 import type { SelectedExamDetails, AssessmentQuestion } from '@/app/(app)/assessment/page';
+import { useRouter } from 'next/navigation';
 
 const formSchema = z.object({
   subject: z.string().min(2, 'Subject must be at least 2 characters.'),
@@ -54,8 +55,8 @@ type Result = {
 export default function PracticePage() {
   const [isLoading, setIsLoading] = useState(false);
   const [exam, setExam] = useState<SelectedExamDetails | null>(null);
-  const [results, setResults] = useState<Result[] | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const router = useRouter();
 
   const { toast } = useToast();
 
@@ -73,7 +74,6 @@ export default function PracticePage() {
   async function onGenerate(values: z.infer<typeof formSchema>) {
     setIsLoading(true);
     setExam(null);
-    setResults(null);
 
     const result = await createPracticeExam(values);
     
@@ -81,7 +81,6 @@ export default function PracticePage() {
       toast({ variant: 'destructive', title: 'Generation Failed', description: result.error });
       setIsLoading(false);
     } else {
-      // Adapt the AI-generated questions to the SelectedExamDetails format
       const generatedQuestions: AssessmentQuestion[] = result.exam.map((q: any, index: number) => ({
         id: `practice-${index}`,
         question: q.question,
@@ -91,7 +90,7 @@ export default function PracticePage() {
       }));
 
       const examDetails: SelectedExamDetails = {
-        id: 'practice-exam',
+        id: `practice-${Date.now()}`,
         title: `Practice: ${values.subject}`,
         subject: values.lesson,
         gradeLevel: 'Practice',
@@ -111,8 +110,7 @@ export default function PracticePage() {
     setIsSubmitting(true);
     toast({ title: "Grading your exam..." });
 
-    // Perform auto-correction on the client-side
-    const newResults = exam.questions.map((q) => {
+    const newResults: Result[] = exam.questions.map((q) => {
         const userAnswer = answers[q.id] || '';
         const isCorrect = q.correctAnswer.toLowerCase().trim() === userAnswer.toLowerCase().trim();
         return {
@@ -122,12 +120,32 @@ export default function PracticePage() {
             isCorrect
         };
     });
-    
-    setResults(newResults);
-    setExam(null); // Exit exam mode
-    setIsSubmitting(false);
-    toast({ title: "Exam Submitted!", description: "Your results are ready." });
-  }, [exam, isSubmitting, toast]);
+
+    try {
+        const existingHistoryJSON = localStorage.getItem('practiceHistory');
+        const existingHistory = existingHistoryJSON ? JSON.parse(existingHistoryJSON) : [];
+        const newHistoryEntry = {
+            id: exam.id,
+            title: exam.title,
+            subject: exam.subject,
+            date: new Date().toISOString(),
+            score: (newResults.filter(r => r.isCorrect).length / newResults.length) * 100,
+            results: newResults,
+        };
+        const updatedHistory = [newHistoryEntry, ...existingHistory];
+        localStorage.setItem('practiceHistory', JSON.stringify(updatedHistory));
+        
+        toast({ title: "Exam Submitted!", description: "Your results have been saved." });
+        router.push('/results');
+
+    } catch (error) {
+        console.error("Failed to save to localStorage", error);
+        toast({ variant: 'destructive', title: "Save Failed", description: "Could not save your results." });
+    } finally {
+        setExam(null); 
+        setIsSubmitting(false);
+    }
+  }, [exam, isSubmitting, toast, router]);
 
 
   if (exam) {
@@ -135,7 +153,7 @@ export default function PracticePage() {
         <ExamLayout 
             exam={exam}
             onTimeUp={handleSubmitAnswers}
-            onExit={() => { setExam(null); setResults(null); }}
+            onExit={() => { setExam(null); }}
             isSubmitting={isSubmitting}
         />
     );
@@ -152,81 +170,50 @@ export default function PracticePage() {
         </div>
       </div>
 
-      {!results && (
-        <Card>
-          <Form {...form}>
-            <form onSubmit={form.handleSubmit(onGenerate)}>
-              <CardHeader>
-                <CardTitle>Create a Practice Exam</CardTitle>
-                <CardDescription>
-                  Let AI build a tailored practice session for you.
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <FormField control={form.control} name="subject" render={({ field }) => (
-                        <FormItem><FormLabel>Subject</FormLabel><FormControl><Input placeholder="e.g., Biology" {...field} /></FormControl><FormMessage /></FormItem>
-                    )} />
-                    <FormField control={form.control} name="lesson" render={({ field }) => (
-                        <FormItem><FormLabel>Lesson / Topic</FormLabel><FormControl><Input placeholder="e.g., Cell Structure" {...field} /></FormControl><FormMessage /></FormItem>
-                    )} />
-                </div>
-                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <FormField control={form.control} name="questionType" render={({ field }) => (
-                        <FormItem><FormLabel>Question Type</FormLabel><Select onValueChange={field.onChange} defaultValue={field.value}><FormControl><SelectTrigger><SelectValue placeholder="Select a type" /></SelectTrigger></FormControl><SelectContent>
-                                    <SelectItem value="mcq">Multiple Choice</SelectItem>
-                                    <SelectItem value="fillup">Fill in the Blanks</SelectItem>
-                                    <SelectItem value="short-answer">Short Answer</SelectItem>
-                                    <SelectItem value="long-answer">Long Answer</SelectItem>
-                                </SelectContent></Select><FormMessage /></FormItem>
-                    )} />
-                    <FormField control={form.control} name="questionCount" render={({ field }) => (
-                        <FormItem><FormLabel>Number of Questions</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>
-                    )} />
-                    <FormField control={form.control} name="duration" render={({ field }) => (
-                        <FormItem><FormLabel>Time (minutes)</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>
-                    )} />
-                </div>
-              </CardContent>
-              <CardFooter>
-                <Button type="submit" disabled={isLoading}>
-                  {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Sparkles className="mr-2 h-4 w-4" />}
-                  {isLoading ? 'Generating...' : 'Generate Exam'}
-                </Button>
-              </CardFooter>
-            </form>
-          </Form>
-        </Card>
-      )}
-      
-      {results && (
-        <Card>
+      <Card>
+        <Form {...form}>
+          <form onSubmit={form.handleSubmit(onGenerate)}>
             <CardHeader>
-                <CardTitle>Practice Results</CardTitle>
-                <CardDescription>
-                    You scored {results.filter(r => r.isCorrect).length} out of {results.length}.
-                </CardDescription>
+              <CardTitle>Create a Practice Exam</CardTitle>
+              <CardDescription>
+                Let AI build a tailored practice session for you.
+              </CardDescription>
             </CardHeader>
-            <CardContent className="space-y-6">
-                {results.map((result, index) => (
-                    <div key={index} className="p-4 rounded-lg border bg-muted/50">
-                        <p className="font-semibold">{index + 1}. {result.question}</p>
-                        <div className={`mt-2 flex items-start gap-3 p-2 rounded-md ${result.isCorrect ? 'bg-green-500/10' : 'bg-destructive/10'}`}>
-                            {result.isCorrect ? <Check className="h-5 w-5 text-green-600 mt-1" /> : <X className="h-5 w-5 text-destructive mt-1" />}
-                            <div>
-                                <p className="text-sm">Your answer: <span className="font-medium">{result.userAnswer || "No answer provided"}</span></p>
-                                {!result.isCorrect && <p className="text-sm">Correct answer: <span className="font-medium text-green-700 dark:text-green-500">{result.correctAnswer}</span></p>}
-                            </div>
-                        </div>
-                    </div>
-                ))}
+            <CardContent className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <FormField control={form.control} name="subject" render={({ field }) => (
+                      <FormItem><FormLabel>Subject</FormLabel><FormControl><Input placeholder="e.g., Biology" {...field} /></FormControl><FormMessage /></FormItem>
+                  )} />
+                  <FormField control={form.control} name="lesson" render={({ field }) => (
+                      <FormItem><FormLabel>Lesson / Topic</FormLabel><FormControl><Input placeholder="e.g., Cell Structure" {...field} /></FormControl><FormMessage /></FormItem>
+                  )} />
+              </div>
+               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <FormField control={form.control} name="questionType" render={({ field }) => (
+                      <FormItem><FormLabel>Question Type</FormLabel><Select onValueChange={field.onChange} defaultValue={field.value}><FormControl><SelectTrigger><SelectValue placeholder="Select a type" /></SelectTrigger></FormControl><SelectContent>
+                                  <SelectItem value="mcq">Multiple Choice</SelectItem>
+                                  <SelectItem value="fillup">Fill in the Blanks</SelectItem>
+                                  <SelectItem value="short-answer">Short Answer</SelectItem>
+                                  <SelectItem value="long-answer">Long Answer</SelectItem>
+                              </SelectContent></Select><FormMessage /></FormItem>
+                  )} />
+                  <FormField control={form.control} name="questionCount" render={({ field }) => (
+                      <FormItem><FormLabel>Number of Questions</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>
+                  )} />
+                  <FormField control={form.control} name="duration" render={({ field }) => (
+                      <FormItem><FormLabel>Time (minutes)</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>
+                  )} />
+              </div>
             </CardContent>
             <CardFooter>
-                <Button onClick={() => { setResults(null); }}>Take Another Practice Exam</Button>
+              <Button type="submit" disabled={isLoading}>
+                {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Sparkles className="mr-2 h-4 w-4" />}
+                {isLoading ? 'Generating...' : 'Generate Exam'}
+              </Button>
             </CardFooter>
-        </Card>
-      )}
-
+          </form>
+        </Form>
+      </Card>
     </div>
   );
 }

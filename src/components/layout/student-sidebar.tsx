@@ -40,7 +40,7 @@ export default function StudentSidebar({ student }: { student?: any }) {
     {
       icon: FileText,
       label: 'Results',
-      href: '#',
+      href: '/results',
     },
   ];
 
