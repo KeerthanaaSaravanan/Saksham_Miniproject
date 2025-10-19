@@ -32,8 +32,7 @@ import {
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2, Upload, PlusCircle, XCircle } from 'lucide-react';
-import { useFirestore } from '@/firebase';
-import { addDocumentNonBlocking } from '@/firebase/non-blocking-updates';
+import { useFirestore, errorEmitter, FirestorePermissionError } from '@/firebase';
 import { collection, serverTimestamp, doc, writeBatch } from 'firebase/firestore';
 
 
@@ -83,51 +82,53 @@ export default function UploadPage() {
     }
 
     setIsLoading(true);
+
+    const examsCollectionRef = collection(firestore, 'exams');
+    const newExamRef = doc(examsCollectionRef); // Create a new doc ref with a generated ID
+    const questionsCollectionRef = collection(newExamRef, 'questions');
+
+    const batch = writeBatch(firestore);
+
+    // 1. Set the main exam document
+    const examData = {
+        title: values.title,
+        subject: values.subject,
+        gradeLevel: values.gradeLevel,
+        startTime: new Date(values.startTime),
+        endTime: new Date(values.endTime),
+        createdAt: serverTimestamp(),
+    };
+    batch.set(newExamRef, examData);
     
-    try {
-        const examsCollectionRef = collection(firestore, 'exams');
-        const newExamRef = doc(examsCollectionRef); // Create a new doc ref with a generated ID
-        const questionsCollectionRef = collection(newExamRef, 'questions');
-
-        const batch = writeBatch(firestore);
-
-        // 1. Set the main exam document
-        batch.set(newExamRef, {
-            title: values.title,
-            subject: values.subject,
-            gradeLevel: values.gradeLevel,
-            startTime: new Date(values.startTime),
-            endTime: new Date(values.endTime),
-            createdAt: serverTimestamp(),
+    // 2. Add all questions to the subcollection
+    values.questions.forEach(question => {
+        const newQuestionRef = doc(questionsCollectionRef);
+        batch.set(newQuestionRef, {
+            ...question,
+            examId: newExamRef.id,
         });
-        
-        // 2. Add all questions to the subcollection
-        values.questions.forEach(question => {
-            const newQuestionRef = doc(questionsCollectionRef);
-            batch.set(newQuestionRef, {
-                ...question,
-                examId: newExamRef.id,
-            });
-        });
-        
-        await batch.commit();
-
+    });
+    
+    batch.commit()
+      .then(() => {
         toast({
-        title: 'Exam Uploaded Successfully',
-        description: `The exam "${values.title}" has been added to the system.`,
+          title: 'Exam Uploaded Successfully',
+          description: `The exam "${values.title}" has been added to the system.`,
         });
         form.reset();
-
-    } catch (error: any) {
-        console.error("Error uploading exam:", error);
-        toast({
-            variant: 'destructive',
-            title: 'Upload Failed',
-            description: error.message || 'An unknown error occurred.',
+      })
+      .catch((error: any) => {
+        // Here we create and emit the contextual error
+        const permissionError = new FirestorePermissionError({
+          path: newExamRef.path, // We can use the exam path as the primary point of failure
+          operation: 'write', // A batch can contain multiple ops, 'write' is a safe generalization
+          requestResourceData: { exam: examData, questions: values.questions },
         });
-    } finally {
+        errorEmitter.emit('permission-error', permissionError);
+      })
+      .finally(() => {
         setIsLoading(false);
-    }
+      });
   }
 
   return (
@@ -304,5 +305,3 @@ export default function UploadPage() {
     </div>
   );
 }
-
-    
