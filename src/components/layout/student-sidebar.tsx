@@ -13,11 +13,13 @@ import {
 } from 'lucide-react';
 import { useExamMode } from '@/hooks/use-exam-mode';
 import { cn } from '@/lib/utils';
+import { useAuth } from '@/firebase';
 
 
 export default function StudentSidebar({ student }: { student?: any }) {
   const pathname = usePathname();
   const { isExamMode } = useExamMode();
+  const auth = useAuth();
   
   const menuItems = [
     {
@@ -58,12 +60,13 @@ export default function StudentSidebar({ student }: { student?: any }) {
       label: 'Help & Guidance',
       href: '/help',
     },
-    {
-      icon: LogOut,
-      label: 'Sign Out',
-      href: '/',
-    },
   ];
+
+  const handleSignOut = () => {
+    if (auth) {
+      auth.signOut();
+    }
+  };
   
   if (isExamMode) {
     return null;
@@ -174,6 +177,23 @@ export default function StudentSidebar({ student }: { student?: any }) {
               </Link>
             );
           })}
+            <Link
+                href="/"
+                onClick={handleSignOut}
+                key="signout"
+                className={`flex items-center cursor-pointer hover:bg-white/5 active:bg-white/10 transition-colors duration-150 focus:outline-none focus:ring-2 focus:ring-primary rounded px-2 py-2 group`}
+                tabIndex={0}
+              >
+                <LogOut
+                  size={18}
+                  className={`text-white/60 mr-3 group-hover:text-white/80 transition-opacity`}
+                />
+                <span
+                  className={`font-inter font-normal text-[12px] text-white/60 group-hover:text-white/80 transition-opacity`}
+                >
+                  Sign Out
+                </span>
+              </Link>
         </div>
       </div>
     </div>

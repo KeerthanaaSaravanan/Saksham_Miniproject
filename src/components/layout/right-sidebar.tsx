@@ -11,13 +11,11 @@ import { accessibilityModules } from '../accessibility/modules';
 import {
   Bot,
   Bell,
-  HelpCircle,
   LogOut,
   Moon,
   Settings,
   Sun,
   User,
-  Laptop,
 } from 'lucide-react';
 import { useChatbot } from '../chatbot/chatbot-provider';
 import {
@@ -36,6 +34,7 @@ import { useRouter } from 'next/navigation';
 import { useTheme } from 'next-themes';
 import { Avatar, AvatarFallback, AvatarImage } from '../ui/avatar';
 import { Skeleton } from '../ui/skeleton';
+import { Separator } from '../ui/separator';
 
 const notifications = [
   {
@@ -85,7 +84,7 @@ export function RightSidebar() {
       .join('') || 'U';
 
   return (
-    <aside className="fixed right-0 top-0 h-full w-20 bg-card/80 border-l border-border/80 flex flex-col items-center justify-between py-6 z-40">
+    <aside className="fixed right-0 top-0 h-full w-20 bg-card/80 border-l border-border/80 flex flex-col items-center py-6 z-40">
       {/* Top Section: Profile */}
       <div className="flex flex-col items-center">
         <DropdownMenu>
@@ -125,6 +124,12 @@ export function RightSidebar() {
               <Settings className="mr-2 h-4 w-4" />
               <span>Accessibility</span>
             </DropdownMenuItem>
+             <DropdownMenuItem
+              onClick={() => router.push('/help')}
+            >
+              <User className="mr-2 h-4 w-4" />
+              <span>Help & Guidance</span>
+            </DropdownMenuItem>
             <DropdownMenuSeparator />
             <DropdownMenuItem onClick={handleSignOut}>
               <LogOut className="mr-2 h-4 w-4" />
@@ -135,100 +140,105 @@ export function RightSidebar() {
       </div>
 
       {/* Middle Section: Utilities & Accessibility */}
-      <div className="flex flex-col items-center gap-4">
+      <div className="flex flex-col items-center gap-2">
         <TooltipProvider>
-          {/* Notifications */}
-          <DropdownMenu>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <DropdownMenuTrigger asChild>
-                  <div
-                    className={cn(
-                      'p-3 rounded-full transition-colors relative',
-                      !isExamMode && 'cursor-pointer hover:bg-muted'
-                    )}
-                    onClick={() => handleIconClick(() => {})}
-                    aria-disabled={isExamMode}
-                  >
-                    <Bell
-                      className={cn(
-                        'h-6 w-6 text-muted-foreground',
-                        isExamMode && 'opacity-50 cursor-not-allowed'
-                      )}
-                    />
-                    {!isExamMode && (
-                      <Badge className="absolute -top-1 -right-1 h-5 w-5 justify-center p-0">
-                        {notifications.length}
-                      </Badge>
-                    )}
-                  </div>
-                </DropdownMenuTrigger>
-              </TooltipTrigger>
-              <TooltipContent side="left">
-                <p>Notifications</p>
-              </TooltipContent>
-            </Tooltip>
-            <DropdownMenuContent side="left" className="w-80">
-              <DropdownMenuLabel>Notifications</DropdownMenuLabel>
-              <DropdownMenuSeparator />
-              {notifications.map((n, i) => (
-                <DropdownMenuItem
-                  key={i}
-                  className="flex flex-col items-start gap-1"
-                >
-                  <div className="flex justify-between w-full">
-                    <p className="font-semibold">{n.title}</p>
-                    <p className="text-xs text-muted-foreground">{n.time}</p>
-                  </div>
-                  <p className="text-sm text-muted-foreground">
-                    {n.description}
-                  </p>
-                </DropdownMenuItem>
-              ))}
-            </DropdownMenuContent>
-          </DropdownMenu>
+            {/* Core Tools */}
+            <div className='flex flex-col items-center gap-2'>
+                <DropdownMenu>
+                    <Tooltip>
+                    <TooltipTrigger asChild>
+                        <DropdownMenuTrigger asChild>
+                        <div
+                            className={cn(
+                            'p-3 rounded-full transition-colors relative',
+                            !isExamMode && 'cursor-pointer hover:bg-muted'
+                            )}
+                            onClick={() => handleIconClick(() => {})}
+                            aria-disabled={isExamMode}
+                        >
+                            <Bell
+                            className={cn(
+                                'h-6 w-6 text-muted-foreground',
+                                isExamMode && 'opacity-50 cursor-not-allowed'
+                            )}
+                            />
+                            {!isExamMode && (
+                            <Badge className="absolute -top-1 -right-1 h-5 w-5 justify-center p-0">
+                                {notifications.length}
+                            </Badge>
+                            )}
+                        </div>
+                        </DropdownMenuTrigger>
+                    </TooltipTrigger>
+                    <TooltipContent side="left">
+                        <p>Notifications</p>
+                    </TooltipContent>
+                    </Tooltip>
+                    <DropdownMenuContent side="left" className="w-80">
+                    <DropdownMenuLabel>Notifications</DropdownMenuLabel>
+                    <DropdownMenuSeparator />
+                    {notifications.map((n, i) => (
+                        <DropdownMenuItem
+                        key={i}
+                        className="flex flex-col items-start gap-1"
+                        >
+                        <div className="flex justify-between w-full">
+                            <p className="font-semibold">{n.title}</p>
+                            <p className="text-xs text-muted-foreground">{n.time}</p>
+                        </div>
+                        <p className="text-sm text-muted-foreground">
+                            {n.description}
+                        </p>
+                        </DropdownMenuItem>
+                    ))}
+                    </DropdownMenuContent>
+                </DropdownMenu>
 
-          {/* AI Assistant */}
-          <Tooltip>
-            <TooltipTrigger
-              onClick={() => handleIconClick(() => setChatbotOpen(true))}
-              disabled={isExamMode}
-            >
-              <div
-                className={cn(
-                  'p-3 rounded-full transition-colors',
-                  !isExamMode && 'cursor-pointer hover:bg-muted'
-                )}
-              >
-                <Bot
-                  className={cn(
-                    'h-6 w-6 text-muted-foreground',
-                    isExamMode && 'opacity-50 cursor-not-allowed'
-                  )}
-                />
-              </div>
-            </TooltipTrigger>
-            <TooltipContent side="left">
-              <p>AI Assistant</p>
-            </TooltipContent>
-          </Tooltip>
+                <Tooltip>
+                    <TooltipTrigger
+                    onClick={() => handleIconClick(() => setChatbotOpen(true))}
+                    disabled={isExamMode}
+                    >
+                    <div
+                        className={cn(
+                        'p-3 rounded-full transition-colors',
+                        !isExamMode && 'cursor-pointer hover:bg-muted'
+                        )}
+                    >
+                        <Bot
+                        className={cn(
+                            'h-6 w-6 text-muted-foreground',
+                            isExamMode && 'opacity-50 cursor-not-allowed'
+                        )}
+                        />
+                    </div>
+                    </TooltipTrigger>
+                    <TooltipContent side="left">
+                    <p>AI Assistant</p>
+                    </TooltipContent>
+                </Tooltip>
+            </div>
+            
+            <Separator className="my-2 w-10/12" />
 
-          {/* Accessibility Icons */}
-          {accessibilityModules.map((module) => {
-            const Icon = module.icon;
-            return (
-              <Tooltip key={module.id}>
-                <TooltipTrigger onClick={() => setOpenModule(module.id)}>
-                  <div className="p-3 rounded-full hover:bg-muted transition-colors cursor-pointer">
-                    <Icon className="h-6 w-6 text-muted-foreground" />
-                  </div>
-                </TooltipTrigger>
-                <TooltipContent side="left">
-                  <p>{module.title} Settings</p>
-                </TooltipContent>
-              </Tooltip>
-            );
-          })}
+            {/* Accessibility Icons */}
+            <div className='flex flex-col items-center gap-2'>
+                {accessibilityModules.map((module) => {
+                    const Icon = module.icon;
+                    return (
+                    <Tooltip key={module.id}>
+                        <TooltipTrigger onClick={() => setOpenModule(module.id)}>
+                        <div className="p-3 rounded-full hover:bg-muted transition-colors cursor-pointer">
+                            <Icon className="h-6 w-6 text-muted-foreground" />
+                        </div>
+                        </TooltipTrigger>
+                        <TooltipContent side="left">
+                        <p>{module.title} Settings</p>
+                        </TooltipContent>
+                    </Tooltip>
+                    );
+                })}
+            </div>
         </TooltipProvider>
       </div>
 
