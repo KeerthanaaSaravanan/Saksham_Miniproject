@@ -280,7 +280,6 @@ export default function PracticePage() {
                             {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
                             Submit for Correction
                         </Button>
-                        <Button variant="outline" onClick={() => { setExam(null); setResults(null); }}>Start Over</Button>
                     </CardFooter>
                 </form>
             </Form>
