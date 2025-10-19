@@ -23,6 +23,30 @@ export function useVoiceControl() {
   return context;
 }
 
+const getPagePrompt = (pathname: string): string => {
+    const pageName = pathname.split('/').pop()?.replace('-', ' ') || 'current';
+
+    let prompt = `You are on the ${pageName} page. `;
+
+    if (pathname.includes('/dashboard')) {
+        prompt += "You can say, 'open my exams' to view assessments, or 'open practice' to generate a practice test.";
+    } else if (pathname.includes('/assessment')) {
+        prompt += "This is the 'My Exams' page. You can say the name of an exam to start it.";
+    } else if (pathname.includes('/practice')) {
+        prompt += "This is the practice zone. You can generate a new test or review your history.";
+    } else if (pathname.includes('/results')) {
+        prompt += "This is the results page, showing your official graded exams.";
+    } else if (pathname.includes('/settings')) {
+        prompt += "You are in settings. You can say 'go to profile' or 'go to accessibility'.";
+    } else if (pathname.includes('/help')) {
+        prompt += "This is the help and guidance page. You can ask me a question about any feature.";
+    } else {
+        prompt += "What would you like to do?";
+    }
+    return prompt;
+}
+
+
 export function VoiceControlProvider({ children }: { children: ReactNode }) {
   const [isListening, setIsListening] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
@@ -225,23 +249,21 @@ export function VoiceControlProvider({ children }: { children: ReactNode }) {
     setIsListening(prev => !prev);
   };
   
+  // This effect manages starting/stopping the listener and speaking context-aware prompts.
   useEffect(() => {
-    // This effect runs when isListening state changes.
-    // It handles the side-effects (speaking, starting/stopping listener).
-    
     if (isListening) {
       startListener();
       if (pathname !== '/') {
         toast({ title: 'Voice Control Enabled', description: 'Listening for commands...' });
-        const pageName = pathname.split('/').pop()?.replace('-', ' ') || 'the current page';
-        speak(`Voice control is enabled. You are on the ${pageName} page. What would you like to do?`);
+        const prompt = getPagePrompt(pathname);
+        speak(`Voice control is enabled. ${prompt}`);
       }
     } else {
       if (recognitionRef.current) {
-        recognitionRef.current.onend = null;
+        recognitionRef.current.onend = null; // Prevent automatic restart
         recognitionRef.current.stop();
         recognitionRef.current = null;
-        if (pathname !== '/') {
+        if (pathname !== '/') { // Don't show toast on login page for initial 'no'
           toast({ title: 'Voice Control Disabled' });
         }
       }
@@ -254,7 +276,8 @@ export function VoiceControlProvider({ children }: { children: ReactNode }) {
         recognitionRef.current = null;
       }
     };
-  }, [isListening, pathname, speak, startListener, toast]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isListening, pathname, startListener, toast]);
 
   useEffect(() => {
     // This effect handles the one-time welcome message on the login page.
@@ -270,7 +293,7 @@ export function VoiceControlProvider({ children }: { children: ReactNode }) {
             .then(() => {
               setIsListening(true); // Start listening after the prompt.
             });
-        }, 0);
+        }, 500); // Small delay to ensure everything is ready
         sessionStorage.setItem(WELCOME_KEY, 'true');
         return () => clearTimeout(timer);
       }
