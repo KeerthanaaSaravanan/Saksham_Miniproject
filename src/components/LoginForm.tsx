@@ -8,10 +8,23 @@ import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import { useAuth } from '@/firebase';
+import { GoogleAuthProvider, signInWithPopup } from 'firebase/auth';
 
 export default function LoginForm({ userType }: { userType: 'student' | 'faculty' }) {
   const [showPassword, setShowPassword] = useState(false);
   const router = useRouter();
+  const auth = useAuth();
+
+  const handleGoogleSignIn = async () => {
+    const provider = new GoogleAuthProvider();
+    try {
+      await signInWithPopup(auth, provider);
+      router.push('/dashboard');
+    } catch (error) {
+      console.error("Error during Google sign-in:", error);
+    }
+  };
 
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
@@ -34,7 +47,7 @@ export default function LoginForm({ userType }: { userType: 'student' | 'faculty
   if (userType === 'student') {
     return (
       <div className="space-y-6 animate-fade-in">
-        <Button variant="outline" className="w-full h-12 text-base" onClick={handleLogin}>
+        <Button variant="outline" className="w-full h-12 text-base" onClick={handleGoogleSignIn}>
           <GoogleIcon />
           Sign in with Google
         </Button>
