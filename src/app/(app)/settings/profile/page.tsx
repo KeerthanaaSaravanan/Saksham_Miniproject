@@ -22,13 +22,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { useUser, useFirestore } from '@/firebase';
+import { useUser, useFirestore, errorEmitter, FirestorePermissionError } from '@/firebase';
 import { updateProfile } from 'firebase/auth';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { Skeleton } from '@/components/ui/skeleton';
 import { avatars } from '@/lib/avatars';
 import { AvatarSelector } from '@/components/AvatarSelector';
-import { errorEmitter, FirestorePermissionError } from '@/firebase';
 
 const gradeConfig = {
   'Class 6': { subjects: true },
@@ -58,7 +57,6 @@ export default function ProfileSettingsPage() {
   const { toast } = useToast();
 
   useEffect(() => {
-    // Only proceed if user is loaded and firestore is available
     if (!isUserLoading && user && firestore) {
       const fetchUserProfile = async () => {
         setIsProfileLoading(true);
@@ -74,7 +72,6 @@ export default function ProfileSettingsPage() {
               setStream(userData.stream || '');
             }
         } catch (error: any) {
-            console.error("Error fetching user profile:", error);
             const permissionError = new FirestorePermissionError({
               path: userDocRef.path,
               operation: 'get',
@@ -86,10 +83,10 @@ export default function ProfileSettingsPage() {
       };
 
       fetchUserProfile();
-    } else if (!isUserLoading) { // If not loading and user is null, or firestore is null
-        setIsProfileLoading(false); // Stop loading as there's nothing to fetch
+    } else if (!isUserLoading) {
+        setIsProfileLoading(false);
     }
-  }, [user, firestore, isUserLoading, toast]);
+  }, [user, firestore, isUserLoading]);
 
 
   const selectedGradeConfig = gradeConfig[grade as keyof typeof gradeConfig];
@@ -103,7 +100,6 @@ export default function ProfileSettingsPage() {
     }
     setIsSaving(true);
     
-    // This can still be awaited as it's a client-side SDK operation not subject to security rules
     if (user.displayName !== name) {
       try {
         await updateProfile(user, { displayName: name });
@@ -335,3 +331,4 @@ export default function ProfileSettingsPage() {
     </div>
   );
 }
+    

@@ -128,7 +128,6 @@ export default function DashboardPage() {
             setStream(userStream);
             setSubjects(getSubjectsForGrade(userGrade, userStream));
             
-            // Now fetch accessibility profile, but handle its absence gracefully
             try {
               const accessibilityDocSnap = await getDoc(accessibilityProfileRef);
               if (accessibilityDocSnap.exists()) {
@@ -144,7 +143,6 @@ export default function DashboardPage() {
             }
 
           } else {
-            // User doc doesn't exist, maybe profile creation is pending
              setWelcomeMessage(getPersonalizedGreeting(user.displayName || 'Student'));
           }
 
@@ -380,5 +378,5 @@ export default function DashboardPage() {
       </main>
     </div>
   );
-
+}
     
