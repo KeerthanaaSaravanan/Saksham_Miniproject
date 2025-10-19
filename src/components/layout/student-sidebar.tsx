@@ -39,8 +39,18 @@ export default function StudentSidebar({ student }: { student?: any }) {
   const bottomItems = [
     {
       icon: Settings,
-      label: 'Settings',
+      label: 'Profile Settings',
       href: '/settings/profile',
+    },
+    {
+      icon: Brain,
+      label: 'Accessibility Settings',
+      href: '/settings/accessibility',
+    },
+    {
+      icon: LogOut,
+      label: 'Sign Out',
+      href: '/',
     },
   ];
 
@@ -120,34 +130,32 @@ export default function StudentSidebar({ student }: { student?: any }) {
         <div className="space-y-2">
           {bottomItems.map((item) => {
             const IconComponent = item.icon;
+            const isActive = pathname === item.href;
             return (
               <Link
                 href={item.href}
                 key={item.label}
-                className="flex items-center cursor-pointer hover:bg-white/5 active:bg-white/10 transition-colors duration-150 focus:outline-none focus:ring-2 focus:ring-primary rounded px-2 py-2 group"
+                className={`flex items-center cursor-pointer hover:bg-white/5 active:bg-white/10 transition-colors duration-150 focus:outline-none focus:ring-2 focus:ring-primary rounded px-2 py-2 group ${
+                  isActive ? 'bg-primary/20' : ''
+                }`}
                 tabIndex={0}
               >
                 <IconComponent
                   size={18}
-                  className="text-white/60 mr-3 group-hover:text-white/80 transition-opacity"
+                  className={`text-white/60 mr-3 group-hover:text-white/80 transition-opacity ${
+                    isActive ? 'text-white' : ''
+                  }`}
                 />
-                <span className="font-inter font-normal text-[12px] text-white/60 group-hover:text-white/80 transition-opacity">
+                <span
+                  className={`font-inter font-normal text-[12px] text-white/60 group-hover:text-white/80 transition-opacity ${
+                    isActive ? 'text-white' : ''
+                  }`}
+                >
                   {item.label}
                 </span>
               </Link>
             );
           })}
-
-          <Link
-            href="/"
-            className="flex items-center px-2 py-3 rounded-md cursor-pointer hover:bg-slate-800 active:bg-slate-700 transition-colors duration-150 focus:outline-none focus:ring-2 focus:ring-primary"
-            tabIndex={0}
-          >
-            <LogOut size={18} className="text-white mr-3" />
-            <span className="font-inter font-medium text-[12px] text-white">
-              Sign Out
-            </span>
-          </Link>
         </div>
       </div>
     </div>
