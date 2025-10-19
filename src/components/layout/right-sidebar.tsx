@@ -16,6 +16,8 @@ import {
   Settings,
   Sun,
   User,
+  Mic,
+  MicOff,
 } from 'lucide-react';
 import { useChatbot } from '../chatbot/chatbot-provider';
 import {
@@ -35,6 +37,7 @@ import { useTheme } from 'next-themes';
 import { Avatar, AvatarFallback, AvatarImage } from '../ui/avatar';
 import { Skeleton } from '../ui/skeleton';
 import { Separator } from '../ui/separator';
+import { useVoiceControl } from '../voice-control-provider';
 
 const notifications = [
   {
@@ -62,6 +65,7 @@ export function RightSidebar() {
   const auth = useAuth();
   const router = useRouter();
   const { theme, setTheme } = useTheme();
+  const { isListening, toggleListening } = useVoiceControl();
 
   const handleIconClick = (action: () => void) => {
     if (!isExamMode) {
@@ -242,9 +246,25 @@ export function RightSidebar() {
         </TooltipProvider>
       </div>
 
-       {/* Bottom Section: Theme */}
+       {/* Bottom Section: Theme & Voice */}
       <div className="flex flex-col items-center gap-2">
          <TooltipProvider>
+            <Tooltip>
+                <TooltipTrigger onClick={toggleListening}>
+                    <div className={cn(
+                        "p-2 rounded-full hover:bg-muted transition-colors cursor-pointer",
+                        isListening && "bg-destructive/20"
+                    )}>
+                        {isListening ? (
+                            <MicOff className="h-5 w-5 text-destructive" />
+                        ) : (
+                            <Mic className="h-5 w-5 text-muted-foreground" />
+                        )}
+                    </div>
+                </TooltipTrigger>
+                <TooltipContent side="left"><p>{isListening ? 'Stop Voice Control' : 'Start Voice Control'}</p></TooltipContent>
+            </Tooltip>
+
             {theme === 'dark' ? (
                 <Tooltip>
                     <TooltipTrigger onClick={() => setTheme('light')}>
