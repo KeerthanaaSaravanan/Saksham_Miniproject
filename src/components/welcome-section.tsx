@@ -27,22 +27,24 @@ export default function WelcomeSection({ onComplete }: { onComplete: () => void 
 
   useEffect(() => {
     setIsPlaying(true);
-
     const stepTimer = setInterval(() => {
       setCurrentStep((prev) => {
         if (prev < welcomeSteps.length - 1) {
           return prev + 1;
-        } else {
-          clearInterval(stepTimer);
-          setTimeout(() => {
-            onComplete();
-          }, 4000);
-          return prev;
         }
+        return prev;
       });
     }, 2500);
 
-    return () => clearInterval(stepTimer);
+    const completeTimer = setTimeout(() => {
+        onComplete();
+    }, (welcomeSteps.length + 1) * 2500 - 1000);
+
+
+    return () => {
+        clearInterval(stepTimer);
+        clearTimeout(completeTimer);
+    };
   }, [onComplete]);
 
   const currentWelcome = welcomeSteps[currentStep];

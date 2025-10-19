@@ -1,5 +1,5 @@
 'use client';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { School, LogIn, Sparkles } from 'lucide-react';
@@ -7,6 +7,15 @@ import WelcomeSection from '@/components/welcome-section';
 
 export default function LandingPage() {
   const [showWelcome, setShowWelcome] = useState(true);
+  const [isClient, setIsClient] = useState(false);
+
+  useEffect(() => {
+    setIsClient(true);
+  }, []);
+
+  if (!isClient) {
+    return null; // or a loading spinner
+  }
 
   if (showWelcome) {
     return <WelcomeSection onComplete={() => setShowWelcome(false)} />;
