@@ -3,11 +3,13 @@
 import React, { createContext, useState, useContext, ReactNode, useEffect, useRef, useCallback } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
-import { getChatbotResponse } from '@/lib/actions/chatbot';
+import { getChatbotResponse, getTTS } from '@/lib/actions/chatbot';
+import { usePathname } from 'next/navigation';
 
 interface VoiceControlContextType {
   isListening: boolean;
   toggleListening: () => void;
+  isLoading: boolean;
 }
 
 const VoiceControlContext = createContext<VoiceControlContextType | undefined>(undefined);
@@ -22,50 +24,89 @@ export function useVoiceControl() {
 
 export function VoiceControlProvider({ children }: { children: ReactNode }) {
   const [isListening, setIsListening] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
   const recognitionRef = useRef<any>(null);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
   const router = useRouter();
+  const pathname = usePathname();
   const { toast } = useToast();
+
+  const speak = useCallback(async (text: string) => {
+    setIsLoading(true);
+    try {
+      const result = await getTTS(text);
+      if ('media' in result && audioRef.current) {
+        audioRef.current.src = result.media;
+        return new Promise<void>((resolve) => {
+          audioRef.current!.onended = () => {
+            setIsLoading(false);
+            resolve();
+          };
+          audioRef.current!.play();
+        });
+      } else {
+        setIsLoading(false);
+      }
+    } catch (error) {
+      console.error("TTS Error:", error);
+      setIsLoading(false);
+    }
+  }, []);
 
   const handleNavigation = useCallback((path: string) => {
     router.push(path);
-  },[router]);
+  }, [router]);
 
   const processCommand = useCallback(async (command: string) => {
     const lowerCaseCommand = command.toLowerCase();
-     if (lowerCaseCommand.includes('navigate to') || lowerCaseCommand.includes('go to') || lowerCaseCommand.includes('open')) {
-        let path = '';
-        if(lowerCaseCommand.includes('dashboard')) path = '/dashboard';
-        else if (lowerCaseCommand.includes('assessment')) path = '/assessment';
-        else if (lowerCaseCommand.includes('practice')) path = '/practice';
-        else if (lowerCaseCommand.includes('results')) path = '/results';
-        else if (lowerCaseCommand.includes('profile')) path = '/settings/profile';
-        else if (lowerCaseCommand.includes('accessibility')) path = '/settings/accessibility';
-        else if (lowerCaseCommand.includes('help')) path = '/help';
-        else if (lowerCaseCommand.includes('admin')) path = '/admin/dashboard';
-        
-        if (path) {
-            handleNavigation(path);
-            toast({ title: 'Navigating', description: `Going to ${path}` });
-        } else {
-             toast({ variant: 'destructive', title: 'Unknown Page', description: `Could not find page for command: "${command}"` });
+    
+    if (lowerCaseCommand.includes('yes')) {
+        setIsListening(true);
+        speak("Voice control is enabled. How can I help you?");
+        return;
+    }
+    if (lowerCaseCommand.includes('no')) {
+        setIsListening(false);
+        if (recognitionRef.current) {
+          recognitionRef.current.stop();
         }
+        return;
+    }
+
+    if (!isListening) return;
+
+    if (lowerCaseCommand.includes('navigate to') || lowerCaseCommand.includes('go to') || lowerCaseCommand.includes('open')) {
+      let path = '';
+      if(lowerCaseCommand.includes('dashboard')) path = '/dashboard';
+      else if (lowerCaseCommand.includes('assessment')) path = '/assessment';
+      else if (lowerCaseCommand.includes('practice')) path = '/practice';
+      else if (lowerCaseCommand.includes('results')) path = '/results';
+      else if (lowerCaseCommand.includes('profile')) path = '/settings/profile';
+      else if (lowerCaseCommand.includes('accessibility')) path = '/settings/accessibility';
+      else if (lowerCaseCommand.includes('help')) path = '/help';
+      else if (lowerCaseCommand.includes('admin')) path = '/admin/dashboard';
+      
+      if (path) {
+          handleNavigation(path);
+          toast({ title: 'Navigating', description: `Going to ${path}` });
+      } else {
+           toast({ variant: 'destructive', title: 'Unknown Page', description: `Could not find page for command: "${command}"` });
+      }
     } else {
-         const res = await getChatbotResponse({
-            userMessage: command,
-            modality: 'voice',
+        const res = await getChatbotResponse({
+          userMessage: command,
+          modality: 'voice',
         });
         if ('response' in res && res.modality === 'voice') {
-            const audio = new Audio(res.response);
-            audio.play();
+          await speak(res.response);
         }
     }
-  }, [handleNavigation, toast]);
-
+  }, [handleNavigation, toast, speak, isListening]);
 
   const startListener = useCallback(() => {
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
     if (!SpeechRecognition) {
-      toast({ variant: 'destructive', title: 'Unsupported', description: "Your browser doesn't support speech recognition."});
+      if(isListening) toast({ variant: 'destructive', title: 'Unsupported', description: "Your browser doesn't support speech recognition."});
       setIsListening(false);
       return;
     }
@@ -76,7 +117,7 @@ export function VoiceControlProvider({ children }: { children: ReactNode }) {
     }
 
     const recognition = new SpeechRecognition();
-    recognition.continuous = true;
+    recognition.continuous = true; // Listen continuously
     recognition.interimResults = false;
     recognition.lang = 'en-US';
 
@@ -92,54 +133,74 @@ export function VoiceControlProvider({ children }: { children: ReactNode }) {
     recognition.onerror = (event: any) => {
       console.error("Speech recognition error:", event.error);
       if (event.error === 'no-speech' || event.error === 'audio-capture') {
-        // Just ignore and it will auto-restart if continuous is true
+        // Ignore and let it restart
       } else {
         toast({ variant: 'destructive', title: 'Voice Error', description: event.error });
       }
     };
     
     recognition.onend = () => {
-        if(isListening) {
-             setTimeout(() => recognition.start(), 250);
+        // If listening is still supposed to be active, restart it.
+        // This is a workaround for some browsers stopping recognition after a while.
+        if (isListening) {
+             try {
+                recognition.start();
+             } catch(e) {
+                console.error("Could not restart recognition", e);
+             }
         }
     }
 
     recognition.start();
     recognitionRef.current = recognition;
-    toast({ title: 'Voice Control Enabled', description: 'Listening for commands...' });
 
   }, [toast, processCommand, isListening]);
 
-  const stopListener = () => {
-    if (recognitionRef.current) {
-      recognitionRef.current.stop();
-      recognitionRef.current = null;
-      toast({ title: 'Voice Control Disabled' });
+  useEffect(() => {
+    // Only run this on the login page
+    if (pathname === '/') {
+        const WELCOME_KEY = 'saksham_welcome_spoken';
+        const hasBeenWelcomed = sessionStorage.getItem(WELCOME_KEY);
+
+        if (!hasBeenWelcomed) {
+            speak("Welcome to Saksham! Would you like me to guide you through login using voice commands? Please say 'yes' to begin or 'no' to continue manually.")
+            .then(() => {
+                 startListener();
+            });
+            sessionStorage.setItem(WELCOME_KEY, 'true');
+        }
     }
-  };
+
+    // Main logic for toggling listening state
+    if (isListening) {
+        startListener();
+        toast({ title: 'Voice Control Enabled', description: 'Listening for commands...' });
+    } else {
+        if (recognitionRef.current) {
+            recognitionRef.current.stop();
+            recognitionRef.current = null;
+            toast({ title: 'Voice Control Disabled' });
+        }
+    }
+      
+    return () => {
+        if (recognitionRef.current) {
+            recognitionRef.current.stop();
+            recognitionRef.current = null;
+        }
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isListening, pathname]);
+
 
   const toggleListening = () => {
     setIsListening(prev => !prev);
   };
 
-  useEffect(() => {
-      if(isListening) {
-          startListener();
-      } else {
-          stopListener();
-      }
-      
-      return () => {
-          if (recognitionRef.current) {
-              recognitionRef.current.stop();
-          }
-      }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isListening]);
-
   return (
-    <VoiceControlContext.Provider value={{ isListening, toggleListening }}>
+    <VoiceControlContext.Provider value={{ isListening, toggleListening, isLoading }}>
       {children}
+      <audio ref={audioRef} className="hidden" />
     </VoiceControlContext.Provider>
   );
 }

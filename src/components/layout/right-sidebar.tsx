@@ -18,6 +18,7 @@ import {
   User,
   Mic,
   MicOff,
+  Loader2,
 } from 'lucide-react';
 import { useChatbot } from '../chatbot/chatbot-provider';
 import {
@@ -65,7 +66,7 @@ export function RightSidebar() {
   const auth = useAuth();
   const router = useRouter();
   const { theme, setTheme } = useTheme();
-  const { isListening, toggleListening } = useVoiceControl();
+  const { isListening, toggleListening, isLoading: isVoiceLoading } = useVoiceControl();
 
   const handleIconClick = (action: () => void) => {
     if (!isExamMode) {
@@ -250,12 +251,14 @@ export function RightSidebar() {
       <div className="flex flex-col items-center gap-2">
          <TooltipProvider>
             <Tooltip>
-                <TooltipTrigger onClick={toggleListening}>
+                <TooltipTrigger onClick={toggleListening} disabled={isVoiceLoading}>
                     <div className={cn(
                         "p-2 rounded-full hover:bg-muted transition-colors cursor-pointer",
                         isListening && "bg-destructive/20"
                     )}>
-                        {isListening ? (
+                        {isVoiceLoading ? (
+                            <Loader2 className="h-5 w-5 animate-spin" />
+                        ) : isListening ? (
                             <MicOff className="h-5 w-5 text-destructive" />
                         ) : (
                             <Mic className="h-5 w-5 text-muted-foreground" />
