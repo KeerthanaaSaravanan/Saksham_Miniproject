@@ -35,6 +35,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { useUser } from '@/firebase';
+import { updateProfile } from 'firebase/auth';
+import { Skeleton } from '@/components/ui/skeleton';
 
 const gradeConfig = {
   'Class 6': { subjects: true },
@@ -51,12 +54,11 @@ const gradeConfig = {
 };
 
 export default function ProfileSettingsPage() {
-  const [name, setName] = useState('Arjun Sharma');
-  const [grade, setGrade] = useState('Class 10');
+  const { user, isUserLoading } = useUser();
+  const [name, setName] = useState('');
+  const [grade, setGrade] = useState('');
   const [stream, setStream] = useState('');
-  const [profileImage, setProfileImage] = useState(
-    'https://picsum.photos/seed/arjun/128/128'
-  );
+  const [profileImage, setProfileImage] = useState('');
   const [isSaving, setIsSaving] = useState(false);
 
   const [isCameraOn, setIsCameraOn] = useState(false);
@@ -67,7 +69,19 @@ export default function ProfileSettingsPage() {
 
   const { toast } = useToast();
 
+  useEffect(() => {
+    if (user) {
+      setName(user.displayName || '');
+      setProfileImage(user.photoURL || `https://picsum.photos/seed/${user.uid}/128/128`);
+      // In a real app, you'd fetch grade/stream from your Firestore user profile document
+      setGrade('Class 10'); // Placeholder
+    }
+  }, [user]);
+
   const selectedGradeConfig = gradeConfig[grade as keyof typeof gradeConfig];
+  
+  const userInitial = name.split(' ').map((n) => n[0]).join('') || 'U';
+
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -100,14 +114,14 @@ export default function ProfileSettingsPage() {
     }
   };
 
-  const stopCamera = () => {
+  const stopCamera = useCallback(() => {
     if (videoRef.current && videoRef.current.srcObject) {
       const stream = videoRef.current.srcObject as MediaStream;
       stream.getTracks().forEach((track) => track.stop());
       videoRef.current.srcObject = null;
     }
     setIsCameraOn(false);
-  };
+  },[]);
 
   const captureImage = () => {
     if (videoRef.current && canvasRef.current) {
@@ -124,18 +138,36 @@ export default function ProfileSettingsPage() {
   };
 
   const handleSaveChanges = async () => {
+    if (!user) {
+      toast({ variant: 'destructive', title: 'Not authenticated' });
+      return;
+    }
     setIsSaving(true);
-    // Simulate API call
-    await new Promise((resolve) => setTimeout(resolve, 1500));
+    
+    // In a real app, you would upload the image to Firebase Storage if it's a new data URI
+    // For this example, we'll just save the name and the (potentially long) data URI to the profile.
+    try {
+      await updateProfile(user, {
+        displayName: name,
+        photoURL: profileImage,
+      });
 
-    // In a real app, you would upload the image (if changed) and save user data to Firestore
-    console.log('Saving profile:', { name, grade, stream, profileImage });
+      // Also update grade/stream in your Firestore database here.
+      console.log('Saving profile:', { name, grade, stream, profileImage });
 
-    setIsSaving(false);
-    toast({
-      title: 'Profile Updated',
-      description: 'Your changes have been saved successfully.',
-    });
+      toast({
+        title: 'Profile Updated',
+        description: 'Your changes have been saved successfully.',
+      });
+    } catch (error: any) {
+       toast({
+        variant: 'destructive',
+        title: 'Update Failed',
+        description: error.message,
+      });
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   useEffect(() => {
@@ -145,7 +177,7 @@ export default function ProfileSettingsPage() {
         stopCamera();
       }
     };
-  }, [isCameraOn]);
+  }, [isCameraOn, stopCamera]);
 
 
   return (
@@ -167,15 +199,16 @@ export default function ProfileSettingsPage() {
               </CardDescription>
             </CardHeader>
             <CardContent className="flex flex-col items-center gap-4">
-              <Avatar className="w-32 h-32 border-4 border-primary/20">
-                <AvatarImage src={profileImage} alt={name} />
-                <AvatarFallback className="text-4xl">
-                  {name
-                    .split(' ')
-                    .map((n) => n[0])
-                    .join('')}
-                </AvatarFallback>
-              </Avatar>
+              {isUserLoading ? (
+                 <Skeleton className="w-32 h-32 rounded-full" />
+              ) : (
+                <Avatar className="w-32 h-32 border-4 border-primary/20">
+                  <AvatarImage src={profileImage} alt={name} />
+                  <AvatarFallback className="text-4xl">
+                    {userInitial}
+                  </AvatarFallback>
+                </Avatar>
+              )}
 
               <Tabs defaultValue="upload" className="w-full">
                 <TabsList className="grid w-full grid-cols-2">
@@ -273,65 +306,80 @@ export default function ProfileSettingsPage() {
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
-              <div className="space-y-2">
-                <Label htmlFor="name">
-                  <User className="inline-block mr-2" /> Full Name
-                </Label>
-                <Input
-                  id="name"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  className="h-12 text-base"
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="grade">
-                  <GraduationCap className="inline-block mr-2" /> Grade / Level
-                </Label>
-                <Select
-                  value={grade}
-                  onValueChange={(value) => {
-                    setGrade(value);
-                    setStream('');
-                  }}
-                >
-                  <SelectTrigger id="grade" className="h-12 text-base">
-                    <SelectValue placeholder="Select your grade or level" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {Object.keys(gradeConfig).map((g) => (
-                      <SelectItem key={g} value={g}>
-                        {g}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              {grade && selectedGradeConfig?.streams && (
-                <div className="space-y-2 animate-fade-in">
-                  <Label htmlFor="stream">Stream / Exam</Label>
-                  <Select value={stream} onValueChange={setStream} required>
-                    <SelectTrigger id="stream" className="h-12 text-base">
-                      <SelectValue placeholder="Select your stream or exam" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {selectedGradeConfig.streams.map((s) => (
-                        <SelectItem key={s} value={s}>
-                          {s}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+               {isUserLoading ? (
+                <div className="space-y-6">
+                  <div className="space-y-2">
+                    <Skeleton className="h-4 w-20" />
+                    <Skeleton className="h-12 w-full" />
+                  </div>
+                  <div className="space-y-2">
+                    <Skeleton className="h-4 w-20" />
+                    <Skeleton className="h-12 w-full" />
+                  </div>
                 </div>
+               ) : (
+                <>
+                  <div className="space-y-2">
+                    <Label htmlFor="name">
+                      <User className="inline-block mr-2" /> Full Name
+                    </Label>
+                    <Input
+                      id="name"
+                      value={name}
+                      onChange={(e) => setName(e.target.value)}
+                      className="h-12 text-base"
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="grade">
+                      <GraduationCap className="inline-block mr-2" /> Grade / Level
+                    </Label>
+                    <Select
+                      value={grade}
+                      onValueChange={(value) => {
+                        setGrade(value);
+                        setStream('');
+                      }}
+                    >
+                      <SelectTrigger id="grade" className="h-12 text-base">
+                        <SelectValue placeholder="Select your grade or level" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {Object.keys(gradeConfig).map((g) => (
+                          <SelectItem key={g} value={g}>
+                            {g}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  {grade && selectedGradeConfig?.streams && (
+                    <div className="space-y-2 animate-fade-in">
+                      <Label htmlFor="stream">Stream / Exam</Label>
+                      <Select value={stream} onValueChange={setStream} required>
+                        <SelectTrigger id="stream" className="h-12 text-base">
+                          <SelectValue placeholder="Select your stream or exam" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {selectedGradeConfig.streams.map((s) => (
+                            <SelectItem key={s} value={s}>
+                              {s}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  )}
+                </>
               )}
             </CardContent>
             <CardFooter>
               <Button
                 size="lg"
                 onClick={handleSaveChanges}
-                disabled={isSaving}
+                disabled={isSaving || isUserLoading}
               >
                 {isSaving ? (
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />

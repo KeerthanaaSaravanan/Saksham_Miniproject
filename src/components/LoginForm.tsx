@@ -5,10 +5,11 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useRouter } from 'next/navigation';
-import { useAuth } from '@/firebase';
+import { useAuth, useUser } from '@/firebase';
 import {
   createUserWithEmailAndPassword,
   signInWithEmailAndPassword,
+  updateProfile,
 } from 'firebase/auth';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2 } from 'lucide-react';
@@ -22,6 +23,7 @@ export default function LoginForm() {
   const [isDetailsStep, setIsDetailsStep] = useState(false);
   const router = useRouter();
   const auth = useAuth();
+  const { user } = useUser();
   const { toast } = useToast();
 
   const handleAuthError = (error: any) => {
@@ -103,13 +105,26 @@ export default function LoginForm() {
     }
   };
 
-  const onDetailsComplete = (details: {name: string, grade: string, stream: string}) => {
-    console.log('Student details:', details);
-     toast({
-        title: 'Profile Complete!',
-        description: `Welcome, ${details.name}! Your learning path is set.`,
-      });
-    router.push('/dashboard');
+  const onDetailsComplete = async (details: {name: string, grade: string, stream: string}) => {
+    if (!user) {
+        toast({ variant: 'destructive', title: 'Error', description: 'No authenticated user found.' });
+        return;
+    }
+    try {
+        await updateProfile(user, {
+            displayName: details.name,
+        });
+        // Here you would also save grade/stream to Firestore against the user's UID.
+        console.log('Student details saved to profile:', details);
+        toast({
+            title: 'Profile Complete!',
+            description: `Welcome, ${details.name}! Your learning path is set.`,
+        });
+        router.push('/dashboard');
+    } catch (error: any) {
+        console.error("Failed to update profile", error);
+        toast({ variant: 'destructive', title: 'Profile Update Failed', description: error.message });
+    }
   }
 
   if (isDetailsStep) {

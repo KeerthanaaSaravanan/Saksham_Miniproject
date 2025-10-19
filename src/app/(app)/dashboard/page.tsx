@@ -6,14 +6,10 @@ import {
   Mic,
   Zap,
   Eye,
-  BarChart,
-  FileText,
-  CheckCircle,
-  User,
-  LogOut,
   Settings,
+  LogOut,
+  User,
   GraduationCap,
-  Upload,
   Brain,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -35,11 +31,13 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useRouter } from 'next/navigation';
-import { useAuth } from '@/firebase';
+import { useAuth, useUser } from '@/firebase';
+import { Skeleton } from '@/components/ui/skeleton';
 
 export default function DashboardPage() {
   const router = useRouter();
   const auth = useAuth();
+  const { user, isUserLoading } = useUser();
 
   const handleSignOut = () => {
     if (auth) {
@@ -47,29 +45,44 @@ export default function DashboardPage() {
     }
     router.push('/');
   };
+  
+  const userName = user?.displayName || "Student";
+  const userInitial = userName.split(' ').map(n => n[0]).join('') || 'U';
 
   return (
     <div className="space-y-8 text-foreground">
       <main>
-        <div className="bg-gradient-to-r from-primary to-accent p-8 rounded-xl relative overflow-hidden text-primary-foreground shadow-lg">
+        <div className="bg-gradient-to-r from-primary/80 to-accent/80 p-8 rounded-xl relative overflow-hidden text-primary-foreground shadow-lg">
           <div className="flex justify-between items-start">
             <div className="flex items-center gap-4">
-              <div className="text-3xl">👋</div>
-              <div>
-                <h2 className="text-3xl font-bold">Hello Arjun Sharma!</h2>
-                <p className="opacity-80">
-                  Your AI learning companion is ready to assist you.
-                </p>
-              </div>
+               {isUserLoading ? (
+                <Skeleton className="h-12 w-48 rounded-md" />
+              ) : (
+                <>
+                  <div className="text-3xl">👋</div>
+                  <div>
+                    <h2 className="text-3xl font-bold">Hello {userName}!</h2>
+                    <p className="opacity-80">
+                      Your AI learning companion is ready to assist you.
+                    </p>
+                  </div>
+                </>
+              )}
             </div>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Avatar className="h-12 w-12 cursor-pointer border-2 border-white/50">
-                  <AvatarImage
-                    src="https://picsum.photos/seed/arjun/64/64"
-                    alt="Arjun Sharma"
-                  />
-                  <AvatarFallback>AS</AvatarFallback>
+                  {isUserLoading ? (
+                    <Skeleton className="h-12 w-12 rounded-full" />
+                  ) : (
+                    <>
+                      <AvatarImage
+                        src={user?.photoURL || ''}
+                        alt={userName}
+                      />
+                      <AvatarFallback>{userInitial}</AvatarFallback>
+                    </>
+                  )}
                 </Avatar>
               </DropdownMenuTrigger>
               <DropdownMenuContent className="w-56" align="end">
