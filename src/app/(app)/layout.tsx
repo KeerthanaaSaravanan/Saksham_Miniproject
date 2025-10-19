@@ -7,16 +7,16 @@ import { ThemeProvider } from '@/components/theme-provider';
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   return (
     <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
-      <div className="flex min-h-screen bg-gradient-to-br from-primary/10 via-background to-accent/10 dark:from-[#0B1426] dark:via-[#111B2E] dark:to-[#1A2642]">
-        <SidebarNav />
-        <main className="flex-1 md:ml-64 md:mr-20">
-          <Header />
-          <div className="p-4 sm:p-6 lg:p-8">
-            <ChatbotProvider>{children}</ChatbotProvider>
-          </div>
-        </main>
-        <RightSidebar />
-      </div>
+      <ChatbotProvider>
+        <div className="flex min-h-screen bg-gradient-to-br from-primary/10 via-background to-accent/10 dark:from-[#0B1426] dark:via-[#111B2E] dark:to-[#1A2642]">
+          <SidebarNav />
+          <main className="flex-1 md:ml-64 md:mr-20">
+            <Header />
+            <div className="p-4 sm:p-6 lg:p-8">{children}</div>
+          </main>
+          <RightSidebar />
+        </div>
+      </ChatbotProvider>
     </ThemeProvider>
   );
 }
