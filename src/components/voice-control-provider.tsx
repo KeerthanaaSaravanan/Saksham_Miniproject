@@ -180,21 +180,23 @@ export function VoiceControlProvider({ children }: { children: ReactNode }) {
   }, [pathname, speak]);
 
   useEffect(() => {
-    // Special handling for the very first load on the login page
     if (pathname === '/') {
         const WELCOME_KEY = 'saksham_welcome_spoken';
         const hasBeenWelcomed = sessionStorage.getItem(WELCOME_KEY);
 
         if (!hasBeenWelcomed) {
-            speak("Welcome to Saksham! Would you like me to guide you through login using voice commands? Please say 'yes' to begin or 'no' to continue manually.")
-            .then(() => {
-                 startListener();
-            });
+            // Defer the execution to prevent updates during render
+            const timer = setTimeout(() => {
+                speak("Welcome to Saksham! Would you like me to guide you through login using voice commands? Please say 'yes' to begin or 'no' to continue manually.")
+                .then(() => {
+                    startListener();
+                });
+            }, 0);
             sessionStorage.setItem(WELCOME_KEY, 'true');
+            return () => clearTimeout(timer);
         }
     }
 
-    // General logic for toggling listening state
     if (isListening) {
         startListener();
         if(pathname !== '/') toast({ title: 'Voice Control Enabled', description: 'Listening for commands...' });
