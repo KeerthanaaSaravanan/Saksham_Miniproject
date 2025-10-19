@@ -8,7 +8,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Timer } from '@/components/Timer';
 import { useProctoring } from '@/hooks/use-proctoring';
 import { useToast } from '@/hooks/use-toast';
-import type { SelectedExamDetails, AssessmentQuestion } from '@/app/(app)/assessment/page';
+import type { SelectedExamDetails, AssessmentQuestion } from '@/app/(app)/assessment/[examId]/page';
 import { Flag, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { RightSidebar } from './right-sidebar';
@@ -19,13 +19,12 @@ import { Textarea } from '../ui/textarea';
 interface ExamLayoutProps {
     exam: SelectedExamDetails;
     onTimeUp: (answers: Record<string, string>) => void;
-    onExit: () => void;
     isSubmitting: boolean;
 }
 
 type AnswerStatus = 'answered' | 'unanswered' | 'review';
 
-export function ExamLayout({ exam, onTimeUp, onExit, isSubmitting }: ExamLayoutProps) {
+export function ExamLayout({ exam, onTimeUp, isSubmitting }: ExamLayoutProps) {
     const [activeQuestionIndex, setActiveQuestionIndex] = useState(0);
     const [answers, setAnswers] = useState<Record<string, string>>({});
     const [reviewFlags, setReviewFlags] = useState<Record<string, boolean>>({});
@@ -73,7 +72,7 @@ export function ExamLayout({ exam, onTimeUp, onExit, isSubmitting }: ExamLayoutP
     const getQuestionStatus = (index: number): AnswerStatus => {
         const questionId = exam.questions[index].id;
         if(reviewFlags[questionId]) return 'review';
-        if(answers[questionId]) return 'answered';
+        if(answers[questionId] && answers[questionId].trim() !== '') return 'answered';
         return 'unanswered';
     }
 
@@ -120,12 +119,26 @@ export function ExamLayout({ exam, onTimeUp, onExit, isSubmitting }: ExamLayoutP
                 );
             default:
                  return (
-                    <p className="text-destructive mt-4">Unsupported question type: {question.type}</p>
+                     // Default to MCQ if type is missing for backward compatibility
+                    <RadioGroup
+                        className="mt-4 space-y-3"
+                        value={value}
+                        onValueChange={(val) => handleAnswerChange(questionId, val)}
+                    >
+                        {question.options.filter(opt => opt).map((option, i) => (
+                            <div key={i} className="flex items-center space-x-3 space-y-0 p-4 border rounded-lg hover:bg-muted/50 has-[:checked]:bg-primary/10 has-[:checked]:border-primary transition-colors">
+                                <RadioGroupItem value={option} id={`q${activeQuestionIndex}-o${i}`} />
+                                <Label htmlFor={`q${activeQuestionIndex}-o${i}`} className="font-normal text-base flex-1 cursor-pointer">
+                                    {option}
+                                </Label>
+                            </div>
+                        ))}
+                    </RadioGroup>
                  )
         }
     }
     
-    const answeredCount = Object.keys(answers).filter(key => answers[key]).length;
+    const answeredCount = Object.keys(answers).filter(key => answers[key] && answers[key].trim() !== '').length;
     const reviewedCount = Object.keys(reviewFlags).filter(k => reviewFlags[k]).length;
 
     return (

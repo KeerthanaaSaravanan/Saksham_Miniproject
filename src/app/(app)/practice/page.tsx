@@ -31,9 +31,9 @@ import {
 } from '@/components/ui/select';
 import { createPracticeExam } from '@/lib/actions/practice-exam';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, Sparkles, Check, X } from 'lucide-react';
+import { Loader2, Sparkles } from 'lucide-react';
 import { ExamLayout } from '@/components/layout/exam-layout';
-import type { SelectedExamDetails, AssessmentQuestion } from '@/app/(app)/assessment/page';
+import type { SelectedExamDetails, AssessmentQuestion } from '@/app/(app)/assessment/[examId]/page';
 import { useRouter } from 'next/navigation';
 
 const formSchema = z.object({
@@ -153,7 +153,6 @@ export default function PracticePage() {
         <ExamLayout 
             exam={exam}
             onTimeUp={handleSubmitAnswers}
-            onExit={() => { setExam(null); }}
             isSubmitting={isSubmitting}
         />
     );
