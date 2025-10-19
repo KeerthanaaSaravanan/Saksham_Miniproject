@@ -13,6 +13,7 @@ import {
 } from '@/components/ui/select';
 import { Loader2 } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
+import { getSubjectsForGrade, SubjectCategory } from '@/lib/subjects';
 
 const gradeConfig = {
   'Class 6': { subjects: true },
@@ -20,13 +21,12 @@ const gradeConfig = {
   'Class 8': { subjects: true },
   'Class 9': { subjects: true },
   'Class 10': { subjects: true },
-  'Class 11': { streams: ['Bio Math', 'Computer Science', 'Commerce'] },
-  'Class 12': { streams: ['Bio Math', 'Computer Science', 'Commerce'] },
+  'Class 11': { streams: ['Bio-Maths', 'Computer Science', 'Commerce'] },
+  'Class 12': { streams: ['Bio-Maths', 'Computer Science', 'Commerce'] },
   College: { streams: ['Engineering', 'Arts and Science', 'Medical', 'Law', 'Architecture'] },
   'Competitive Exam': { streams: ['UPSC', 'TNPSC', 'GATE', 'CSAT'] },
 };
 
-const subjects = ['Science', 'Math', 'Social Science', 'English', 'Tamil'];
 
 export default function StudentDetailsForm({ onComplete }: { onComplete: (details: any) => void }) {
   const [name, setName] = useState('');
@@ -35,6 +35,7 @@ export default function StudentDetailsForm({ onComplete }: { onComplete: (detail
   const [isLoading, setIsLoading] = useState(false);
 
   const selectedGradeConfig = gradeConfig[grade as keyof typeof gradeConfig];
+  const subjectsForGrade = getSubjectsForGrade(grade);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -42,8 +43,7 @@ export default function StudentDetailsForm({ onComplete }: { onComplete: (detail
     // Simulate network delay
     await new Promise((resolve) => setTimeout(resolve, 1000));
     
-    // In a real app, you would save this to the user's profile in Firestore
-    onComplete({ name, grade, stream: stream || (selectedGradeConfig?.subjects ? 'General' : '') });
+    onComplete({ name, grade, stream });
     
     setIsLoading(false);
   };
@@ -88,10 +88,15 @@ export default function StudentDetailsForm({ onComplete }: { onComplete: (detail
         {grade && selectedGradeConfig?.subjects && (
              <div className="space-y-2 animate-fade-in">
                 <Label>Subjects</Label>
-                <div className="p-4 border rounded-lg bg-muted/50">
-                    <p className="text-sm text-muted-foreground">
-                        You will have access to exams for the following subjects: {subjects.join(', ')}.
-                    </p>
+                <div className="p-4 border rounded-lg bg-muted/50 max-h-40 overflow-y-auto">
+                    {subjectsForGrade.map(category => (
+                        <div key={category.category} className="mb-2">
+                            <p className="text-sm font-semibold text-foreground">{category.category}</p>
+                            <p className="text-sm text-muted-foreground">
+                                {category.subjects.map(s => s.name).join(', ')}
+                            </p>
+                        </div>
+                    ))}
                 </div>
             </div>
         )}

@@ -35,7 +35,7 @@ import { useAuth, useUser, useFirestore, useMemoFirebase } from '@/firebase';
 import { Skeleton } from '@/components/ui/skeleton';
 import { doc, getDoc, collection, query, where, Timestamp } from 'firebase/firestore';
 import { useEffect, useState } from 'react';
-import { getSubjectsForGrade, Subject } from '@/lib/subjects';
+import { getSubjectsForGrade, SubjectCategory } from '@/lib/subjects';
 import { useCollection } from '@/firebase/firestore/use-collection';
 import Image from 'next/image';
 import { PlaceHolderImages } from '@/lib/placeholder-images';
@@ -85,7 +85,8 @@ export default function DashboardPage() {
   const { user, isUserLoading } = useUser();
   const firestore = useFirestore();
   const [grade, setGrade] = useState('');
-  const [subjects, setSubjects] = useState<Subject[]>([]);
+  const [stream, setStream] = useState('');
+  const [subjects, setSubjects] = useState<SubjectCategory[]>([]);
   const [isProfileLoading, setIsProfileLoading] = useState(true);
   const [accessibilityProfile, setAccessibilityProfile] = useState<AccessibilityProfile | undefined>(undefined);
   const [welcomeMessage, setWelcomeMessage] = useState('');
@@ -106,8 +107,10 @@ export default function DashboardPage() {
           if (userDocSnap.exists()) {
             const userData = userDocSnap.data();
             const userGrade = userData.grade || '';
+            const userStream = userData.stream || '';
             setGrade(userGrade);
-            setSubjects(getSubjectsForGrade(userGrade));
+            setStream(userStream);
+            setSubjects(getSubjectsForGrade(userGrade, userStream));
           }
 
           if (accessibilityDocSnap.exists()) {
@@ -218,11 +221,16 @@ export default function DashboardPage() {
             </DropdownMenu>
           </div>
           { !isLoading && grade &&
-            <div className="mt-6">
+            <div className="mt-6 flex gap-2">
                 <Badge variant="secondary" className="bg-white/20 text-white">
                     <GraduationCap className="w-4 h-4 mr-2" />
                     {grade}
                 </Badge>
+                {stream && (
+                    <Badge variant="secondary" className="bg-white/20 text-white">
+                       {stream}
+                    </Badge>
+                )}
             </div>
           }
         </div>
@@ -236,45 +244,52 @@ export default function DashboardPage() {
                 <Skeleton className="h-48 w-full rounded-lg" />
              </div>
           ) : subjects.length > 0 ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {subjects.map((subject) => (
-                <Card key={subject.id} className="bg-card/80 border flex flex-col">
-                  <CardHeader className="relative h-28 p-0 overflow-hidden rounded-t-lg">
-                    <Image src={getSubjectImage(subject.id)} alt={subject.name} fill style={{ objectFit: 'cover' }} data-ai-hint={`${subject.id} abstract`} />
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
-                    <CardTitle className="absolute bottom-4 left-4 text-primary-foreground">{subject.name}</CardTitle>
-                  </CardHeader>
-                  <CardContent className="pt-4 flex-1">
-                    <h4 className="text-sm font-semibold mb-2">Upcoming Exams</h4>
-                    {areExamsLoading ? <Skeleton className="h-10 w-full" /> : (
-                        <div className="space-y-2">
-                        {exams?.filter(exam => exam.subject.toLowerCase() === subject.name.toLowerCase()).length > 0 ? (
-                            exams?.filter(exam => exam.subject.toLowerCase() === subject.name.toLowerCase()).map(exam => (
-                            <div key={exam.id} className="text-xs p-2 rounded-md bg-muted/50 flex justify-between items-center">
-                                <div>
-                                    <p className="font-medium text-foreground">{exam.title}</p>
-                                    <p className="text-muted-foreground">
-                                        {exam.startTime.toDate().toLocaleDateString()}
-                                    </p>
-                                </div>
-                                <Button variant="ghost" size="icon" onClick={() => router.push('/assessment')}>
-                                    <ChevronRight className="h-4 w-4" />
-                                </Button>
-                            </div>
-                            ))
-                        ) : (
-                            <p className="text-xs text-muted-foreground">No exams scheduled.</p>
-                        )}
-                        </div>
-                    )}
-                  </CardContent>
-                   <CardFooter>
-                        <Button variant="outline" className="w-full" onClick={() => router.push('/practice')}>
-                            <Target className="mr-2 h-4 w-4" />
-                            Take a Practice Test
-                        </Button>
-                    </CardFooter>
-                </Card>
+            <div className="space-y-6">
+              {subjects.map((category) => (
+                <div key={category.category}>
+                    <h4 className="text-lg font-semibold mb-3 text-muted-foreground">{category.category}</h4>
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                        {category.subjects.map((subject) => (
+                            <Card key={subject.id} className="bg-card/80 border flex flex-col">
+                            <CardHeader className="relative h-28 p-0 overflow-hidden rounded-t-lg">
+                                <Image src={getSubjectImage(subject.id)} alt={subject.name} fill style={{ objectFit: 'cover' }} data-ai-hint={`${subject.id} abstract`} />
+                                <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
+                                <CardTitle className="absolute bottom-4 left-4 text-primary-foreground">{subject.name}</CardTitle>
+                            </CardHeader>
+                            <CardContent className="pt-4 flex-1">
+                                <h4 className="text-sm font-semibold mb-2">Upcoming Exams</h4>
+                                {areExamsLoading ? <Skeleton className="h-10 w-full" /> : (
+                                    <div className="space-y-2">
+                                    {exams?.filter(exam => exam.subject.toLowerCase() === subject.name.toLowerCase()).length > 0 ? (
+                                        exams?.filter(exam => exam.subject.toLowerCase() === subject.name.toLowerCase()).map(exam => (
+                                        <div key={exam.id} className="text-xs p-2 rounded-md bg-muted/50 flex justify-between items-center">
+                                            <div>
+                                                <p className="font-medium text-foreground">{exam.title}</p>
+                                                <p className="text-muted-foreground">
+                                                    {exam.startTime.toDate().toLocaleDateString()}
+                                                </p>
+                                            </div>
+                                            <Button variant="ghost" size="icon" onClick={() => router.push('/assessment')}>
+                                                <ChevronRight className="h-4 w-4" />
+                                            </Button>
+                                        </div>
+                                        ))
+                                    ) : (
+                                        <p className="text-xs text-muted-foreground">No exams scheduled.</p>
+                                    )}
+                                    </div>
+                                )}
+                            </CardContent>
+                            <CardFooter>
+                                    <Button variant="outline" className="w-full" onClick={() => router.push('/practice')}>
+                                        <Target className="mr-2 h-4 w-4" />
+                                        Take a Practice Test
+                                    </Button>
+                                </CardFooter>
+                            </Card>
+                        ))}
+                    </div>
+                </div>
               ))}
             </div>
           ) : (
