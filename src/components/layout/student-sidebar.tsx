@@ -5,14 +5,12 @@ import {
   Home,
   BookOpen,
   FileText,
-  Award,
   Settings,
-  BarChart3,
-  HelpCircle,
   LogOut,
   Brain,
   ChevronDown,
-  Clock
+  Clock,
+  Zap
 } from "lucide-react";
 
 export default function StudentSidebar({ student }: { student?: any}) {
@@ -27,6 +25,11 @@ export default function StudentSidebar({ student }: { student?: any}) {
       icon: BookOpen,
       label: "My Exams",
       href: "/assessment",
+    },
+    {
+      icon: Zap,
+      label: "Practice",
+      href: "/practice",
     },
     {
       icon: FileText,
@@ -73,7 +76,7 @@ export default function StudentSidebar({ student }: { student?: any}) {
       {student && (
         <div className="flex items-center mb-7 cursor-pointer hover:bg-white/5 rounded-lg p-2 -m-2 transition-colors duration-200">
           <img
-            src={student.profile_image || "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=40&h=40&q=80"}
+            src={student.profile_image || "https://picsum.photos/seed/arjun/40/40"}
             alt={student.name}
             className="w-10 h-10 rounded-full object-cover mr-3"
           />

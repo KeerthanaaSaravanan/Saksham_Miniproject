@@ -6,3 +6,4 @@ import '@/ai/flows/generate-customized-assessments.ts';
 import '@/ai/flows/detect-anomalous-exam-patterns.ts';
 import '@/ai/flows/automatically-profile-accessibility-needs.ts';
 import '@/ai/flows/text-to-speech.ts';
+import '@/ai/flows/generate-practice-exam.ts';
