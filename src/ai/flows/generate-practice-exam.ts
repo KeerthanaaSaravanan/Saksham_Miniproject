@@ -11,7 +11,7 @@
 import { ai } from '@/ai/genkit';
 import { z } from 'genkit';
 
-export const GeneratePracticeExamInputSchema = z.object({
+const GeneratePracticeExamInputSchema = z.object({
   subject: z.string().describe('The subject for the exam.'),
   lesson: z.string().describe('The specific lesson or topic within the subject.'),
   questionType: z.enum(['mcq', 'fillup', 'short-answer', 'long-answer']).describe('The type of questions to generate.'),
@@ -27,10 +27,10 @@ const questionSchema = z.object({
     correctAnswer: z.string().describe("The correct answer to the question."),
 });
 
-export const GeneratePracticeExamOutputSchema = z.object({
+const GeneratePracticeExamOutputSchema = z.object({
   questions: z.array(questionSchema).describe('An array of generated exam questions.'),
 });
-export type GeneratePracticeExamOutput = z.infer<typeof GeneratePracticeExamOutputSchema>;
+type GeneratePracticeExamOutput = z.infer<typeof GeneratePracticeExamOutputSchema>;
 
 export async function generatePracticeExam(
   input: GeneratePracticeExamInput
