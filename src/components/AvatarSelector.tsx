@@ -16,7 +16,7 @@ export function AvatarSelector({ currentAvatarUrl, onSelect }: AvatarSelectorPro
       <p className="text-sm text-muted-foreground text-center">
         Choose a new avatar from the selection below.
       </p>
-      <div className="grid grid-cols-4 sm:grid-cols-5 gap-3">
+      <div className="grid grid-cols-4 sm:grid-cols-5 md:grid-cols-6 gap-3">
         {avatars.map((avatar) => {
           const isSelected = currentAvatarUrl === avatar.url;
           return (

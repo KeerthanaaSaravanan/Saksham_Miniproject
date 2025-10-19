@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useRouter } from 'next/navigation';
-import { useAuth, useUser } from '@/firebase';
+import { useAuth } from '@/firebase';
 import {
   createUserWithEmailAndPassword,
   signInWithEmailAndPassword,
@@ -17,15 +17,16 @@ import Link from 'next/link';
 import StudentDetailsForm from './StudentDetailsForm';
 import { doc, setDoc } from 'firebase/firestore';
 import { useFirestore } from '@/firebase';
+import { User } from 'firebase/auth';
 
 export default function LoginForm() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [isDetailsStep, setIsDetailsStep] = useState(false);
+  const [newUser, setNewUser] = useState<User | null>(null);
   const router = useRouter();
   const auth = useAuth();
-  const { user } = useUser();
   const firestore = useFirestore();
   const { toast } = useToast();
 
@@ -54,7 +55,8 @@ export default function LoginForm() {
     });
   };
 
-  const handleAuthSuccess = () => {
+  const handleAuthSuccess = (user: User) => {
+    setNewUser(user);
     setIsDetailsStep(true);
   };
 
@@ -94,12 +96,12 @@ export default function LoginForm() {
         signInError.code === 'auth/invalid-credential'
       ) {
         try {
-          await createUserWithEmailAndPassword(auth, email, password);
+          const userCredential = await createUserWithEmailAndPassword(auth, email, password);
           toast({
             title: 'Account Created',
             description: "Let's set up your profile.",
           });
-          handleAuthSuccess();
+          handleAuthSuccess(userCredential.user);
         } catch (signUpError) {
           handleAuthError(signUpError);
         }
@@ -112,17 +114,20 @@ export default function LoginForm() {
   };
 
   const onDetailsComplete = async (details: {name: string, grade: string, stream: string}) => {
-    if (!user || !firestore) {
+    if (!newUser || !firestore) {
         toast({ variant: 'destructive', title: 'Error', description: 'User or database not available.' });
         return;
     }
     try {
-        await updateProfile(user, {
+        await updateProfile(newUser, {
             displayName: details.name,
         });
         
-        const userDocRef = doc(firestore, "users", user.uid);
+        const userDocRef = doc(firestore, "users", newUser.uid);
         await setDoc(userDocRef, {
+            displayName: details.name,
+            email: newUser.email,
+            uid: newUser.uid,
             grade: details.grade,
             stream: details.stream,
         }, { merge: true });

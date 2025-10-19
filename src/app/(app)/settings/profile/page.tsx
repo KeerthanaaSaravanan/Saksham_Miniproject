@@ -59,6 +59,7 @@ export default function ProfileSettingsPage() {
   useEffect(() => {
     if (user && firestore) {
       const fetchUserProfile = async () => {
+        setIsProfileLoading(true);
         setName(user.displayName || '');
         setCurrentAvatarUrl(user.photoURL || avatars[0].url);
         
@@ -83,7 +84,7 @@ export default function ProfileSettingsPage() {
       };
 
       fetchUserProfile();
-    } else if (!isUserLoading && !user) {
+    } else if (!isUserLoading) { // Also check if firebase user has finished loading
         setIsProfileLoading(false);
     }
   }, [user, firestore, isUserLoading, toast]);
@@ -110,7 +111,7 @@ export default function ProfileSettingsPage() {
           displayName: name,
           grade: grade,
           stream: stream,
-          photoURL: user.photoURL,
+          // photoURL is handled by handleSavePhoto
       }, { merge: true });
 
       toast({
@@ -129,8 +130,8 @@ export default function ProfileSettingsPage() {
   };
 
   const handleSavePhoto = async () => {
-    if (!user) {
-        toast({ variant: 'destructive', title: 'Not authenticated' });
+    if (!user || !firestore) {
+        toast({ variant: 'destructive', title: 'Not authenticated or database not ready' });
         return;
     }
     setIsPhotoSaving(true);
@@ -139,12 +140,10 @@ export default function ProfileSettingsPage() {
             photoURL: currentAvatarUrl,
         });
 
-        if (firestore) {
-          const userDocRef = doc(firestore, "users", user.uid);
-          await setDoc(userDocRef, {
-            photoURL: currentAvatarUrl,
-          }, { merge: true });
-        }
+        const userDocRef = doc(firestore, "users", user.uid);
+        await setDoc(userDocRef, {
+          photoURL: currentAvatarUrl,
+        }, { merge: true });
 
         toast({
             title: 'Avatar Updated!',
