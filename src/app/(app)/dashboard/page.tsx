@@ -1,16 +1,15 @@
 'use client';
 
 import {
-  Award,
   BookOpen,
-  Mic,
-  Zap,
-  Eye,
   Settings,
   LogOut,
   User,
   GraduationCap,
   Brain,
+  ChevronRight,
+  ClipboardList,
+  Target,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
@@ -19,6 +18,7 @@ import {
   CardDescription,
   CardHeader,
   CardTitle,
+  CardFooter,
 } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import {
@@ -31,13 +31,70 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useRouter } from 'next/navigation';
-import { useAuth, useUser } from '@/firebase';
+import { useAuth, useUser, useFirestore, useMemoFirebase } from '@/firebase';
 import { Skeleton } from '@/components/ui/skeleton';
+import { doc, getDoc, collection, query, where, Timestamp } from 'firebase/firestore';
+import { useEffect, useState } from 'react';
+import { getSubjectsForGrade, Subject } from '@/lib/subjects';
+import { useCollection } from '@/firebase/firestore/use-collection';
+import Image from 'next/image';
+import { PlaceHolderImages } from '@/lib/placeholder-images';
+
+interface Exam {
+  id: string;
+  title: string;
+  subject: string;
+  gradeLevel: string;
+  startTime: Timestamp;
+}
 
 export default function DashboardPage() {
   const router = useRouter();
   const auth = useAuth();
   const { user, isUserLoading } = useUser();
+  const firestore = useFirestore();
+  const [grade, setGrade] = useState('');
+  const [subjects, setSubjects] = useState<Subject[]>([]);
+  const [isProfileLoading, setIsProfileLoading] = useState(true);
+
+  useEffect(() => {
+    if (user && firestore) {
+      const fetchUserProfile = async () => {
+        setIsProfileLoading(true);
+        const userDocRef = doc(firestore, 'users', user.uid);
+        try {
+          const userDocSnap = await getDoc(userDocRef);
+          if (userDocSnap.exists()) {
+            const userData = userDocSnap.data();
+            const userGrade = userData.grade || '';
+            setGrade(userGrade);
+            setSubjects(getSubjectsForGrade(userGrade));
+          }
+        } catch (error) {
+          console.error('Error fetching user profile:', error);
+        } finally {
+          setIsProfileLoading(false);
+        }
+      };
+      fetchUserProfile();
+    } else if (!isUserLoading) {
+      setIsProfileLoading(false);
+    }
+  }, [user, firestore, isUserLoading]);
+
+  const examsQuery = useMemoFirebase(() => {
+    if (!firestore || !grade) return null;
+    return query(
+      collection(firestore, 'exams'),
+      where('gradeLevel', '==', grade)
+    );
+  }, [firestore, grade]);
+
+  const { data: exams, isLoading: areExamsLoading } = useCollection<Exam>(examsQuery);
+
+  const getSubjectImage = (subjectId: string) => {
+    return PlaceHolderImages.find(img => img.id === subjectId)?.imageUrl || 'https://picsum.photos/seed/placeholder/600/400';
+  };
 
   const handleSignOut = () => {
     if (auth) {
@@ -45,9 +102,14 @@ export default function DashboardPage() {
     }
     router.push('/');
   };
-  
-  const userName = user?.displayName || "Student";
-  const userInitial = userName.split(' ').map(n => n[0]).join('') || 'U';
+
+  const userName = user?.displayName || 'Student';
+  const userInitial =
+    userName
+      .split(' ')
+      .map((n) => n[0])
+      .join('') || 'U';
+  const isLoading = isUserLoading || isProfileLoading;
 
   return (
     <div className="space-y-8 text-foreground">
@@ -55,7 +117,7 @@ export default function DashboardPage() {
         <div className="bg-gradient-to-r from-primary/80 to-accent/80 p-8 rounded-xl relative overflow-hidden text-primary-foreground shadow-lg">
           <div className="flex justify-between items-start">
             <div className="flex items-center gap-4">
-               {isUserLoading ? (
+              {isLoading ? (
                 <Skeleton className="h-12 w-48 rounded-md" />
               ) : (
                 <>
@@ -63,7 +125,7 @@ export default function DashboardPage() {
                   <div>
                     <h2 className="text-3xl font-bold">Hello {userName}!</h2>
                     <p className="opacity-80">
-                      Your AI learning companion is ready to assist you.
+                      Here's what's on your schedule. Let's get started.
                     </p>
                   </div>
                 </>
@@ -72,14 +134,11 @@ export default function DashboardPage() {
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Avatar className="h-12 w-12 cursor-pointer border-2 border-white/50">
-                  {isUserLoading ? (
+                  {isLoading ? (
                     <Skeleton className="h-12 w-12 rounded-full" />
                   ) : (
                     <>
-                      <AvatarImage
-                        src={user?.photoURL || ''}
-                        alt={userName}
-                      />
+                      <AvatarImage src={user?.photoURL || ''} alt={userName} />
                       <AvatarFallback>{userInitial}</AvatarFallback>
                     </>
                   )}
@@ -108,188 +167,93 @@ export default function DashboardPage() {
               </DropdownMenuContent>
             </DropdownMenu>
           </div>
-          <div className="mt-6 grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
-            <div className="bg-white/20 p-4 rounded-lg flex items-center gap-3">
-              <Brain className="w-5 h-5" />
-              <span>
-                AI Optimization <br /> 5 modules active
-              </span>
+          { !isLoading && grade &&
+            <div className="mt-6">
+                <Badge variant="secondary" className="bg-white/20 text-white">
+                    <GraduationCap className="w-4 h-4 mr-2" />
+                    {grade}
+                </Badge>
             </div>
-            <div className="bg-white/20 p-4 rounded-lg flex items-center gap-3">
-              <Eye className="w-5 h-5" />
-              <span>
-                Smart Proctoring <br /> Ready for exams
-              </span>
-            </div>
-            <div className="bg-white/20 p-4 rounded-lg flex items-center gap-3">
-              <Mic className="w-5 h-5" />
-              <span>
-                Voice Assistant <br /> Always listening
-              </span>
-            </div>
-          </div>
+          }
         </div>
 
         <section className="mt-8">
-          <h3 className="text-xl font-bold mb-4 text-foreground">
-            AI-Enhanced Academic Journey
-          </h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-            <Card className="bg-card/80 border">
-              <CardContent className="pt-6">
-                <div className="flex items-center gap-4">
-                  <div className="p-3 bg-primary/20 rounded-lg">
-                    <BookOpen className="w-6 h-6 text-primary" />
-                  </div>
-                  <div>
-                    <div className="text-3xl font-bold">12</div>
-                    <p className="text-muted-foreground text-sm">
-                      AI-Enhanced Exams
-                    </p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-            <Card className="bg-card/80 border">
-              <CardContent className="pt-6">
-                <div className="flex items-center gap-4">
-                  <div className="p-3 bg-accent/20 rounded-lg">
-                    <Mic className="w-6 h-6 text-accent" />
-                  </div>
-                  <div>
-                    <div className="text-3xl font-bold">47</div>
-                    <p className="text-muted-foreground text-sm">
-                      Voice Sessions
-                    </p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-            <Card className="bg-card/80 border">
-              <CardContent className="pt-6">
-                <div className="flex items-center gap-4">
-                  <div className="p-3 bg-amber-500/20 rounded-lg">
-                    <Zap className="w-6 h-6 text-amber-400" />
-                  </div>
-                  <div>
-                    <div className="text-3xl font-bold">98%</div>
-                    <p className="text-muted-foreground text-sm">
-                      Accessibility Score
-                    </p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-            <Card className="bg-card/80 border">
-              <CardContent className="pt-6">
-                <div className="flex items-center gap-4">
-                  <div className="p-3 bg-blue-500/20 rounded-lg">
-                    <Award className="w-6 h-6 text-blue-400" />
-                  </div>
-                  <div>
-                    <div className="text-3xl font-bold">18</div>
-                    <p className="text-muted-foreground text-sm">
-                      AI Achievements
-                    </p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
+          <h3 className="text-xl font-bold mb-4 text-foreground">My Subjects</h3>
+          {isLoading ? (
+             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                <Skeleton className="h-48 w-full rounded-lg" />
+                <Skeleton className="h-48 w-full rounded-lg" />
+                <Skeleton className="h-48 w-full rounded-lg" />
+             </div>
+          ) : subjects.length > 0 ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {subjects.map((subject) => (
+                <Card key={subject.id} className="bg-card/80 border flex flex-col">
+                  <CardHeader className="relative h-28 p-0 overflow-hidden rounded-t-lg">
+                    <Image src={getSubjectImage(subject.id)} alt={subject.name} fill style={{ objectFit: 'cover' }} data-ai-hint={`${subject.id} abstract`} />
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
+                    <CardTitle className="absolute bottom-4 left-4 text-primary-foreground">{subject.name}</CardTitle>
+                  </CardHeader>
+                  <CardContent className="pt-4 flex-1">
+                    <h4 className="text-sm font-semibold mb-2">Upcoming Exams</h4>
+                    {areExamsLoading ? <Skeleton className="h-10 w-full" /> : (
+                        <div className="space-y-2">
+                        {exams?.filter(exam => exam.subject.toLowerCase() === subject.name.toLowerCase()).length > 0 ? (
+                            exams?.filter(exam => exam.subject.toLowerCase() === subject.name.toLowerCase()).map(exam => (
+                            <div key={exam.id} className="text-xs p-2 rounded-md bg-muted/50 flex justify-between items-center">
+                                <div>
+                                    <p className="font-medium text-foreground">{exam.title}</p>
+                                    <p className="text-muted-foreground">
+                                        {exam.startTime.toDate().toLocaleDateString()}
+                                    </p>
+                                </div>
+                                <Button variant="ghost" size="icon" onClick={() => router.push('/assessment')}>
+                                    <ChevronRight className="h-4 w-4" />
+                                </Button>
+                            </div>
+                            ))
+                        ) : (
+                            <p className="text-xs text-muted-foreground">No exams scheduled.</p>
+                        )}
+                        </div>
+                    )}
+                  </CardContent>
+                   <CardFooter>
+                        <Button variant="outline" className="w-full" onClick={() => router.push('/practice')}>
+                            <Target className="mr-2 h-4 w-4" />
+                            Take a Practice Test
+                        </Button>
+                    </CardFooter>
+                </Card>
+              ))}
+            </div>
+          ) : (
+            <p className="text-muted-foreground">No subjects found for your grade. Please complete your profile.</p>
+          )}
         </section>
 
         <section className="mt-8">
-          <div className="flex justify-between items-center mb-4">
-            <h3 className="text-xl font-bold text-foreground">
-              AI-Proctored Examinations
-            </h3>
-            <Button variant="ghost" className="text-primary">
-              View AI Features
-            </Button>
-          </div>
-          <div className="space-y-4">
-            <Card className="bg-card/80 border p-6 flex items-center justify-between">
-              <div className="flex items-center gap-4">
-                <div className="p-3 bg-muted rounded-lg">
-                  <BookOpen className="w-6 h-6 text-primary" />
-                </div>
-                <div>
-                  <h4 className="font-bold">
-                    Mathematics (AI-Enhanced){' '}
-                    <Badge
-                      variant="secondary"
-                      className="ml-2 bg-green-500/20 text-green-400"
-                    >
-                      AI Proctored
-                    </Badge>
-                  </h4>
-                  <p className="text-xs text-muted-foreground">
-                    Dec 25, 2024 @ 10:00 AM • 2 hours
-                  </p>
-                  <div className="mt-2 flex gap-2">
-                    <Badge
-                      variant="outline"
-                      className="border-blue-400 text-blue-400"
-                    >
-                      Voice Navigation
-                    </Badge>
-                    <Badge
-                      variant="outline"
-                      className="border-blue-400 text-blue-400"
-                    >
-                      Large Text
-                    </Badge>
-                    <Badge
-                      variant="outline"
-                      className="border-blue-400 text-blue-400"
-                    >
-                      AI Reading
-                    </Badge>
-                  </div>
-                </div>
-              </div>
-              <Button className="bg-primary hover:bg-primary/90 text-primary-foreground">
-                Start AI Exam
-              </Button>
-            </Card>
-
-            <Card className="bg-card/80 border p-6 flex items-center justify-between">
-              <div className="flex items-center gap-4">
-                <div className="p-3 bg-muted rounded-lg">
-                  <BookOpen className="w-6 h-6 text-primary" />
-                </div>
-                <div>
-                  <h4 className="font-bold">Physics (AI-Enhanced)</h4>
-                  <p className="text-xs text-muted-foreground">
-                    Dec 28, 2024 @ 2:00 PM • 1.5 hours
-                  </p>
-                  <div className="mt-2 flex gap-2">
-                    <Badge
-                      variant="outline"
-                      className="border-blue-400 text-blue-400"
-                    >
-                      Speech-to-Text
-                    </Badge>
-                    <Badge
-                      variant="outline"
-                      className="border-blue-400 text-blue-400"
-                    >
-                      Equation Reader
-                    </Badge>
-                    <Badge
-                      variant="outline"
-                      className="border-blue-400 text-blue-400"
-                    >
-                      Time Reminders
-                    </Badge>
-                  </div>
-                </div>
-              </div>
-              <Button className="bg-primary hover:bg-primary/90 text-primary-foreground">
-                Start AI Exam
-              </Button>
-            </Card>
-          </div>
+          <h3 className="text-xl font-bold text-foreground mb-4">My Performance</h3>
+           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <Card className="bg-card/80 border">
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                        <CardTitle className="text-sm font-medium">Completed Exams</CardTitle>
+                        <ClipboardList className="h-4 w-4 text-muted-foreground" />
+                    </CardHeader>
+                    <CardContent>
+                        <p className="text-xs text-muted-foreground">No results yet. Complete an exam to see your performance.</p>
+                    </CardContent>
+                </Card>
+                 <Card className="bg-card/80 border">
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                        <CardTitle className="text-sm font-medium">Practice Test Scores</CardTitle>
+                        <Target className="h-4 w-4 text-muted-foreground" />
+                    </CardHeader>
+                    <CardContent>
+                        <p className="text-xs text-muted-foreground">No practice tests taken yet. Head to the practice zone!</p>
+                    </CardContent>
+                </Card>
+           </div>
         </section>
       </main>
     </div>
