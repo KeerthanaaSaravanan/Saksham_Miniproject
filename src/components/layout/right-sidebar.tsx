@@ -32,6 +32,8 @@ import {
   Brain,
   Settings,
   LogOut,
+  FilePlus,
+  BarChart,
 } from 'lucide-react';
 import { useTheme } from 'next-themes';
 import { useChatbot } from '../chatbot/chatbot-provider';
@@ -47,6 +49,33 @@ const accessibilityFeatures = [
   { icon: BookOpen, label: 'Learning', href: '/settings/accessibility' },
   { icon: Brain, label: 'Cognitive', href: '/settings/accessibility' },
 ];
+
+const notifications = [
+    {
+        id: '1',
+        type: 'exam',
+        title: 'New Exam Posted',
+        description: 'Dr. Reed posted "Mid-Term Algebra II".',
+        timestamp: '5m ago',
+        read: false,
+    },
+    {
+        id: '2',
+        type: 'result',
+        title: 'Results Released',
+        description: 'Your score for "Physics Quiz 1" is 88%.',
+        timestamp: '1h ago',
+        read: false,
+    },
+    {
+        id: '3',
+        type: 'exam',
+        title: 'Upcoming Deadline',
+        description: '"History Chapter 5" exam is due tomorrow.',
+        timestamp: '1d ago',
+        read: true,
+    }
+]
 
 export function RightSidebar() {
   const { setTheme, theme } = useTheme();
@@ -64,6 +93,7 @@ export function RightSidebar() {
   
   const userName = user?.displayName || 'Student';
   const userInitial = userName.split(' ').map(n => n[0]).join('') || 'U';
+  const unreadCount = notifications.filter(n => !n.read).length;
 
   return (
     <aside className="fixed right-0 top-0 h-full w-20 bg-card/80 border-l border-border/80 flex flex-col items-center justify-between py-6 z-40">
@@ -105,15 +135,44 @@ export function RightSidebar() {
 
         <div className="w-8 h-px bg-border my-2"></div>
 
+        <DropdownMenu>
+            <TooltipProvider>
+                <Tooltip>
+                    <TooltipTrigger asChild>
+                        <DropdownMenuTrigger asChild>
+                             <div className="relative p-3 rounded-full hover:bg-muted transition-colors cursor-pointer">
+                                <Bell className="h-6 w-6 text-muted-foreground" />
+                                {unreadCount > 0 && (
+                                    <div className="absolute top-2 right-2 w-4 h-4 bg-red-500 rounded-full text-white text-xs flex items-center justify-center border-2 border-card">
+                                        {unreadCount}
+                                    </div>
+                                )}
+                            </div>
+                        </DropdownMenuTrigger>
+                    </TooltipTrigger>
+                    <TooltipContent side="left"><p>Notifications</p></TooltipContent>
+                </Tooltip>
+            </TooltipProvider>
+            <DropdownMenuContent side="left" className="w-80">
+                <DropdownMenuLabel>Notifications</DropdownMenuLabel>
+                 <DropdownMenuSeparator />
+                 {notifications.map((notification) => {
+                     const Icon = notification.type === 'exam' ? FilePlus : BarChart;
+                     return (
+                        <DropdownMenuItem key={notification.id} className={`flex items-start gap-3 ${!notification.read && 'font-bold'}`}>
+                            <Icon className="h-4 w-4 mt-1 text-muted-foreground" />
+                            <div className="flex-1">
+                                <p className="text-sm leading-tight">{notification.title}</p>
+                                <p className={`text-xs text-muted-foreground ${!notification.read && 'font-normal'}`}>{notification.description}</p>
+                                <p className="text-xs text-muted-foreground/80 mt-1">{notification.timestamp}</p>
+                            </div>
+                        </DropdownMenuItem>
+                     )
+                 })}
+            </DropdownMenuContent>
+        </DropdownMenu>
+        
         <TooltipProvider>
-            <Tooltip>
-                <TooltipTrigger>
-                    <div className="p-3 rounded-full hover:bg-muted transition-colors">
-                        <Bell className="h-6 w-6 text-muted-foreground" />
-                    </div>
-                </TooltipTrigger>
-                <TooltipContent side="left"><p>Notifications</p></TooltipContent>
-            </Tooltip>
              <Tooltip>
                 <TooltipTrigger onClick={() => setIsOpen((prev) => !prev)}>
                      <div className="p-3 rounded-full bg-blue-500/10 hover:bg-blue-500/20 transition-colors">
