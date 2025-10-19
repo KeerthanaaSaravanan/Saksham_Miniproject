@@ -14,18 +14,13 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import {
-  Camera,
-  Upload,
   User,
   GraduationCap,
   Save,
   Loader2,
   AlertCircle,
-  Video,
-  VideoOff,
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import {
   Select,
@@ -38,6 +33,7 @@ import { useUser, useFirestore } from '@/firebase';
 import { updateProfile } from 'firebase/auth';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { Skeleton } from '@/components/ui/skeleton';
+import { AvatarSelector } from '@/components/AvatarSelector';
 
 const gradeConfig = {
   'Class 6': { subjects: true },
@@ -64,19 +60,15 @@ export default function ProfileSettingsPage() {
   const [isSaving, setIsSaving] = useState(false);
   const [isPhotoSaving, setIsPhotoSaving] = useState(false);
   const [isProfileLoading, setIsProfileLoading] = useState(true);
-
-  const [isCameraOn, setIsCameraOn] = useState(false);
-  const [cameraError, setCameraError] = useState<string | null>(null);
-  const videoRef = useRef<HTMLVideoElement>(null);
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
-
+  
   const { toast } = useToast();
 
   useEffect(() => {
     if (user && firestore) {
+      const initialPhoto = user.photoURL || `https://picsum.photos/seed/${user.uid}/128/128`;
       setName(user.displayName || '');
-      setProfileImage(user.photoURL || `https://picsum.photos/seed/${user.uid}/128/128`);
+      setProfileImage(initialPhoto);
+      setNewProfileImage(initialPhoto); // Initialize newProfileImage with current photo
       
       const fetchUserProfile = async () => {
         setIsProfileLoading(true);
@@ -100,74 +92,22 @@ export default function ProfileSettingsPage() {
   
   const userInitial = name.split(' ').map((n) => n[0]).join('') || 'U';
 
-
-  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        setNewProfileImage(e.target?.result as string);
-      };
-      reader.readAsDataURL(file);
-    }
-  };
-
-  const startCamera = async () => {
-    setCameraError(null);
-    if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
-      try {
-        const stream = await navigator.mediaDevices.getUserMedia({ video: true });
-        if (videoRef.current) {
-          videoRef.current.srcObject = stream;
-        }
-        setIsCameraOn(true);
-      } catch (err) {
-        console.error('Error accessing camera:', err);
-        setCameraError(
-          'Could not access the camera. Please check browser permissions.'
-        );
-      }
-    } else {
-      setCameraError('Camera not supported on this device.');
-    }
-  };
-
-  const stopCamera = useCallback(() => {
-    if (videoRef.current && videoRef.current.srcObject) {
-      const stream = videoRef.current.srcObject as MediaStream;
-      stream.getTracks().forEach((track) => track.stop());
-      videoRef.current.srcObject = null;
-    }
-    setIsCameraOn(false);
-  },[]);
-
-  const captureImage = () => {
-    if (videoRef.current && canvasRef.current) {
-      const canvas = canvasRef.current;
-      const video = videoRef.current;
-      canvas.width = video.videoWidth;
-      canvas.height = video.videoHeight;
-      const context = canvas.getContext('2d');
-      context?.drawImage(video, 0, 0, canvas.width, canvas.height);
-      const dataUri = canvas.toDataURL('image/png');
-      setNewProfileImage(dataUri);
-      stopCamera();
-    }
-  };
-
   const handleSavePhoto = async () => {
     if (!user || !newProfileImage) {
-        toast({ variant: 'destructive', title: 'No new photo to save' });
+        toast({ variant: 'destructive', title: 'No new avatar selected' });
+        return;
+    }
+    if (newProfileImage === profileImage) {
+        toast({ title: 'No Changes', description: 'The selected avatar is already your profile picture.' });
         return;
     }
     setIsPhotoSaving(true);
     try {
         await updateProfile(user, { photoURL: newProfileImage });
         setProfileImage(newProfileImage);
-        setNewProfileImage(null);
         toast({
-            title: 'Profile Photo Updated',
-            description: 'Your new photo has been saved.',
+            title: 'Avatar Updated',
+            description: 'Your new avatar has been saved.',
         });
     } catch (error: any) {
         let description = 'An unknown error occurred. Please try again.';
@@ -178,7 +118,7 @@ export default function ProfileSettingsPage() {
         }
         toast({
             variant: 'destructive',
-            title: 'Photo Update Failed',
+            title: 'Avatar Update Failed',
             description: description,
         });
     } finally {
@@ -219,16 +159,6 @@ export default function ProfileSettingsPage() {
     }
   };
 
-  useEffect(() => {
-    return () => {
-      // Ensure camera is turned off on component unmount
-      if (isCameraOn) {
-        stopCamera();
-      }
-    };
-  }, [isCameraOn, stopCamera]);
-
-
   return (
     <div className="space-y-6">
       <div>
@@ -244,10 +174,10 @@ export default function ProfileSettingsPage() {
             <CardHeader>
               <CardTitle>Profile Picture</CardTitle>
               <CardDescription>
-                Update your avatar.
+                Select a new avatar.
               </CardDescription>
             </CardHeader>
-            <CardContent className="flex flex-col items-center gap-4">
+            <CardContent className="flex flex-col items-center gap-6">
               {isUserLoading ? (
                  <Skeleton className="w-32 h-32 rounded-full" />
               ) : (
@@ -259,102 +189,24 @@ export default function ProfileSettingsPage() {
                 </Avatar>
               )}
 
-              <Tabs defaultValue="upload" className="w-full">
-                <TabsList className="grid w-full grid-cols-2">
-                  <TabsTrigger value="upload">
-                    <Upload className="mr-2" /> Upload
-                  </TabsTrigger>
-                  <TabsTrigger value="webcam">
-                    <Camera className="mr-2" /> Webcam
-                  </TabsTrigger>
-                </TabsList>
-                <TabsContent value="upload" className="mt-4">
-                  <Button
-                    variant="outline"
-                    className="w-full"
-                    onClick={() => fileInputRef.current?.click()}
-                  >
-                    <Upload className="mr-2" />
-                    Choose a file
-                  </Button>
-                  <Input
-                    type="file"
-                    ref={fileInputRef}
-                    className="hidden"
-                    accept="image/*"
-                    onChange={handleFileChange}
-                  />
-                </TabsContent>
-                <TabsContent value="webcam" className="mt-4 space-y-4">
-                  <div className="w-full aspect-video bg-muted rounded-lg flex items-center justify-center overflow-hidden">
-                    <video
-                      ref={videoRef}
-                      autoPlay
-                      playsInline
-                      className={`w-full h-full object-cover ${!isCameraOn && 'hidden'}`}
-                    ></video>
-                     {!isCameraOn && (
-                      <div className="text-center text-muted-foreground">
-                        <Camera className="w-16 h-16 mx-auto" />
-                        <p>Camera is off</p>
-                      </div>
-                    )}
-                  </div>
-                  <canvas ref={canvasRef} className="hidden"></canvas>
-                  
-                  {cameraError && (
-                     <Alert variant="destructive">
-                       <AlertCircle className="h-4 w-4" />
-                       <AlertTitle>Camera Error</AlertTitle>
-                       <AlertDescription>{cameraError}</AlertDescription>
-                     </Alert>
-                  )}
+              <AvatarSelector
+                currentAvatarUrl={newProfileImage || ''}
+                onSelect={(url) => setNewProfileImage(url)}
+              />
 
-                  <div className="flex gap-2">
-                    {!isCameraOn ? (
-                      <Button
-                        variant="outline"
-                        className="w-full"
-                        onClick={startCamera}
-                      >
-                        <Video className="mr-2" />
-                        Start Camera
-                      </Button>
-                    ) : (
-                      <>
-                        <Button
-                          className="w-full"
-                          onClick={captureImage}
-                        >
-                          <Camera className="mr-2" />
-                          Capture
-                        </Button>
-                        <Button
-                          variant="outline"
-                          className="w-full"
-                          onClick={stopCamera}
-                        >
-                          <VideoOff className="mr-2" />
-                          Stop Camera
-                        </Button>
-                      </>
-                    )}
-                  </div>
-                </TabsContent>
-              </Tabs>
             </CardContent>
             <CardFooter>
                 <Button
                     className="w-full"
                     onClick={handleSavePhoto}
-                    disabled={!newProfileImage || isPhotoSaving}
+                    disabled={!newProfileImage || isPhotoSaving || newProfileImage === profileImage}
                 >
                     {isPhotoSaving ? (
                         <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                     ) : (
                         <Save className="mr-2 h-4 w-4" />
                     )}
-                    {isPhotoSaving ? 'Saving...' : 'Save Profile Photo'}
+                    {isPhotoSaving ? 'Saving...' : 'Save Avatar'}
                 </Button>
             </CardFooter>
           </Card>
