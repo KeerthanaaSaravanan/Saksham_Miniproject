@@ -5,11 +5,12 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useRouter } from 'next/navigation';
-import { useAuth } from '@/firebase';
+import { useAuth, errorEmitter, FirestorePermissionError } from '@/firebase';
 import {
   createUserWithEmailAndPassword,
   signInWithEmailAndPassword,
   updateProfile,
+  User,
 } from 'firebase/auth';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2 } from 'lucide-react';
@@ -17,7 +18,6 @@ import Link from 'next/link';
 import StudentDetailsForm from './StudentDetailsForm';
 import { doc, setDoc } from 'firebase/firestore';
 import { useFirestore } from '@/firebase';
-import { User } from 'firebase/auth';
 
 export default function LoginForm() {
   const [email, setEmail] = useState('');
@@ -31,7 +31,6 @@ export default function LoginForm() {
   const { toast } = useToast();
 
   const handleAuthError = (error: any) => {
-    console.error('Authentication error:', error);
     let description = 'An unknown error occurred. Please try again.';
     if (error.code === 'auth/network-request-failed') {
       description =
@@ -63,7 +62,6 @@ export default function LoginForm() {
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!auth) {
-      console.error('Auth service is not available.');
       toast({
         variant: 'destructive',
         title: 'Error',
@@ -118,34 +116,46 @@ export default function LoginForm() {
         toast({ variant: 'destructive', title: 'Error', description: 'User or database not available.' });
         return;
     }
+    setIsLoading(true);
     try {
         await updateProfile(newUser, {
             displayName: details.name,
         });
         
         const userDocRef = doc(firestore, "users", newUser.uid);
-        await setDoc(userDocRef, {
+        const userData = {
             displayName: details.name,
             email: newUser.email,
             uid: newUser.uid,
             grade: details.grade,
             stream: details.stream,
-        }, { merge: true });
-        
-        console.log('Student details saved to profile:', details);
-        toast({
-            title: 'Profile Complete!',
-            description: `Welcome, ${details.name}! Your learning path is set.`,
+        };
+
+        // This is a create operation, so we use 'create'
+        await setDoc(userDocRef, userData).then(() => {
+          toast({
+              title: 'Profile Complete!',
+              description: `Welcome, ${details.name}! Your learning path is set.`,
+          });
+          router.push('/dashboard');
+        }).catch((error: any) => {
+           const permissionError = new FirestorePermissionError({
+              path: userDocRef.path,
+              operation: 'create',
+              requestResourceData: userData,
+           });
+           errorEmitter.emit('permission-error', permissionError);
         });
-        router.push('/dashboard');
+
     } catch (error: any) {
-        console.error("Failed to update profile", error);
         handleAuthError(error);
+    } finally {
+        setIsLoading(false);
     }
   }
 
   if (isDetailsStep) {
-    return <StudentDetailsForm onComplete={onDetailsComplete} />;
+    return <StudentDetailsForm onComplete={onDetailsComplete} isLoading={isLoading} />;
   }
 
   return (
@@ -205,3 +215,5 @@ export default function LoginForm() {
     </div>
   );
 }
+
+    

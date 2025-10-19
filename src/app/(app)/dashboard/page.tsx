@@ -32,7 +32,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useRouter } from 'next/navigation';
-import { useAuth, useUser, useFirestore, useMemoFirebase } from '@/firebase';
+import { useAuth, useUser, useFirestore, useMemoFirebase, errorEmitter, FirestorePermissionError } from '@/firebase';
 import { Skeleton } from '@/components/ui/skeleton';
 import { doc, getDoc, collection, query, where, Timestamp } from 'firebase/firestore';
 import { useEffect, useState } from 'react';
@@ -119,11 +119,7 @@ export default function DashboardPage() {
         const accessibilityProfileRef = doc(firestore, 'users', user.uid, 'accessibility_profile', 'settings');
         
         try {
-          const [userDocSnap, accessibilityDocSnap] = await Promise.all([
-              getDoc(userDocRef),
-              getDoc(accessibilityProfileRef)
-          ]);
-          
+          const userDocSnap = await getDoc(userDocRef);
           if (userDocSnap.exists()) {
             const userData = userDocSnap.data();
             const userGrade = userData.grade || '';
@@ -131,18 +127,30 @@ export default function DashboardPage() {
             setGrade(userGrade);
             setStream(userStream);
             setSubjects(getSubjectsForGrade(userGrade, userStream));
-          }
+            
+            // Now fetch accessibility profile, but handle its absence gracefully
+            try {
+              const accessibilityDocSnap = await getDoc(accessibilityProfileRef);
+              if (accessibilityDocSnap.exists()) {
+                  const profileData = accessibilityDocSnap.data() as AccessibilityProfile;
+                  setAccessibilityProfile(profileData);
+                  setWelcomeMessage(getPersonalizedGreeting(user.displayName || 'Student', profileData));
+              } else {
+                  setWelcomeMessage(getPersonalizedGreeting(user.displayName || 'Student'));
+              }
+            } catch (accError: any) {
+                const permissionError = new FirestorePermissionError({ path: accessibilityProfileRef.path, operation: 'get' });
+                errorEmitter.emit('permission-error', permissionError);
+            }
 
-          if (accessibilityDocSnap.exists()) {
-              const profileData = accessibilityDocSnap.data() as AccessibilityProfile;
-              setAccessibilityProfile(profileData);
-              setWelcomeMessage(getPersonalizedGreeting(user.displayName || 'Student', profileData));
           } else {
-              setWelcomeMessage(getPersonalizedGreeting(user.displayName || 'Student'));
+            // User doc doesn't exist, maybe profile creation is pending
+             setWelcomeMessage(getPersonalizedGreeting(user.displayName || 'Student'));
           }
 
-        } catch (error) {
-          console.error('Error fetching user profile:', error);
+        } catch (error: any) {
+          const permissionError = new FirestorePermissionError({ path: userDocRef.path, operation: 'get' });
+          errorEmitter.emit('permission-error', permissionError);
           setWelcomeMessage(getPersonalizedGreeting(user.displayName || 'Student'));
         } finally {
           setIsProfileLoading(false);
@@ -372,3 +380,5 @@ export default function DashboardPage() {
       </main>
     </div>
   );
+
+    

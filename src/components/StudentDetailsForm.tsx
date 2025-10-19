@@ -12,8 +12,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Loader2 } from 'lucide-react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
-import { getSubjectsForGrade, SubjectCategory } from '@/lib/subjects';
+import { getSubjectsForGrade } from '@/lib/subjects';
 
 const gradeConfig = {
   'Class 6': { subjects: true },
@@ -28,24 +27,17 @@ const gradeConfig = {
 };
 
 
-export default function StudentDetailsForm({ onComplete }: { onComplete: (details: any) => void }) {
+export default function StudentDetailsForm({ onComplete, isLoading }: { onComplete: (details: any) => void, isLoading: boolean }) {
   const [name, setName] = useState('');
   const [grade, setGrade] = useState('');
   const [stream, setStream] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
 
   const selectedGradeConfig = gradeConfig[grade as keyof typeof gradeConfig];
   const subjectsForGrade = getSubjectsForGrade(grade);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setIsLoading(true);
-    // Simulate network delay
-    await new Promise((resolve) => setTimeout(resolve, 1000));
-    
     onComplete({ name, grade, stream });
-    
-    setIsLoading(false);
   };
 
   return (
@@ -129,3 +121,5 @@ export default function StudentDetailsForm({ onComplete }: { onComplete: (detail
     </div>
   );
 }
+
+    
