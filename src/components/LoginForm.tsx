@@ -28,7 +28,7 @@ export default function LoginForm() {
     if (error.code === 'auth/unauthorized-domain') {
       description =
         "This domain is not authorized for authentication. Please add it to the authorized domains in your Firebase console.";
-    } else if (error.code === 'auth/wrong-password' || error.code === 'auth/user-not-found') {
+    } else if (error.code === 'auth/wrong-password' || error.code === 'auth/user-not-found' || error.code === 'auth/invalid-credential') {
         description = "Invalid email or password. Please try again.";
     }
      else if (error.message) {
@@ -70,7 +70,7 @@ export default function LoginForm() {
       });
       router.push('/dashboard');
     } catch (signInError: any) {
-      if (signInError.code === 'auth/user-not-found') {
+      if (signInError.code === 'auth/user-not-found' || signInError.code === 'auth/invalid-credential') {
         // If user does not exist, create a new account
         try {
           await createUserWithEmailAndPassword(auth, email, password);
