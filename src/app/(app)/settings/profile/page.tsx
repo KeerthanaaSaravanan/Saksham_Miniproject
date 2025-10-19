@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef, useCallback, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import {
   Card,
   CardContent,
@@ -13,15 +13,8 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import {
-  User,
-  GraduationCap,
-  Save,
-  Loader2,
-  AlertCircle,
-} from 'lucide-react';
+import { User, GraduationCap, Save, Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import {
   Select,
   SelectContent,
@@ -33,7 +26,7 @@ import { useUser, useFirestore } from '@/firebase';
 import { updateProfile } from 'firebase/auth';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { Skeleton } from '@/components/ui/skeleton';
-import { AvatarSelector } from '@/components/AvatarSelector';
+import { avatars } from '@/lib/avatars';
 
 const gradeConfig = {
   'Class 6': { subjects: true },
@@ -55,22 +48,20 @@ export default function ProfileSettingsPage() {
   const [name, setName] = useState('');
   const [grade, setGrade] = useState('');
   const [stream, setStream] = useState('');
-  const [profileImage, setProfileImage] = useState('');
-  const [newProfileImage, setNewProfileImage] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
-  const [isPhotoSaving, setIsPhotoSaving] = useState(false);
   const [isProfileLoading, setIsProfileLoading] = useState(true);
   
+  // Use a static default avatar
+  const defaultAvatar = avatars[0].url;
+
   const { toast } = useToast();
 
   useEffect(() => {
     if (user && firestore) {
-      const initialPhoto = user.photoURL || `https://i.ibb.co/ckT3nJc/m1.png`;
       setName(user.displayName || '');
-      setProfileImage(initialPhoto);
-      setNewProfileImage(initialPhoto);
       
       const fetchUserProfile = async () => {
+        setIsProfileLoading(true);
         const userDocRef = doc(firestore, 'users', user.uid);
         try {
             const userDocSnap = await getDoc(userDocRef);
@@ -101,42 +92,6 @@ export default function ProfileSettingsPage() {
   
   const userInitial = name.split(' ').map((n) => n[0]).join('') || 'U';
 
-  const handleSavePhoto = async () => {
-    if (!user || !newProfileImage) {
-        toast({ variant: 'destructive', title: 'No new avatar selected' });
-        return;
-    }
-    if (newProfileImage === profileImage) {
-        toast({ title: 'No Changes', description: 'The selected avatar is already your profile picture.' });
-        return;
-    }
-    setIsPhotoSaving(true);
-    try {
-        await updateProfile(user, { photoURL: newProfileImage });
-        setProfileImage(newProfileImage);
-        toast({
-            title: 'Avatar Updated',
-            description: 'Your new avatar has been saved.',
-        });
-    } catch (error: any) {
-        let description = 'An unknown error occurred. Please try again.';
-        if (error.code === 'auth/network-request-failed') {
-          description = 'A network error occurred. Please check your connection.';
-        } else if (error.code === 'auth/unauthorized-domain') {
-          description = 'This domain is not authorized. Please add it to the authorized domains in your Firebase console.';
-        } else if (error.message) {
-          description = error.message;
-        }
-        toast({
-            variant: 'destructive',
-            title: 'Avatar Update Failed',
-            description: description,
-        });
-    } finally {
-        setIsPhotoSaving(false);
-    }
-  };
-
   const handleSaveChanges = async () => {
     if (!user || !firestore) {
       toast({ variant: 'destructive', title: 'Not authenticated or database not ready' });
@@ -145,6 +100,7 @@ export default function ProfileSettingsPage() {
     setIsSaving(true);
     
     try {
+      // We are only updating the displayName, grade and stream now.
       await updateProfile(user, {
         displayName: name,
       });
@@ -187,7 +143,7 @@ export default function ProfileSettingsPage() {
             <CardHeader>
               <CardTitle>Profile Picture</CardTitle>
               <CardDescription>
-                Select a new avatar.
+                This is your current avatar.
               </CardDescription>
             </CardHeader>
             <CardContent className="flex flex-col items-center gap-6">
@@ -195,33 +151,16 @@ export default function ProfileSettingsPage() {
                  <Skeleton className="w-32 h-32 rounded-full" />
               ) : (
                 <Avatar className="w-32 h-32 border-4 border-primary/20">
-                  <AvatarImage src={newProfileImage || profileImage} alt={name} />
+                  <AvatarImage src={user?.photoURL || defaultAvatar} alt={name} />
                   <AvatarFallback className="text-4xl">
                     {userInitial}
                   </AvatarFallback>
                 </Avatar>
               )}
-
-              <AvatarSelector
-                currentAvatarUrl={newProfileImage || ''}
-                onSelect={(url) => setNewProfileImage(url)}
-              />
-
+                <p className="text-sm text-muted-foreground text-center">
+                    Avatar selection is currently disabled.
+                </p>
             </CardContent>
-            <CardFooter>
-                <Button
-                    className="w-full"
-                    onClick={handleSavePhoto}
-                    disabled={!newProfileImage || isPhotoSaving || newProfileImage === profileImage || isLoading}
-                >
-                    {isPhotoSaving ? (
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    ) : (
-                        <Save className="mr-2 h-4 w-4" />
-                    )}
-                    {isPhotoSaving ? 'Saving...' : 'Save Avatar'}
-                </Button>
-            </CardFooter>
           </Card>
         </div>
 
