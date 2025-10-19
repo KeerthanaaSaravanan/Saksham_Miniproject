@@ -1,3 +1,40 @@
 {
-  "placeholderImages": []
+  "placeholderImages": [
+    {
+      "id": "math",
+      "description": "An abstract representation of mathematical concepts.",
+      "imageUrl": "https://images.unsplash.com/photo-1747654804688-896b1044f17e?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwxMHx8bWF0aGVtYXRpY3MlMjBnZW9tZXRyeXxlbnwwfHx8fDE3NjA4NTg0NzR8MA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "mathematics geometry"
+    },
+    {
+      "id": "science",
+      "description": "A colorful depiction of scientific exploration, perhaps a galaxy or a microscope view.",
+      "imageUrl": "https://images.unsplash.com/photo-1581093689009-6df1be12f404?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw3fHxzY2llbmNlJTIwdGVjaG5vbG9neXxlbnwwfHx8fDE3NjA4NTUxMTR8MA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "science technology"
+    },
+    {
+      "id": "english",
+      "description": "A stack of old books, representing literature and language.",
+      "imageUrl": "https://images.unsplash.com/photo-1683871268982-a19153dbb35d?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw1fHxib29rcyUyMGxpYnJhcnl8ZW58MHx8fHwxNzYwODUzMjU0fDA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "books library"
+    },
+    {
+      "id": "history",
+      "description": "An ancient map or artifact, evoking a sense of history.",
+      "imageUrl": "https://images.unsplash.com/photo-1717700299673-303a66dcd9d3?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw1fHxoaXN0b3J5JTIwbWFwfGVufDB8fHx8MTc2MDgzMzI5OHww&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "history map"
+    },
+    {
+      "id": "art",
+      "description": "Colorful paint brushes and a palette.",
+      "imageUrl": "https://images.unsplash.com/photo-1707134657501-fbae0098f6e5?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw5fHxhcnQlMjBwYWludHxlbnwwfHx8fDE3NjA3NzU0MDR8MA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "art paint"
+    },
+    {
+      "id": "computer-science",
+      "description": "A screen with lines of code.",
+      "imageUrl": "https://images.unsplash.com/photo-1653387137517-fbc54d488ed8?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwyfHxjb2RlJTIwcHJvZ3JhbW1pbmd8ZW58MHx8fHwxNzYwODU0OTk0fDA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "code programming"
+    }
+  ]
 }

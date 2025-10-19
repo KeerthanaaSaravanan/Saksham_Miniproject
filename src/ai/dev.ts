@@ -1,1 +1,7 @@
-// Flows will be imported for their side effects in this file.
+import { config } from 'dotenv';
+config();
+
+import '@/ai/flows/provide-accessibility-first-ai-chatbot-assistance.ts';
+import '@/ai/flows/generate-customized-assessments.ts';
+import '@/ai/flows/detect-anomalous-exam-patterns.ts';
+import '@/ai/flows/automatically-profile-accessibility-needs.ts';
