@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import AccessibilityModules from '@/components/AccessibilityModules';
-import { useUser, useFirestore } from '@/firebase';
+import { useUser, useFirestore, errorEmitter, FirestorePermissionError } from '@/firebase';
 import { doc, setDoc, getDoc } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2 } from 'lucide-react';
@@ -26,8 +26,11 @@ export default function AccessibilitySettingsPage() {
                 }
                 setIsLoading(false);
             }).catch(error => {
-                console.error("Error fetching accessibility profile:", error);
-                toast({ variant: 'destructive', title: 'Error', description: 'Could not load accessibility settings.' });
+                const permissionError = new FirestorePermissionError({
+                  path: profileRef.path,
+                  operation: 'get',
+                });
+                errorEmitter.emit('permission-error', permissionError);
                 setIsLoading(false);
             });
         } else if (!isUserLoading) {
@@ -43,15 +46,20 @@ export default function AccessibilitySettingsPage() {
 
         const profileRef = doc(firestore, 'users', user.uid, 'accessibility_profile', 'settings');
         
-        try {
-            await setDoc(profileRef, settings, { merge: true });
-            toast({ title: 'Settings Saved', description: 'Your accessibility preferences have been updated.' });
-            // Update local state to reflect changes
-            setUserProfile({ accessibility_profile: settings });
-        } catch (error: any) {
-            console.error("Error saving accessibility settings:", error);
-            toast({ variant: 'destructive', title: 'Save Failed', description: error.message });
-        }
+        setDoc(profileRef, settings, { merge: true })
+            .then(() => {
+                 toast({ title: 'Settings Saved', description: 'Your accessibility preferences have been updated.' });
+                 // Update local state to reflect changes
+                 setUserProfile({ accessibility_profile: settings });
+            })
+            .catch((error: any) => {
+                const permissionError = new FirestorePermissionError({
+                    path: profileRef.path,
+                    operation: 'update', // or 'create' if it's the first time
+                    requestResourceData: settings,
+                });
+                errorEmitter.emit('permission-error', permissionError);
+            });
     };
 
     if (isLoading) {
