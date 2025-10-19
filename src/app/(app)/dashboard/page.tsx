@@ -1,30 +1,36 @@
-import { Award, BookOpen, Mic, Zap, Eye, BarChart, FileText, CheckCircle, Brain } from 'lucide-react';
+'use client';
+
+import { Award, BookOpen, Mic, Zap, Eye, BarChart, FileText, CheckCircle, Brain, User, LogOut, Settings, GraduationCap, Upload } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { useRouter } from 'next/navigation';
+import { useAuth } from '@/firebase';
 
 export default function DashboardPage() {
+  const router = useRouter();
+  const auth = useAuth();
+
+  const handleSignOut = () => {
+    if (auth) {
+      auth.signOut();
+    }
+    router.push('/');
+  };
+
   return (
     <div className="space-y-8 text-foreground">
-      <header className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-foreground">AI Dashboard</h1>
-          <p className="text-muted-foreground">Welcome back, Arjun Sharma!</p>
-        </div>
-        <div className="flex items-center gap-4">
-          <div className="flex items-center gap-2 text-sm text-primary">
-            <span className="relative flex h-2 w-2">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75"></span>
-              <span className="relative inline-flex rounded-full h-2 w-2 bg-primary"></span>
-            </span>
-            AI Assistant Active
-          </div>
-          <div className="w-8 h-8 rounded-full bg-card flex items-center justify-center font-bold border">AS</div>
-        </div>
-      </header>
-
-      <main>
-        <div className="bg-gradient-to-r from-primary to-accent p-8 rounded-xl relative overflow-hidden text-white shadow-lg">
+       <main>
+        <div className="bg-gradient-to-r from-primary to-accent p-8 rounded-xl relative overflow-hidden text-white shadow-lg flex justify-between items-center">
           <div className="flex items-center gap-4">
             <div className="text-3xl">👋</div>
             <div>
@@ -32,10 +38,41 @@ export default function DashboardPage() {
               <p className="opacity-80">Your AI learning companion has fine-tuned your interface for optimal clarity and comfort.</p>
             </div>
           </div>
-          <div className="absolute top-8 right-8 w-16 h-16 rounded-full bg-white/20">
-             <img src="https://picsum.photos/seed/arjun/64/64" alt="Arjun Sharma" className="rounded-full"/>
-          </div>
-          <div className="mt-6 grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+                <Avatar className="h-12 w-12 cursor-pointer border-2 border-white/50">
+                    <AvatarImage src="https://picsum.photos/seed/arjun/64/64" alt="Arjun Sharma" />
+                    <AvatarFallback>AS</AvatarFallback>
+                </Avatar>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent className="w-56" align="end">
+                <DropdownMenuLabel>My Account</DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem>
+                    <Upload className="mr-2 h-4 w-4" />
+                    <span>Change Photo</span>
+                </DropdownMenuItem>
+                <DropdownMenuItem>
+                    <User className="mr-2 h-4 w-4" />
+                    <span>Update Name</span>
+                </DropdownMenuItem>
+                 <DropdownMenuItem>
+                    <GraduationCap className="mr-2 h-4 w-4" />
+                    <span>Change Grade</span>
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => router.push('/settings/accessibility')}>
+                    <Settings className="mr-2 h-4 w-4" />
+                    <span>Accessibility</span>
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={handleSignOut}>
+                    <LogOut className="mr-2 h-4 w-4" />
+                    <span>Log out</span>
+                </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
+        <div className="mt-6 grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
             <div className="bg-white/20 p-4 rounded-lg flex items-center gap-3">
               <Brain className="w-5 h-5"/>
               <span>AI Optimization <br/> 5 modules active</span>
@@ -49,7 +86,6 @@ export default function DashboardPage() {
               <span>Voice Assistant <br/> Always listening</span>
             </div>
           </div>
-        </div>
 
         <section className="mt-8">
           <h3 className="text-xl font-bold mb-4 text-foreground">AI-Enhanced Academic Journey</h3>

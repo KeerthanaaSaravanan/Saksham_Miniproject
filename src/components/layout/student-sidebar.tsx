@@ -8,8 +8,6 @@ import {
   Settings,
   LogOut,
   Brain,
-  ChevronDown,
-  Clock,
   Zap
 } from "lucide-react";
 
@@ -56,7 +54,7 @@ export default function StudentSidebar({ student }: { student?: any}) {
       }}
     >
       {/* Brand Section */}
-      <div className="mb-6">
+      <div className="mb-8">
         <div className="flex items-center space-x-3">
           <div className="w-10 h-10 bg-gradient-to-r from-primary to-accent rounded-xl flex items-center justify-center">
             <Brain className="w-6 h-6 text-white" />
@@ -72,31 +70,8 @@ export default function StudentSidebar({ student }: { student?: any}) {
         </div>
       </div>
 
-      {/* Profile Section */}
-      {student && (
-        <div className="flex items-center mb-7 cursor-pointer hover:bg-white/5 rounded-lg p-2 -m-2 transition-colors duration-200">
-          <img
-            src={student.profile_image || "https://picsum.photos/seed/arjun/40/40"}
-            alt={student.name}
-            className="w-10 h-10 rounded-full object-cover mr-3"
-          />
-          <div className="flex-1">
-            <div className="font-inter font-semibold text-[13px] text-white">
-              {student.name}
-            </div>
-            <div className="font-inter font-normal text-[11px] text-white opacity-50">
-              Class {student.class} • {student.stream}
-            </div>
-          </div>
-          <ChevronDown
-            size={18}
-            className="text-white opacity-60 hover:opacity-80 transition-opacity"
-          />
-        </div>
-      )}
-
       {/* Main Menu Section */}
-      <div className="mb-9 flex-1">
+      <div className="flex-1">
         <h2 className="font-inter font-semibold text-[11px] text-white mb-3 opacity-60">
           MAIN MENU
         </h2>
@@ -133,22 +108,6 @@ export default function StudentSidebar({ student }: { student?: any}) {
               </Link>
             );
           })}
-        </div>
-      </div>
-
-      {/* Quick Actions */}
-      <div className="mb-6">
-        <h2 className="font-inter font-semibold text-[11px] text-white mb-3 opacity-60">
-          QUICK ACCESS
-        </h2>
-        <div className="space-y-2">
-          <div className="flex items-center px-3 py-2 bg-primary/20 rounded-lg cursor-pointer hover:bg-primary/30 transition-colors">
-            <Clock size={16} className="text-primary mr-3" />
-            <div className="flex-1">
-              <div className="font-inter text-[12px] text-white font-medium">Next Exam</div>
-              <div className="font-inter text-[10px] text-white opacity-70">Mathematics - 2 hours</div>
-            </div>
-          </div>
         </div>
       </div>
 
