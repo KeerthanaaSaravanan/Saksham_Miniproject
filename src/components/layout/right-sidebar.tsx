@@ -61,7 +61,7 @@ export function RightSidebar() {
   const { user, isUserLoading } = useUser();
   const auth = useAuth();
   const router = useRouter();
-  const { setTheme } = useTheme();
+  const { theme, setTheme } = useTheme();
 
   const handleIconClick = (action: () => void) => {
     if (!isExamMode) {
@@ -84,7 +84,7 @@ export function RightSidebar() {
       .join('') || 'U';
 
   return (
-    <aside className="fixed right-0 top-0 h-full w-20 bg-card/80 border-l border-border/80 flex flex-col items-center py-6 z-40">
+    <aside className="fixed right-0 top-0 h-full w-20 bg-card/80 border-l border-border/80 flex flex-col items-center justify-between py-6 z-40">
       {/* Top Section: Profile */}
       <div className="flex flex-col items-center">
         <DropdownMenu>
@@ -245,22 +245,25 @@ export function RightSidebar() {
        {/* Bottom Section: Theme */}
       <div className="flex flex-col items-center gap-2">
          <TooltipProvider>
-            <Tooltip>
-                <TooltipTrigger onClick={() => setTheme('light')}>
-                    <div className="p-2 rounded-full hover:bg-muted transition-colors cursor-pointer">
-                        <Sun className="h-5 w-5 text-muted-foreground" />
-                    </div>
-                </TooltipTrigger>
-                <TooltipContent side="left"><p>Light Mode</p></TooltipContent>
-            </Tooltip>
-             <Tooltip>
-                <TooltipTrigger onClick={() => setTheme('dark')}>
-                    <div className="p-2 rounded-full hover:bg-muted transition-colors cursor-pointer">
-                        <Moon className="h-5 w-5 text-muted-foreground" />
-                    </div>
-                </TooltipTrigger>
-                <TooltipContent side="left"><p>Dark Mode</p></TooltipContent>
-            </Tooltip>
+            {theme === 'dark' ? (
+                <Tooltip>
+                    <TooltipTrigger onClick={() => setTheme('light')}>
+                        <div className="p-2 rounded-full hover:bg-muted transition-colors cursor-pointer">
+                            <Sun className="h-5 w-5 text-muted-foreground" />
+                        </div>
+                    </TooltipTrigger>
+                    <TooltipContent side="left"><p>Light Mode</p></TooltipContent>
+                </Tooltip>
+            ) : (
+                <Tooltip>
+                    <TooltipTrigger onClick={() => setTheme('dark')}>
+                        <div className="p-2 rounded-full hover:bg-muted transition-colors cursor-pointer">
+                            <Moon className="h-5 w-5 text-muted-foreground" />
+                        </div>
+                    </TooltipTrigger>
+                    <TooltipContent side="left"><p>Dark Mode</p></TooltipContent>
+                </Tooltip>
+            )}
         </TooltipProvider>
       </div>
     </aside>
