@@ -71,7 +71,6 @@ export default function ProfileSettingsPage() {
       setNewProfileImage(initialPhoto);
       
       const fetchUserProfile = async () => {
-        setIsProfileLoading(true);
         const userDocRef = doc(firestore, 'users', user.uid);
         try {
             const userDocSnap = await getDoc(userDocRef);
@@ -121,8 +120,10 @@ export default function ProfileSettingsPage() {
         });
     } catch (error: any) {
         let description = 'An unknown error occurred. Please try again.';
-        if (error.code === 'auth/network-request-failed' || error.code === 'auth/unauthorized-domain') {
-          description = 'A network error occurred. Please check your connection and ensure this domain is added to the authorized domains in your Firebase console.';
+        if (error.code === 'auth/network-request-failed') {
+          description = 'A network error occurred. Please check your connection.';
+        } else if (error.code === 'auth/unauthorized-domain') {
+          description = 'This domain is not authorized. Please add it to the authorized domains in your Firebase console.';
         } else if (error.message) {
           description = error.message;
         }
@@ -168,6 +169,8 @@ export default function ProfileSettingsPage() {
       setIsSaving(false);
     }
   };
+  
+  const isLoading = isUserLoading || isProfileLoading;
 
   return (
     <div className="space-y-6">
@@ -188,7 +191,7 @@ export default function ProfileSettingsPage() {
               </CardDescription>
             </CardHeader>
             <CardContent className="flex flex-col items-center gap-6">
-              {isUserLoading ? (
+              {isLoading ? (
                  <Skeleton className="w-32 h-32 rounded-full" />
               ) : (
                 <Avatar className="w-32 h-32 border-4 border-primary/20">
@@ -209,7 +212,7 @@ export default function ProfileSettingsPage() {
                 <Button
                     className="w-full"
                     onClick={handleSavePhoto}
-                    disabled={!newProfileImage || isPhotoSaving || newProfileImage === profileImage}
+                    disabled={!newProfileImage || isPhotoSaving || newProfileImage === profileImage || isLoading}
                 >
                     {isPhotoSaving ? (
                         <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -231,7 +234,7 @@ export default function ProfileSettingsPage() {
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
-               {isUserLoading || isProfileLoading ? (
+               {isLoading ? (
                 <div className="space-y-6">
                   <div className="space-y-2">
                     <Skeleton className="h-4 w-20" />
@@ -304,7 +307,7 @@ export default function ProfileSettingsPage() {
               <Button
                 size="lg"
                 onClick={handleSaveChanges}
-                disabled={isSaving || isUserLoading || isProfileLoading}
+                disabled={isSaving || isLoading}
               >
                 {isSaving ? (
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -320,5 +323,3 @@ export default function ProfileSettingsPage() {
     </div>
   );
 }
-
-    
