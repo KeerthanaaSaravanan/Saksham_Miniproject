@@ -171,7 +171,7 @@ export default function ProfileSettingsPage() {
         });
     } catch (error: any) {
         let description = 'An unknown error occurred. Please try again.';
-        if (error.code === 'auth/network-request-failed') {
+        if (error.code === 'auth/network-request-failed' || error.code === 'auth/unauthorized-domain') {
           description = 'A network error occurred. Please check your connection and ensure this domain is added to the authorized domains in your Firebase console.';
         } else if (error.message) {
           description = error.message;
