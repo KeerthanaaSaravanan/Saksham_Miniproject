@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import { useForm, useFieldArray } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -37,6 +37,7 @@ import { useToast } from '@/hooks/use-toast';
 import { Loader2, BrainCircuit, Sparkles, Check, X } from 'lucide-react';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 import { Textarea } from '@/components/ui/textarea';
+import { Timer } from '@/components/Timer';
 
 const formSchema = z.object({
   subject: z.string().min(2, 'Subject must be at least 2 characters.'),
@@ -112,8 +113,8 @@ export default function PracticePage() {
     setIsLoading(false);
   }
   
-  async function onSubmitAnswers(data: z.infer<typeof answerSchema>) {
-    if (!exam) return;
+  const onSubmitAnswers = useCallback(async (data: z.infer<typeof answerSchema>) => {
+    if (!exam || isSubmitting) return;
     setIsSubmitting(true);
     const userAnswers = data.answers.map(a => a.value);
 
@@ -134,7 +135,7 @@ export default function PracticePage() {
     setExam(null);
     setIsSubmitting(false);
     toast({ title: "Exam Submitted!", description: "Your results are ready." });
-  }
+  }, [exam, isSubmitting, toast]);
 
   const renderQuestionInput = (question: Question, index: number) => {
     switch(question.type) {
@@ -256,9 +257,15 @@ export default function PracticePage() {
         <Card>
             <Form {...answerForm}>
                 <form onSubmit={answerForm.handleSubmit(onSubmitAnswers)}>
-                    <CardHeader>
-                        <CardTitle>Practice Exam: {exam.originalRequest.subject}</CardTitle>
-                        <CardDescription>Topic: {exam.originalRequest.lesson} | Time Limit: {exam.originalRequest.duration} minutes</CardDescription>
+                    <CardHeader className="flex flex-row items-center justify-between">
+                        <div>
+                            <CardTitle>Practice Exam: {exam.originalRequest.subject}</CardTitle>
+                            <CardDescription>Topic: {exam.originalRequest.lesson}</CardDescription>
+                        </div>
+                        <Timer 
+                            durationInMinutes={exam.originalRequest.duration}
+                            onTimeUp={() => answerForm.handleSubmit(onSubmitAnswers)()}
+                        />
                     </CardHeader>
                     <CardContent className="space-y-8">
                         {exam.questions.map((q, index) => (

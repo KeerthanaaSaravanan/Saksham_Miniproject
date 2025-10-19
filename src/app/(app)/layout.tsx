@@ -2,10 +2,12 @@ import { SidebarNav } from '@/components/layout/sidebar-nav';
 import AppLayoutProvider from '@/components/layout/app-layout-provider';
 import Header from '@/components/layout/header';
 import { RightSidebar } from '@/components/layout/right-sidebar';
+import { ExamModeProvider } from '@/hooks/use-exam-mode';
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   return (
     <AppLayoutProvider>
+      <ExamModeProvider>
         <div className="flex min-h-screen bg-gradient-to-br from-primary/10 via-background to-accent/10 dark:from-[#0B1426] dark:via-[#111B2E] dark:to-[#1A2642]">
           <SidebarNav />
           <main className="flex-1 md:ml-64 md:mr-20">
@@ -14,6 +16,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           </main>
           <RightSidebar />
         </div>
+      </ExamModeProvider>
     </AppLayoutProvider>
   );
 }

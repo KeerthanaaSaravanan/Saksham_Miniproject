@@ -43,6 +43,8 @@ import { Skeleton } from '../ui/skeleton';
 import Link from 'next/link';
 import { useAccessibilityPanel } from '../accessibility/accessibility-panel-provider';
 import { accessibilityModules } from '../accessibility/modules';
+import { useExamMode } from '@/hooks/use-exam-mode';
+import { cn } from '@/lib/utils';
 
 
 const notifications = [
@@ -79,6 +81,7 @@ export function RightSidebar() {
   const { user, isUserLoading } = useUser();
   const auth = useAuth();
   const router = useRouter();
+  const { isExamMode } = useExamMode();
 
   const handleSignOut = () => {
     if (auth) {
@@ -91,8 +94,12 @@ export function RightSidebar() {
   const userInitial = userName.split(' ').map(n => n[0]).join('') || 'U';
   const unreadCount = notifications.filter(n => !n.read).length;
 
+  if (isExamMode) {
+    return null;
+  }
+
   return (
-    <aside className="fixed right-0 top-0 h-full w-20 bg-card/80 border-l border-border/80 flex flex-col items-center justify-between py-6 z-40">
+    <aside className={cn("fixed right-0 top-0 h-full w-20 bg-card/80 border-l border-border/80 flex flex-col items-center justify-between py-6 z-40 transition-opacity duration-300", isExamMode ? "opacity-0 pointer-events-none" : "opacity-100")}>
       <div className="flex flex-col items-center gap-6">
         <DropdownMenu>
           <TooltipProvider>

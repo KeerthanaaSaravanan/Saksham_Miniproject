@@ -13,11 +13,13 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2, BookOpen, ArrowLeft } from 'lucide-react';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useUser, useFirestore, useMemoFirebase, errorEmitter, FirestorePermissionError } from '@/firebase';
 import { collection, query, where, getDoc, doc, Timestamp, getDocs } from 'firebase/firestore';
 import { useCollection } from '@/firebase/firestore/use-collection';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Timer } from '@/components/Timer';
+import { useProctoring } from '@/hooks/use-proctoring';
 
 // Matches the Firestore data structure
 type Exam = {
@@ -26,6 +28,7 @@ type Exam = {
     subject: string;
     gradeLevel: string;
     startTime: Timestamp;
+    durationMinutes?: number;
 };
 
 type AssessmentQuestion = {
@@ -48,6 +51,45 @@ export default function AssessmentPage() {
   const { user, isUserLoading } = useUser();
   const firestore = useFirestore();
   const [grade, setGrade] = useState('');
+
+  const handleSubmitExam = useCallback(() => {
+    if (isSubmitting) return;
+
+    setIsSubmitting(true);
+    // In a real app, you would submit answers to the backend for grading
+    setTimeout(() => {
+        toast({
+            title: "Exam Submitted",
+            description: "Your answers have been recorded. Results will be available soon."
+        });
+        setSelectedExam(null);
+        setIsSubmitting(false);
+    }, 1500);
+  }, [isSubmitting, toast]);
+  
+  const proctoringCallbacks = {
+    onLeave: () => {
+      toast({
+        variant: 'destructive',
+        title: 'Warning: Left Exam Tab',
+        description: 'Leaving the exam tab is prohibited. Further violations will result in automatic submission.',
+      });
+    },
+    onViolationLimitReached: () => {
+      toast({
+        variant: 'destructive',
+        title: 'Exam Automatically Submitted',
+        description: 'You have left the exam tab too many times.',
+      });
+      handleSubmitExam();
+    }
+  }
+
+  useProctoring({
+    isActive: !!selectedExam,
+    ...proctoringCallbacks
+  });
+
 
   useEffect(() => {
     if (user && firestore) {
@@ -106,19 +148,6 @@ export default function AssessmentPage() {
         setIsLoadingExam(false);
     }
   }
-  
-  const handleSubmitExam = () => {
-    setIsSubmitting(true);
-    // In a real app, you would submit answers to the backend for grading
-    setTimeout(() => {
-        toast({
-            title: "Exam Submitted",
-            description: "Your answers have been recorded. Results will be available soon."
-        });
-        setSelectedExam(null);
-        setIsSubmitting(false);
-    }, 1500);
-  }
 
   if (isLoadingExam) {
       return (
@@ -131,10 +160,18 @@ export default function AssessmentPage() {
   if (selectedExam) {
     return (
         <div className="space-y-6">
-            <Button variant="outline" onClick={() => setSelectedExam(null)}>
-                <ArrowLeft className="mr-2 h-4 w-4" />
-                Back to Exams
-            </Button>
+            <header className="flex justify-between items-center">
+                <Button variant="outline" onClick={() => setSelectedExam(null)}>
+                    <ArrowLeft className="mr-2 h-4 w-4" />
+                    Back to Exams
+                </Button>
+                {selectedExam.durationMinutes && (
+                    <Timer 
+                        durationInMinutes={selectedExam.durationMinutes}
+                        onTimeUp={handleSubmitExam}
+                    />
+                )}
+            </header>
             <Card>
                 <CardHeader>
                     <CardTitle>{selectedExam.title}</CardTitle>
@@ -160,7 +197,7 @@ export default function AssessmentPage() {
                 <CardFooter className="gap-2">
                     <Button onClick={handleSubmitExam} disabled={isSubmitting}>
                         {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-                        Submit Exam
+                        Finish & Submit Exam
                     </Button>
                 </CardFooter>
             </Card>

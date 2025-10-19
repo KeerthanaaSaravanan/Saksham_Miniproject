@@ -11,9 +11,14 @@ import {
   Zap,
   HelpCircle,
 } from 'lucide-react';
+import { useExamMode } from '@/hooks/use-exam-mode';
+import { cn } from '@/lib/utils';
+
 
 export default function StudentSidebar({ student }: { student?: any }) {
   const pathname = usePathname();
+  const { isExamMode } = useExamMode();
+  
   const menuItems = [
     {
       icon: Home,
@@ -59,10 +64,17 @@ export default function StudentSidebar({ student }: { student?: any }) {
       href: '/',
     },
   ];
+  
+  if (isExamMode) {
+    return null;
+  }
 
   return (
     <div
-      className="w-64 bg-slate-900/80 backdrop-blur-md text-white flex-col fixed left-0 top-0 h-full font-inter md:flex hidden transition-colors duration-200 border-r border-slate-700/60"
+      className={cn(
+        "w-64 bg-slate-900/80 backdrop-blur-md text-white flex-col fixed left-0 top-0 h-full font-inter md:flex hidden transition-opacity duration-300 border-r border-slate-700/60",
+        isExamMode ? "opacity-0 pointer-events-none" : "opacity-100"
+      )}
       style={{
         paddingTop: '32px',
         paddingLeft: '24px',
