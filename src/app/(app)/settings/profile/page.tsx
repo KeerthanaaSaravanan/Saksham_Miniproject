@@ -57,10 +57,8 @@ export default function ProfileSettingsPage() {
   const { toast } = useToast();
 
   useEffect(() => {
-    // We are now checking for `firestore` to be available as well.
     if (user && firestore) {
       const fetchUserProfile = async () => {
-        // No need to set loading to true here, it's handled by the hook and initial state
         setName(user.displayName || '');
         setCurrentAvatarUrl(user.photoURL || avatars[0].url);
         
@@ -80,14 +78,12 @@ export default function ProfileSettingsPage() {
                 description: error.code === 'unavailable' ? 'Could not connect to the database. Please check your connection.' : 'An error occurred while loading your profile.',
             })
         } finally {
-            // This now correctly runs after the async operation is complete.
             setIsProfileLoading(false);
         }
       };
 
       fetchUserProfile();
-    } else if (!isUserLoading) {
-        // If the user isn't loading and we don't have a user, stop the loading state.
+    } else if (!isUserLoading && !user) {
         setIsProfileLoading(false);
     }
   }, [user, firestore, isUserLoading, toast]);
@@ -105,7 +101,6 @@ export default function ProfileSettingsPage() {
     setIsSaving(true);
     
     try {
-      // We only update the profile if the name has changed.
       if(user.displayName !== name) {
         await updateProfile(user, { displayName: name });
       }
@@ -115,7 +110,6 @@ export default function ProfileSettingsPage() {
           displayName: name,
           grade: grade,
           stream: stream,
-          // also save the photoURL to the user's document for consistency
           photoURL: user.photoURL,
       }, { merge: true });
 
