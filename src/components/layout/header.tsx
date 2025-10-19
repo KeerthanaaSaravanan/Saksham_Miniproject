@@ -7,6 +7,7 @@ import {
   Shield,
   LogOut,
   Settings,
+  Accessibility,
 } from 'lucide-react';
 
 import {
@@ -55,9 +56,9 @@ export function Header() {
               </Link>
             </DropdownMenuItem>
             <DropdownMenuItem asChild>
-              <Link href="#" className="flex items-center gap-2">
-                <Settings className="h-4 w-4" />
-                <span>Settings</span>
+              <Link href="/settings/accessibility" className="flex items-center gap-2">
+                <Accessibility className="h-4 w-4" />
+                <span>Accessibility</span>
               </Link>
             </DropdownMenuItem>
             <DropdownMenuItem asChild>
