@@ -48,6 +48,10 @@ export function ExamLayout({ exam, onTimeUp, isSubmitting }: ExamLayoutProps) {
 
     useEffect(() => {
         setIsExamMode(true);
+        // This ensures the audio element is created on the client
+        if (!audioRef.current) {
+            audioRef.current = new Audio();
+        }
         return () => setIsExamMode(false);
     }, [setIsExamMode]);
 
@@ -85,7 +89,7 @@ export function ExamLayout({ exam, onTimeUp, isSubmitting }: ExamLayoutProps) {
     const activeQuestion: AssessmentQuestion = exam.questions[activeQuestionIndex];
 
      const playTTS = async (text: string) => {
-        if (isTTSSpeaking) return;
+        if (isTTSSpeaking || !audioRef.current) return;
         setIsTTSSpeaking(true);
         try {
             const result = await getTTS(text);
@@ -147,7 +151,7 @@ export function ExamLayout({ exam, onTimeUp, isSubmitting }: ExamLayoutProps) {
         const questionId = question.id;
         const value = answers[questionId] || '';
 
-        const sttButton = isSpeechToTextEnabled && ['short-answer', 'long-answer', 'fillup'].includes(question.type || '') && (
+        const sttButton = isSpeechToTextEnabled && ['short-answer', 'long-answer', 'fillup'].includes(question.type || 'mcq') && (
             <Button
               size="icon"
               variant={isSTTRecording ? 'destructive' : 'outline'}
@@ -379,3 +383,5 @@ export function ExamLayout({ exam, onTimeUp, isSubmitting }: ExamLayoutProps) {
         </div>
     );
 }
+
+    
