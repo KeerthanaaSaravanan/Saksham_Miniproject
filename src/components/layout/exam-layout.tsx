@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo, useEffect, useRef }from 'react';
+import { useState, useMemo, useEffect, useRef, useCallback }from 'react';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
@@ -9,7 +9,7 @@ import { Timer } from '@/components/Timer';
 import { useProctoring } from '@/hooks/use-proctoring';
 import { useToast } from '@/hooks/use-toast';
 import type { SelectedExamDetails, AssessmentQuestion } from '@/app/(app)/assessment/[examId]/page';
-import { Flag, Loader2, Volume2, Mic, MicOff } from 'lucide-react';
+import { Flag, Loader2, Volume2, Mic, MicOff, ChevronRight, ChevronLeft } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { RightSidebar } from './right-sidebar';
 import { useExamMode } from '@/hooks/use-exam-mode';
@@ -226,6 +226,32 @@ export function ExamLayout({ exam, onTimeUp, isSubmitting }: ExamLayoutProps) {
                  )
         }
     }
+
+    const handleVoiceCommand = useCallback((command: string) => {
+        const lower = command.toLowerCase();
+        if (lower.startsWith("select") || lower.startsWith("choose")) {
+            const optionLetter = lower.split(' ').pop();
+            if (optionLetter && activeQuestion.type === 'mcq') {
+                const optionIndex = optionLetter.charCodeAt(0) - 'a'.charCodeAt(0);
+                if(optionIndex >= 0 && optionIndex < activeQuestion.options.length) {
+                    handleAnswerChange(activeQuestion.id, activeQuestion.options[optionIndex]);
+                }
+            }
+        } else if (lower.includes("next question")) {
+            setActiveQuestionIndex(p => Math.min(exam.questions.length - 1, p + 1));
+        } else if (lower.includes("previous question")) {
+            setActiveQuestionIndex(p => Math.max(0, p - 1));
+        } else if (lower.startsWith("go to question")) {
+            const num = parseInt(lower.replace('go to question', '').trim());
+            if(!isNaN(num) && num > 0 && num <= exam.questions.length) {
+                setActiveQuestionIndex(num - 1);
+            }
+        } else if(lower.includes('flag this question') || lower.includes('mark for review')) {
+            toggleReviewFlag(activeQuestion.id);
+        } else if (lower.includes('submit exam')) {
+            onTimeUp(answers);
+        }
+    }, [activeQuestion, exam.questions.length, onTimeUp, answers]);
     
     const answeredCount = Object.keys(answers).filter(key => answers[key] && answers[key].trim() !== '').length;
     const reviewedCount = Object.keys(reviewFlags).filter(k => reviewFlags[k]).length;
@@ -310,10 +336,10 @@ export function ExamLayout({ exam, onTimeUp, isSubmitting }: ExamLayoutProps) {
                     </Button>
                     <div className="flex gap-2">
                         <Button variant="secondary" onClick={() => setActiveQuestionIndex(p => Math.max(0, p - 1))} disabled={activeQuestionIndex === 0}>
-                            Previous
+                            <ChevronLeft /> Previous
                         </Button>
                         <Button onClick={() => setActiveQuestionIndex(p => Math.min(exam.questions.length - 1, p + 1))} disabled={activeQuestionIndex === exam.questions.length - 1}>
-                            Next
+                            Next <ChevronRight />
                         </Button>
                     </div>
                      <Button onClick={() => onTimeUp(answers)} disabled={isSubmitting}>

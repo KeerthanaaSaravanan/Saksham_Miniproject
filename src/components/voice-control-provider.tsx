@@ -10,6 +10,7 @@ interface VoiceControlContextType {
   isListening: boolean;
   toggleListening: () => void;
   isLoading: boolean;
+  processLoginCommand: (command: string) => Promise<boolean>;
 }
 
 const VoiceControlContext = createContext<VoiceControlContextType | undefined>(undefined);
@@ -30,6 +31,8 @@ export function VoiceControlProvider({ children }: { children: ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
   const { toast } = useToast();
+  const [loginStep, setLoginStep] = useState<'idle' | 'ask-email' | 'confirm-email' | 'ask-password' | 'confirm-password' | 'submitting'>('idle');
+  const [loginCredentials, setLoginCredentials] = useState({ email: '', password: '' });
 
   const speak = useCallback(async (text: string) => {
     setIsLoading(true);
@@ -61,12 +64,61 @@ export function VoiceControlProvider({ children }: { children: ReactNode }) {
     router.push(path);
   }, [router]);
 
+
+  const processLoginCommand = useCallback(async (command: string): Promise<boolean> => {
+    const lowerCaseCommand = command.toLowerCase().replace(/\./g, '').replace(/\s/g, '');
+
+    switch(loginStep) {
+      case 'ask-email':
+        setLoginCredentials(prev => ({ ...prev, email: lowerCaseCommand }));
+        await speak(`I heard ${lowerCaseCommand.split('').join(' ')}. Is that correct?`);
+        setLoginStep('confirm-email');
+        return true;
+      case 'confirm-email':
+        if (lowerCaseCommand === 'yes') {
+          await speak("Great. Now, please say your password.");
+          setLoginStep('ask-password');
+        } else {
+          await speak("My mistake. Let's try again. What is your email address?");
+          setLoginStep('ask-email');
+        }
+        return true;
+      case 'ask-password':
+        setLoginCredentials(prev => ({ ...prev, password: command })); // Keep case for password
+        await speak(`I have your password. It has ${command.length} characters. Should I proceed with login?`);
+        setLoginStep('confirm-password');
+        return true;
+      case 'confirm-password':
+        if (lowerCaseCommand === 'yes') {
+            setLoginStep('submitting');
+            // This is a special case, we're not returning true because we want the form to handle it.
+            return false;
+        } else {
+            await speak("Okay, let's try the password again. Please say your password.");
+            setLoginStep('ask-password');
+        }
+        return true;
+      default:
+        return false;
+    }
+  }, [loginStep, speak]);
+  
+
   const processCommand = useCallback(async (command: string) => {
     const lowerCaseCommand = command.toLowerCase();
     
+    // Give login process priority
+    if(loginStep !== 'idle' && loginStep !== 'submitting') {
+        const loginHandled = await processLoginCommand(command);
+        if(loginHandled) return;
+    }
+
     if (lowerCaseCommand.includes('yes')) {
+        if(pathname === '/') { // Only on login page
+            await speak("Voice control is enabled. Let's start with your email address. Please say your email.");
+            setLoginStep('ask-email');
+        }
         setIsListening(true);
-        // This state change will trigger the useEffect
         return;
     }
     if (lowerCaseCommand.includes('no')) {
@@ -100,6 +152,7 @@ export function VoiceControlProvider({ children }: { children: ReactNode }) {
            await speak(`Sorry, I can't find a page called ${failedPage}.`);
       }
     } else {
+        // Fallback to chatbot
         const res = await getChatbotResponse({
           userMessage: command,
           modality: 'voice',
@@ -108,7 +161,7 @@ export function VoiceControlProvider({ children }: { children: ReactNode }) {
           await speak(res.response);
         }
     }
-  }, [handleNavigation, toast, speak, isListening]);
+  }, [handleNavigation, toast, speak, isListening, processLoginCommand, loginStep, pathname]);
 
   const startListener = useCallback(() => {
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
@@ -147,8 +200,6 @@ export function VoiceControlProvider({ children }: { children: ReactNode }) {
     };
     
     recognition.onend = () => {
-        // If listening is still supposed to be active, restart it.
-        // This is a workaround for some browsers stopping recognition after a while.
         if (isListening && recognitionRef.current === recognition) {
              try {
                 recognition.start();
@@ -185,7 +236,6 @@ export function VoiceControlProvider({ children }: { children: ReactNode }) {
         const hasBeenWelcomed = sessionStorage.getItem(WELCOME_KEY);
 
         if (!hasBeenWelcomed) {
-            // Defer the execution to prevent updates during render
             const timer = setTimeout(() => {
                 speak("Welcome to Saksham! Would you like me to guide you through login using voice commands? Please say 'yes' to begin or 'no' to continue manually.")
                 .then(() => {
@@ -202,7 +252,7 @@ export function VoiceControlProvider({ children }: { children: ReactNode }) {
         if(pathname !== '/') toast({ title: 'Voice Control Enabled', description: 'Listening for commands...' });
     } else {
         if (recognitionRef.current) {
-            recognitionRef.current.onend = null; // prevent restart on manual stop
+            recognitionRef.current.onend = null; 
             recognitionRef.current.stop();
             recognitionRef.current = null;
             if(pathname !== '/') toast({ title: 'Voice Control Disabled' });
@@ -220,7 +270,7 @@ export function VoiceControlProvider({ children }: { children: ReactNode }) {
   }, [isListening, pathname]);
 
   return (
-    <VoiceControlContext.Provider value={{ isListening, toggleListening, isLoading }}>
+    <VoiceControlContext.Provider value={{ isListening, toggleListening, isLoading, processLoginCommand }}>
       {children}
       <audio ref={audioRef} className="hidden" />
     </VoiceControlContext.Provider>

@@ -11,6 +11,7 @@ import { cn } from '@/lib/utils';
 import { useChatbot } from './chatbot-provider';
 import { getChatbotResponse } from '@/lib/actions/chatbot';
 import { useRouter } from 'next/navigation';
+import { useAccessibilityPanel } from '../accessibility/accessibility-panel-provider';
 
 type Message = {
   role: 'user' | 'assistant';
@@ -33,6 +34,9 @@ export function Chatbot() {
   const recognitionRef = useRef<any>(null);
   const audioRef = useRef<HTMLAudioElement>(null);
   const router = useRouter();
+  const { userProfile } = useAccessibilityPanel();
+  const accessibility = userProfile?.accessibility_profile || {};
+  const isVoiceModality = accessibility.speechToText || accessibility.voiceCommandNavigation || accessibility.textToSpeech;
 
 
   useEffect(() => {
@@ -73,10 +77,11 @@ export function Chatbot() {
     setIsLoading(true);
 
     const pastMessages = messages.slice(-5); // Send last 5 messages for context
+    const modality = voiceInput || isVoiceModality ? 'voice' : 'text';
 
     const res = await getChatbotResponse({
         userMessage: messageContent,
-        modality: voiceInput ? 'voice' : 'text',
+        modality: modality,
         pastMessages: pastMessages
     });
 

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -18,6 +18,7 @@ import Link from 'next/link';
 import StudentDetailsForm from './StudentDetailsForm';
 import { doc, setDoc } from 'firebase/firestore';
 import { useFirestore } from '@/firebase';
+import { useVoiceControl } from './voice-control-provider';
 
 export default function LoginForm() {
   const [email, setEmail] = useState('');
@@ -29,6 +30,17 @@ export default function LoginForm() {
   const auth = useAuth();
   const firestore = useFirestore();
   const { toast } = useToast();
+  const { isListening, processLoginCommand } = useVoiceControl();
+  const [voiceLoginState, setVoiceLoginState] = useState<'idle' | 'email' | 'password' | 'submit'>('idle');
+
+
+  useEffect(() => {
+    if (isListening && voiceLoginState === 'idle') {
+        setVoiceLoginState('email');
+        processLoginCommand('start login');
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isListening, voiceLoginState]);
 
   const handleAuthError = (error: any) => {
     let description = 'An unknown error occurred. Please try again.';
