@@ -115,7 +115,7 @@ export function RightSidebar() {
                 <TooltipContent side="left"><p>Notifications</p></TooltipContent>
             </Tooltip>
              <Tooltip>
-                <TooltipTrigger onClick={() => setIsOpen(true)}>
+                <TooltipTrigger onClick={() => setIsOpen((prev) => !prev)}>
                      <div className="p-3 rounded-full bg-blue-500/10 hover:bg-blue-500/20 transition-colors">
                         <Sparkles className="h-6 w-6 text-blue-500" />
                     </div>
@@ -134,8 +134,8 @@ export function RightSidebar() {
 
       </div>
       
-      <div className="flex-grow w-full flex justify-center">
-        <div className="w-0.5 h-full bg-border/50 rounded-full" />
+      <div className="flex-grow w-full flex justify-center items-center">
+        <div className="w-px h-full bg-border/50 rounded-full" />
       </div>
 
       <div className="flex flex-col items-center gap-4">

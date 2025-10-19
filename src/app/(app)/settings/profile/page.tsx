@@ -35,8 +35,8 @@ const gradeConfig = {
   'Class 8': { subjects: true },
   'Class 9': { subjects: true },
   'Class 10': { subjects: true },
-  'Class 11': { streams: ['Bio Math', 'Computer Science', 'Commerce'] },
-  'Class 12': { streams: ['Bio Math', 'Computer Science', 'Commerce'] },
+  'Class 11': { streams: ['Bio-Maths', 'Computer Science', 'Commerce'] },
+  'Class 12': { streams: ['Bio-Maths', 'Computer Science', 'Commerce'] },
   College: {
     streams: ['Engineering', 'Arts and Science', 'Medical', 'Law', 'Architecture'],
   },
@@ -57,6 +57,7 @@ export default function ProfileSettingsPage() {
   const { toast } = useToast();
 
   useEffect(() => {
+    // Only proceed if user and firestore are available
     if (user && firestore) {
       const fetchUserProfile = async () => {
         setIsProfileLoading(true);
@@ -84,7 +85,14 @@ export default function ProfileSettingsPage() {
       };
 
       fetchUserProfile();
-    } else if (!isUserLoading) { // Also check if firebase user has finished loading
+    } else if (!isUserLoading && !firestore) { // If not loading and firestore is missing
+        setIsProfileLoading(false);
+        toast({
+            variant: 'destructive',
+            title: 'Database connection not available',
+            description: 'Could not connect to Firestore. Please try again later.',
+        });
+    } else if (!isUserLoading) { // If not loading and user is null
         setIsProfileLoading(false);
     }
   }, [user, firestore, isUserLoading, toast]);
@@ -111,7 +119,6 @@ export default function ProfileSettingsPage() {
           displayName: name,
           grade: grade,
           stream: stream,
-          // photoURL is handled by handleSavePhoto
       }, { merge: true });
 
       toast({
