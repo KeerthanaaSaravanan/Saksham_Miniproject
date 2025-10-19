@@ -86,7 +86,7 @@ export function RightSidebar() {
 
   return (
     <aside className="fixed right-0 top-0 h-full w-20 bg-card/80 border-l border-border/80 flex flex-col items-center justify-between py-6 z-40">
-      {/* Profile Section */}
+      {/* Top Section: Profile */}
       <div className="flex flex-col items-center">
         <DropdownMenu>
           <TooltipProvider>
@@ -134,30 +134,10 @@ export function RightSidebar() {
         </DropdownMenu>
       </div>
 
-      {/* Accessibility Section */}
+      {/* Middle Section: Utilities & Accessibility */}
       <div className="flex flex-col items-center gap-4">
         <TooltipProvider>
-          {accessibilityModules.map((module) => {
-            const Icon = module.icon;
-            return (
-              <Tooltip key={module.id}>
-                <TooltipTrigger onClick={() => setOpenModule(module.id)}>
-                  <div className="p-3 rounded-full hover:bg-muted transition-colors cursor-pointer">
-                    <Icon className="h-6 w-6 text-muted-foreground" />
-                  </div>
-                </TooltipTrigger>
-                <TooltipContent side="left">
-                  <p>{module.title} Settings</p>
-                </TooltipContent>
-              </Tooltip>
-            );
-          })}
-        </TooltipProvider>
-      </div>
-
-      {/* Utilities Section */}
-      <div className="flex flex-col items-center gap-4">
-        <TooltipProvider>
+          {/* Notifications */}
           <DropdownMenu>
             <Tooltip>
               <TooltipTrigger asChild>
@@ -208,6 +188,7 @@ export function RightSidebar() {
             </DropdownMenuContent>
           </DropdownMenu>
 
+          {/* AI Assistant */}
           <Tooltip>
             <TooltipTrigger
               onClick={() => handleIconClick(() => setChatbotOpen(true))}
@@ -232,33 +213,26 @@ export function RightSidebar() {
             </TooltipContent>
           </Tooltip>
 
-          <Tooltip>
-            <TooltipTrigger
-              onClick={() => handleIconClick(() => router.push('/help'))}
-              disabled={isExamMode}
-            >
-              <div
-                className={cn(
-                  'p-3 rounded-full transition-colors',
-                  !isExamMode && 'cursor-pointer hover:bg-muted'
-                )}
-              >
-                <HelpCircle
-                  className={cn(
-                    'h-6 w-6 text-muted-foreground',
-                    isExamMode && 'opacity-50 cursor-not-allowed'
-                  )}
-                />
-              </div>
-            </TooltipTrigger>
-            <TooltipContent side="left">
-              <p>Help & Guidance</p>
-            </TooltipContent>
-          </Tooltip>
+          {/* Accessibility Icons */}
+          {accessibilityModules.map((module) => {
+            const Icon = module.icon;
+            return (
+              <Tooltip key={module.id}>
+                <TooltipTrigger onClick={() => setOpenModule(module.id)}>
+                  <div className="p-3 rounded-full hover:bg-muted transition-colors cursor-pointer">
+                    <Icon className="h-6 w-6 text-muted-foreground" />
+                  </div>
+                </TooltipTrigger>
+                <TooltipContent side="left">
+                  <p>{module.title} Settings</p>
+                </TooltipContent>
+              </Tooltip>
+            );
+          })}
         </TooltipProvider>
       </div>
 
-       {/* Theme Section */}
+       {/* Bottom Section: Theme */}
       <div className="flex flex-col items-center gap-2">
          <TooltipProvider>
             <Tooltip>
@@ -276,14 +250,6 @@ export function RightSidebar() {
                     </div>
                 </TooltipTrigger>
                 <TooltipContent side="left"><p>Dark Mode</p></TooltipContent>
-            </Tooltip>
-             <Tooltip>
-                <TooltipTrigger onClick={() => setTheme('system')}>
-                    <div className="p-2 rounded-full hover:bg-muted transition-colors cursor-pointer">
-                        <Laptop className="h-5 w-5 text-muted-foreground" />
-                    </div>
-                </TooltipTrigger>
-                <TooltipContent side="left"><p>System Default</p></TooltipContent>
             </Tooltip>
         </TooltipProvider>
       </div>
