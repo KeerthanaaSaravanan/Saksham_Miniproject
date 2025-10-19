@@ -1,172 +1,206 @@
 /**
- * @file Firestore Security Rules for the Saksham application.
- *
- * Core Philosophy:
- * This ruleset enforces a strict user-ownership model for private user data and allows public read access to learning modules and exams while restricting writes to authorized users. Hierarchical data relationships are secured by path-based ownership checks and data denormalization.
- *
- * Data Structure:
- * - /users/{userId}: Stores private user profile data, accessible only to the user themselves.
- * - /learning_modules/{learningModuleId}: Stores learning modules, publicly readable but write-protected.
- * - /exams/{examId}: Stores exam information, publicly readable but write-protected.
- * - /exams/{examId}/questions/{questionId}: Stores questions for exams, accessible only via their parent exam.
- * - /users/{userId}/exam_attempts/{studentExamAttemptId}: Stores student exam attempts, accessible only to the user.
- * - /users/{userId}/exam_attempts/{studentExamAttemptId}/answers/{studentAnswerId}: Stores student answers, accessible only via their parent attempt.
- * - /users/{userId}/accessibility_profile/{accessibilityProfileId}: Stores user's accessibility profiles, accessible only to the user.
- *
- * Key Security Decisions:
- * - User listing is disallowed to protect user privacy.
- * - Public read access is granted for learning modules and exams to facilitate open access to educational content.
- * - All write operations are strictly controlled via ownership checks to prevent unauthorized data modification.
- *
- * Denormalization for Authorization:
- * - StudentExamAttempt documents contain the userId and examId, enabling direct authorization checks without additional `get()` calls.
- */
-rules_version = '2';
-service cloud.firestore {
+  * @file Overview
+  * This ruleset enforces a strict user-ownership model for private user data stored under `/users/{userId}` and its subcollections,
+  * while allowing public read access to learning modules and exams.
+  *
+  * @data-structure
+  * - /users/{userId}: Stores private user profile information.
+  * - /learning_modules/{learningModuleId}: Stores publicly accessible learning modules.
+  * - /exams/{examId}: Stores publicly accessible exam information.
+  * - /exams/{examId}/questions/{questionId}: Stores questions associated with an exam.
+  * - /users/{userId}/exam_attempts/{studentExamAttemptId}: Stores a user's exam attempts.
+  * - /users/{userId}/exam_attempts/{studentExamAttemptId}/answers/{studentAnswerId}: Stores a user's answers for a specific exam attempt.
+  * - /users/{userId}/accessibility_profile/{accessibilityProfileId}: Stores a user's accessibility profile.
+  *
+  * @key-security-decisions
+  * - User data is strictly controlled by the owning user.
+  * - Public read access is granted to learning modules and exams.
+  * - Listing of all users is disallowed.
+  * - Strict ownership is enforced on nested data (exam attempts, answers, profiles)
+  *   under the `/users/{userId}` path.
+  *
+  * @denormalization
+  * - `StudentExamAttempt` includes `userId` and `examId` to avoid extra reads for
+  *   authorization.
+  * - `StudentAnswer` includes `studentExamAttemptId` and `questionId` to avoid
+  *   extra reads for authorization.
+  * - `LearningModule` and `Exam` include `gradeLevel` to allow secure list operations.
+  */
+ 
+
+ rules_version = '2';
+ service cloud.firestore {
   match /databases/{database}/documents {
+ 
 
-    /**
-     * @description Secure user profile information. Only the user can read/write their own profile.
-     * @path /users/{userId}
-     * @allow (create) User with firebaseUid 'user_abc' can create their own profile document where request.resource.data.id == 'user_abc'.
-     * @allow (get, update, delete) User with firebaseUid 'user_abc' can read/write their own profile document.
-     * @deny (create, get, update, delete) User with firebaseUid 'user_xyz' cannot read/write User 'user_abc' profile document.
-     * @principle Enforces document ownership for all operations.
-     */
-    match /users/{userId} {
-      // isOwner function checks that the uid given matches the uid in request.auth
-      function isOwner(userId) {
-        return request.auth != null && request.auth.uid == userId;
-      }
-
-      //isExistingOwner function checks that the uid given matches the uid in request.auth and the resource exists
-      function isExistingOwner(userId) {
-        return isOwner(userId) && resource != null;
-      }
-
-      allow get: if isOwner(userId);
-      allow list: if false;
-
-      allow create: if isOwner(userId) && request.resource.data.id == userId;
-      allow update: if isExistingOwner(userId) && request.resource.data.id == resource.data.id;
-      allow delete: if isExistingOwner(userId);
-    }
-
-    /**
-     * @description Learning modules are publicly readable but write-protected.
-     * @path /learning_modules/{learningModuleId}
-     * @allow (get, list) Anyone can read learning modules.
-     * @deny (create, update, delete) No one can create, update, or delete learning modules without specific authorization logic.
-     * @principle Public read access with restricted writes.
-     */
-    match /learning_modules/{learningModuleId} {
-      allow get, list: if true;
-      allow create, update, delete: if false; // TODO: Add owner validation once the schema is updated with an ownership field.
-    }
-
-    /**
-     * @description Exams are publicly readable but write-protected.
-     * @path /exams/{examId}
-     * @allow (get, list) Anyone can read exam information.
-     * @deny (create, update, delete) No one can create, update, or delete exams without specific authorization logic.
-     * @principle Public read access with restricted writes.
-     */
-    match /exams/{examId} {
-      allow get, list: if true;
-      allow create, update, delete: if false; // TODO: Add owner validation once the schema is updated with an ownership field.
-    }
-
-    /**
-     * @description Questions are associated with an exam and inherit exam access.
-     * @path /exams/{examId}/questions/{questionId}
-     * @allow (get, list) Anyone can read question information if they can read exam information.
-     * @deny (create, update, delete) No one can create, update, or delete questions without specific authorization logic.
-     * @principle Inherits read permissions from parent document, restricted writes.
-     */
-    match /exams/{examId}/questions/{questionId} {
-      allow get, list: if true;
-      allow create, update, delete: if false; // TODO: Add owner validation once the schema is updated with an ownership field.
-    }
-
-    /**
-     * @description Student exam attempts are owned by the user.
-     * @path /users/{userId}/exam_attempts/{studentExamAttemptId}
-     * @allow (create) User with firebaseUid 'user_abc' can create their own exam attempt document where request.resource.data.userId == 'user_abc'.
-     * @allow (get, update, delete) User with firebaseUid 'user_abc' can read/write their own exam attempt document.
-     * @deny (create, get, update, delete) User with firebaseUid 'user_xyz' cannot read/write User 'user_abc' exam attempt document.
-     * @principle Enforces document ownership for all operations.
-     */
-    match /users/{userId}/exam_attempts/{studentExamAttemptId} {
-      // isOwner function checks that the uid given matches the uid in request.auth
-      function isOwner(userId) {
-        return request.auth != null && request.auth.uid == userId;
-      }
-
-      //isExistingOwner function checks that the uid given matches the uid in request.auth and the resource exists
-      function isExistingOwner(userId) {
-        return isOwner(userId) && resource != null;
-      }
-
-      allow get: if isOwner(userId);
-      allow list: if isOwner(userId);
-
-      allow create: if isOwner(userId) && request.resource.data.userId == userId;
-      allow update: if isExistingOwner(userId) && request.resource.data.userId == resource.data.userId;
-      allow delete: if isExistingOwner(userId);
-    }
-
-    /**
-     * @description Student answers are owned by the user and associated with an exam attempt.
-     * @path /users/{userId}/exam_attempts/{studentExamAttemptId}/answers/{studentAnswerId}
-     * @allow (create) User with firebaseUid 'user_abc' can create their own answer document where request.resource.data.studentExamAttemptId references their attempt.
-     * @allow (get, update, delete) User with firebaseUid 'user_abc' can read/write their own answer document associated with their exam attempt.
-     * @deny (create, get, update, delete) User with firebaseUid 'user_xyz' cannot read/write User 'user_abc' answer document.
-     * @principle Enforces document ownership and relational integrity for all operations.
-     */
-    match /users/{userId}/exam_attempts/{studentExamAttemptId}/answers/{studentAnswerId} {
-      // isOwner function checks that the uid given matches the uid in request.auth
-      function isOwner(userId) {
-        return request.auth != null && request.auth.uid == userId;
-      }
-
-      //isExistingOwner function checks that the uid given matches the uid in request.auth and the resource exists
-      function isExistingOwner(userId) {
-        return isOwner(userId) && resource != null;
-      }
-        
-      allow get: if isOwner(userId);
-      allow list: if isOwner(userId);
-
-      allow create: if isOwner(userId);
-      allow update: if isExistingOwner(userId);
-      allow delete: if isExistingOwner(userId);
-    }
-
-     /**
-      * @description Secure user accessibility profile. Only the user can read/write their own profile.
-      * @path /users/{userId}/accessibility_profile/{accessibilityProfileId}
-      * @allow (create) User with firebaseUid 'user_abc' can create their own profile document where request.resource.data.userId == 'user_abc'.
-      * @allow (get, update, delete) User with firebaseUid 'user_abc' can read/write their own profile document.
-      * @deny (create, get, update, delete) User with firebaseUid 'user_xyz' cannot read/write User 'user_abc' profile document.
-      * @principle Enforces document ownership for all operations.
-      */
-    match /users/{userId}/accessibility_profile/{accessibilityProfileId} {
-        // isOwner function checks that the uid given matches the uid in request.auth
-        function isOwner(userId) {
-          return request.auth != null && request.auth.uid == userId;
-        }
-  
-        //isExistingOwner function checks that the uid given matches the uid in request.auth and the resource exists
-        function isExistingOwner(userId) {
-          return isOwner(userId) && resource != null;
-        }
-  
-        allow get: if isOwner(userId);
-        allow list: if false;
-  
-        allow create: if isOwner(userId) && request.resource.data.userId == userId;
-        allow update: if isExistingOwner(userId) && request.resource.data.userId == resource.data.userId;
-        allow delete: if isExistingOwner(userId);
-      }
+  /**
+  * @description Enforces user-ownership for user profile data.
+  * @path /users/{userId}
+  * @allow (create) User with matching Firebase UID can create their profile.
+  * @allow (get, update, delete) User with matching Firebase UID can get, update, or delete their profile.
+  * @deny (create) User tries to create a profile with a mismatched Firebase UID.
+  * @deny (get, update, delete) User tries to get, update, or delete another user's profile.
+  * @principle Enforces document ownership for all writes.
+  */
+  match /users/{userId} {
+  function isSignedIn() {
+  return request.auth != null;
   }
-}
+ 
+
+  function isOwner(userId) {
+  return request.auth.uid == userId;
+  }
+ 
+
+  function isExistingOwner(userId) {
+  return isOwner(userId) && resource != null;
+  }
+ 
+
+  allow get: if isOwner(userId);
+  allow list: if false; // Listing all users is not permitted
+  allow create: if isSignedIn() && isOwner(userId);
+  allow update: if isExistingOwner(userId);
+  allow delete: if isExistingOwner(userId);
+  }
+ 
+
+  /**
+  * @description Allows public read access to learning modules. Write access is not implemented.
+  * @path /learning_modules/{learningModuleId}
+  * @allow (get, list) Any user can read learning modules.
+  * @deny (create, update, delete) No one can create, update, or delete learning modules via client.
+  * @principle Allows public read access with no write access.
+  */
+  match /learning_modules/{learningModuleId} {
+  allow get, list: if true;
+  allow create, update, delete: if false;
+  }
+ 
+
+  /**
+  * @description Allows public read access to exams. Write access is not implemented.
+  * @path /exams/{examId}
+  * @allow (get, list) Any user can read exam information.
+  * @deny (create, update, delete) No one can create, update, or delete exam information via client.
+  * @principle Allows public read access with no write access.
+  */
+  match /exams/{examId} {
+  allow get, list: if true;
+  allow create, update, delete: if false;
+  }
+ 
+
+  /**
+  * @description Allows read and write to the questions for a specific exam, write access is not implemented.
+  * @path /exams/{examId}/questions/{questionId}
+  * @allow (get, list) Any user can read exam questions.
+  * @deny (create, update, delete) No one can create, update, or delete exam question via client.
+  * @principle Allows public read access with no write access.
+  */
+  match /exams/{examId}/questions/{questionId} {
+  allow get, list: if true;
+  allow create, update, delete: if false;
+  }
+ 
+
+  /**
+  * @description Enforces user-ownership for student exam attempts.
+  * @path /users/{userId}/exam_attempts/{studentExamAttemptId}
+  * @allow (create) User with matching Firebase UID can create their exam attempt.
+  * @allow (get, list, update, delete) User with matching Firebase UID can get, list, update or delete their exam attempt.
+  * @deny (create) User tries to create an exam attempt with a mismatched Firebase UID.
+  * @deny (get, list, update, delete) User tries to get, list, update, or delete another user's exam attempt.
+  * @principle Enforces document ownership for all writes.
+  */
+  match /users/{userId}/exam_attempts/{studentExamAttemptId} {
+  function isSignedIn() {
+  return request.auth != null;
+  }
+ 
+
+  function isOwner(userId) {
+  return request.auth.uid == userId;
+  }
+ 
+
+  function isExistingOwner(userId) {
+  return isOwner(userId) && resource != null;
+  }
+ 
+
+  allow get: if isOwner(userId);
+  allow list: if isOwner(userId);
+  allow create: if isSignedIn() && isOwner(userId);
+  allow update: if isExistingOwner(userId);
+  allow delete: if isExistingOwner(userId);
+  }
+ 
+
+  /**
+  * @description Enforces user-ownership for student answers within a specific exam attempt.
+  * @path /users/{userId}/exam_attempts/{studentExamAttemptId}/answers/{studentAnswerId}
+  * @allow (create) User with matching Firebase UID can create their exam answer.
+  * @allow (get, list, update, delete) User with matching Firebase UID can get, list, update or delete their exam answer.
+  * @deny (create) User tries to create an exam answer with a mismatched Firebase UID.
+  * @deny (get, list, update, delete) User tries to get, list, update, or delete another user's exam answer.
+  * @principle Enforces document ownership for all writes.
+  */
+  match /users/{userId}/exam_attempts/{studentExamAttemptId}/answers/{studentAnswerId} {
+  function isSignedIn() {
+  return request.auth != null;
+  }
+ 
+
+  function isOwner(userId) {
+  return request.auth.uid == userId;
+  }
+ 
+
+  function isExistingOwner(userId) {
+  return isOwner(userId) && resource != null;
+  }
+ 
+
+  allow get: if isOwner(userId);
+  allow list: if isOwner(userId);
+  allow create: if isSignedIn() && isOwner(userId);
+  allow update: if isExistingOwner(userId);
+  allow delete: if isExistingOwner(userId);
+  }
+ 
+
+  /**
+  * @description Enforces user-ownership for accessibility profiles.
+  * @path /users/{userId}/accessibility_profile/{accessibilityProfileId}
+  * @allow (create) User with matching Firebase UID can create their accessibility profile.
+  * @allow (get, list, update, delete) User with matching Firebase UID can get, list, update, or delete their accessibility profile.
+  * @deny (create) User tries to create an accessibility profile with a mismatched Firebase UID.
+  * @deny (get, list, update, delete) User tries to get, list, update, or delete another user's accessibility profile.
+  * @principle Enforces document ownership for all writes.
+  */
+  match /users/{userId}/accessibility_profile/{accessibilityProfileId} {
+  function isSignedIn() {
+  return request.auth != null;
+  }
+ 
+
+  function isOwner(userId) {
+  return request.auth.uid == userId;
+  }
+ 
+
+  function isExistingOwner(userId) {
+  return isOwner(userId) && resource != null;
+  }
+ 
+
+  allow get: if isOwner(userId);
+  allow list: if isOwner(userId);
+  allow create: if isSignedIn() && isOwner(userId);
+  allow update: if isExistingOwner(userId);
+  allow delete: if isExistingOwner(userId);
+  }
+  }
+ }
