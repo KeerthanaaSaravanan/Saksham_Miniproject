@@ -8,11 +8,13 @@ import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { useAuth } from '@/firebase';
+import { useAuth, initiateEmailSignIn } from '@/firebase';
 import { GoogleAuthProvider, signInWithPopup } from 'firebase/auth';
 
 export default function LoginForm({ userType }: { userType: 'student' | 'faculty' }) {
   const [showPassword, setShowPassword] = useState(false);
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const router = useRouter();
   const auth = useAuth();
 
@@ -29,9 +31,11 @@ export default function LoginForm({ userType }: { userType: 'student' | 'faculty
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
     if (userType === 'faculty') {
+      initiateEmailSignIn(auth, email, password);
       router.push('/admin/dashboard');
     } else {
-        router.push('/dashboard');
+      initiateEmailSignIn(auth, email, password);
+      router.push('/dashboard');
     }
   };
 
@@ -61,7 +65,14 @@ export default function LoginForm({ userType }: { userType: 'student' | 'faculty
             <Label htmlFor="email">Email Address</Label>
             <div className="relative">
               <Mail className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-              <Input id="email" type="email" placeholder="student@example.com" className="pl-10 h-12" />
+              <Input 
+                id="email" 
+                type="email" 
+                placeholder="student@example.com" 
+                className="pl-10 h-12" 
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+              />
             </div>
           </div>
           <Button type="submit" className="w-full h-12 bg-gradient-to-r from-[#38C5B0] to-[#2DD4BF] hover:opacity-90">
@@ -82,7 +93,14 @@ export default function LoginForm({ userType }: { userType: 'student' | 'faculty
           <Label htmlFor="faculty-email">Email Address</Label>
           <div className="relative">
             <Mail className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-            <Input id="faculty-email" type="email" placeholder="faculty@example.com" className="pl-10 h-12" />
+            <Input 
+              id="faculty-email" 
+              type="email" 
+              placeholder="faculty@example.com" 
+              className="pl-10 h-12" 
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+            />
           </div>
         </div>
         <div className="space-y-2">
@@ -94,6 +112,8 @@ export default function LoginForm({ userType }: { userType: 'student' | 'faculty
               type={showPassword ? 'text' : 'password'}
               placeholder="••••••••"
               className="pl-10 h-12"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
             />
             <Button
               type="button"
