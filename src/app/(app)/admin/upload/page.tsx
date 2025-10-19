@@ -32,23 +32,32 @@ import {
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2, Upload, PlusCircle, XCircle } from 'lucide-react';
+import { useFirestore } from '@/firebase';
+import { addDocumentNonBlocking } from '@/firebase/non-blocking-updates';
+import { collection, serverTimestamp, doc, writeBatch } from 'firebase/firestore';
+
 
 const questionSchema = z.object({
-    question: z.string().min(5, "Question must be at least 5 characters."),
-    options: z.array(z.string().min(1, "Option cannot be empty.")).min(2, "Must have at least 2 options."),
-    correctAnswer: z.string().min(1, "Correct answer is required."),
+  question: z.string().min(5, "Question must be at least 5 characters."),
+  options: z.array(z.string().min(1, "Option cannot be empty.")).min(2, "Must have at least 2 options."),
+  correctAnswer: z.string().min(1, "Correct answer is required."),
+  type: z.string().default('mcq'), // Default to multiple choice
+  difficulty: z.string().default('medium'),
 });
 
 const formSchema = z.object({
   title: z.string().min(5, 'Title must be at least 5 characters.'),
   subject: z.string().min(1, 'Subject is required.'),
   gradeLevel: z.string().min(1, 'Grade level is required.'),
+  startTime: z.string().min(1, 'Start time is required.'), // Added for scheduling
+  endTime: z.string().min(1, 'End time is required.'),   // Added for scheduling
   questions: z.array(questionSchema).min(1, "You must add at least one question.")
 });
 
 export default function UploadPage() {
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
+  const firestore = useFirestore();
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -56,6 +65,8 @@ export default function UploadPage() {
       title: '',
       subject: '',
       gradeLevel: '',
+      startTime: '',
+      endTime: '',
       questions: [],
     },
   });
@@ -66,18 +77,57 @@ export default function UploadPage() {
   });
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
-    setIsLoading(true);
-    console.log("Uploading exam:", values);
-    
-    // In a real application, you would send this data to your backend/Firestore
-    await new Promise(resolve => setTimeout(resolve, 1500));
+    if (!firestore) {
+        toast({ variant: 'destructive', title: 'Error', description: 'Firestore is not available.' });
+        return;
+    }
 
-    toast({
-      title: 'Exam Uploaded Successfully',
-      description: `The exam "${values.title}" has been added to the system.`,
-    });
-    form.reset();
-    setIsLoading(false);
+    setIsLoading(true);
+    
+    try {
+        const examsCollectionRef = collection(firestore, 'exams');
+        const newExamRef = doc(examsCollectionRef); // Create a new doc ref with a generated ID
+        const questionsCollectionRef = collection(newExamRef, 'questions');
+
+        const batch = writeBatch(firestore);
+
+        // 1. Set the main exam document
+        batch.set(newExamRef, {
+            title: values.title,
+            subject: values.subject,
+            gradeLevel: values.gradeLevel,
+            startTime: new Date(values.startTime),
+            endTime: new Date(values.endTime),
+            createdAt: serverTimestamp(),
+        });
+        
+        // 2. Add all questions to the subcollection
+        values.questions.forEach(question => {
+            const newQuestionRef = doc(questionsCollectionRef);
+            batch.set(newQuestionRef, {
+                ...question,
+                examId: newExamRef.id,
+            });
+        });
+        
+        await batch.commit();
+
+        toast({
+        title: 'Exam Uploaded Successfully',
+        description: `The exam "${values.title}" has been added to the system.`,
+        });
+        form.reset();
+
+    } catch (error: any) {
+        console.error("Error uploading exam:", error);
+        toast({
+            variant: 'destructive',
+            title: 'Upload Failed',
+            description: error.message || 'An unknown error occurred.',
+        });
+    } finally {
+        setIsLoading(false);
+    }
   }
 
   return (
@@ -85,17 +135,17 @@ export default function UploadPage() {
       <div>
         <h1 className="text-3xl font-bold font-headline">Upload Question Paper</h1>
         <p className="text-muted-foreground">
-          Create a new examination by filling out the form below.
+          Create and schedule a new examination by filling out the form below.
         </p>
       </div>
 
       <Form {...form}>
-        <form onSubmit={form.handleSubmit(onSubmit)}>
+        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
           <Card>
             <CardHeader>
               <CardTitle>Exam Details</CardTitle>
               <CardDescription>
-                Provide the basic information for the new exam.
+                Provide the basic information and scheduling for the new exam.
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
@@ -139,9 +189,9 @@ export default function UploadPage() {
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
-                          <SelectItem value="8th Grade">8th Grade</SelectItem>
-                          <SelectItem value="9th Grade">9th Grade</SelectItem>
-                          <SelectItem value="10th Grade">10th Grade</SelectItem>
+                          <SelectItem value="Class 8">Class 8</SelectItem>
+                          <SelectItem value="Class 9">Class 9</SelectItem>
+                          <SelectItem value="Class 10">Class 10</SelectItem>
                         </SelectContent>
                       </Select>
                       <FormMessage />
@@ -149,6 +199,34 @@ export default function UploadPage() {
                   )}
                 />
               </div>
+               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                 <FormField
+                    control={form.control}
+                    name="startTime"
+                    render={({ field }) => (
+                        <FormItem>
+                        <FormLabel>Start Time</FormLabel>
+                        <FormControl>
+                            <Input type="datetime-local" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                        </FormItem>
+                    )}
+                    />
+                <FormField
+                    control={form.control}
+                    name="endTime"
+                    render={({ field }) => (
+                        <FormItem>
+                        <FormLabel>End Time</FormLabel>
+                        <FormControl>
+                            <Input type="datetime-local" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                        </FormItem>
+                    )}
+                    />
+               </div>
             </CardContent>
           </Card>
 
@@ -159,7 +237,7 @@ export default function UploadPage() {
                         <CardTitle>Questions</CardTitle>
                         <CardDescription>Add questions for this exam.</CardDescription>
                     </div>
-                    <Button type="button" variant="outline" size="sm" onClick={() => append({ question: '', options: ['', ''], correctAnswer: ''})}>
+                    <Button type="button" variant="outline" size="sm" onClick={() => append({ question: '', options: ['', ''], correctAnswer: '', type: 'mcq', difficulty: 'medium'})}>
                         <PlusCircle className="mr-2 h-4 w-4" />
                         Add Question
                     </Button>
@@ -211,7 +289,7 @@ export default function UploadPage() {
                         />
                     </div>
                 ))}
-                {form.formState.errors.questions?.message && <p className="text-sm font-medium text-destructive">{form.formState.errors.questions?.message}</p>}
+                {form.formState.errors.questions && <p className="text-sm font-medium text-destructive">{form.formState.errors.questions.message || form.formState.errors.questions.root?.message}</p>}
             </CardContent>
           </Card>
 
@@ -226,3 +304,5 @@ export default function UploadPage() {
     </div>
   );
 }
+
+    

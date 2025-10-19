@@ -12,47 +12,88 @@ import { Button } from '@/components/ui/button';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, BookOpen, ShieldCheck, AlertCircle, ArrowLeft } from 'lucide-react';
-import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
-import { Badge } from '@/components/ui/badge';
-import { useState } from 'react';
+import { Loader2, BookOpen, ArrowLeft } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { useUser, useFirestore, useMemoFirebase } from '@/firebase';
+import { collection, query, where, getDoc, doc, Timestamp, getDocs } from 'firebase/firestore';
+import { useCollection } from '@/firebase/firestore/use-collection';
+import { Skeleton } from '@/components/ui/skeleton';
 
-// Mock data, in a real app this would come from Firestore
-const availableExams = [
-    { id: 'math101', title: 'Mathematics - Algebra Basics', subject: 'Mathematics', grade: '8th Grade', questions: [
-        { question: 'What is 2x + 5 = 15?', options: ['x=5', 'x=10', 'x=2.5'], answer: 'x=5'},
-        { question: 'Simplify: 3(x + 2)', options: ['3x + 6', '3x + 2', 'x + 6'], answer: '3x + 6'},
-    ]},
-    { id: 'sci101', title: 'Science - The Solar System', subject: 'Science', grade: '8th Grade', questions: [
-        { question: 'Which planet is known as the Red Planet?', options: ['Earth', 'Mars', 'Jupiter'], answer: 'Mars'},
-        { question: 'What is the largest planet in our solar system?', options: ['Saturn', 'Jupiter', 'Neptune'], answer: 'Jupiter'},
-    ]},
-];
-
-type AssessmentQuestion = {
-  question: string;
-  options: string[];
-  answer: string;
-};
-
+// Matches the Firestore data structure
 type Exam = {
     id: string;
     title: string;
     subject: string;
-    grade: string;
+    gradeLevel: string;
+    startTime: Timestamp;
+};
+
+type AssessmentQuestion = {
+  id: string;
+  question: string;
+  options: string[];
+  answer: string; // `correctAnswer` in Firestore
+};
+
+type SelectedExamDetails = Exam & {
     questions: AssessmentQuestion[];
 }
 
 export default function AssessmentPage() {
-  const [selectedExam, setSelectedExam] = useState<Exam | null>(null);
+  const [selectedExam, setSelectedExam] = useState<SelectedExamDetails | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isLoadingExam, setIsLoadingExam] = useState(false);
   const { toast } = useToast();
+  
+  const { user, isUserLoading } = useUser();
+  const firestore = useFirestore();
+  const [grade, setGrade] = useState('');
 
-  const handleStartExam = (exam: Exam) => {
-    setSelectedExam(exam);
-    toast({
-      title: `Starting Exam: ${exam.title}`,
-    });
+  useEffect(() => {
+    if (user && firestore) {
+      const fetchUserProfile = async () => {
+        const userDocRef = doc(firestore, 'users', user.uid);
+        const userDocSnap = await getDoc(userDocRef);
+        if (userDocSnap.exists()) {
+          setGrade(userDocSnap.data().grade || '');
+        }
+      };
+      fetchUserProfile();
+    }
+  }, [user, firestore]);
+
+  const examsQuery = useMemoFirebase(() => {
+    if (!firestore || !grade) return null;
+    return query(
+      collection(firestore, 'exams'),
+      where('gradeLevel', '==', grade)
+    );
+  }, [firestore, grade]);
+
+  const { data: availableExams, isLoading: areExamsLoading } = useCollection<Exam>(examsQuery);
+
+  const handleStartExam = async (exam: Exam) => {
+    if (!firestore) return;
+    setIsLoadingExam(true);
+    toast({ title: `Loading Exam: ${exam.title}` });
+
+    try {
+        const questionsQuery = collection(firestore, 'exams', exam.id, 'questions');
+        const querySnapshot = await getDocs(questionsQuery);
+        const questions = querySnapshot.docs.map(doc => ({
+            id: doc.id,
+            question: doc.data().question,
+            options: doc.data().options,
+            answer: doc.data().correctAnswer,
+        })) as AssessmentQuestion[];
+
+        setSelectedExam({ ...exam, questions });
+    } catch (error: any) {
+        toast({ variant: 'destructive', title: 'Failed to load exam', description: error.message });
+        console.error("Error loading questions: ", error);
+    } finally {
+        setIsLoadingExam(false);
+    }
   }
   
   const handleSubmitExam = () => {
@@ -68,6 +109,14 @@ export default function AssessmentPage() {
     }, 1500);
   }
 
+  if (isLoadingExam) {
+      return (
+          <div className="flex justify-center items-center h-64">
+              <Loader2 className="h-8 w-8 animate-spin text-primary" />
+          </div>
+      )
+  }
+
   if (selectedExam) {
     return (
         <div className="space-y-6">
@@ -78,14 +127,14 @@ export default function AssessmentPage() {
             <Card>
                 <CardHeader>
                     <CardTitle>{selectedExam.title}</CardTitle>
-                    <CardDescription>Subject: {selectedExam.subject} | Grade: {selectedExam.grade}</CardDescription>
+                    <CardDescription>Subject: {selectedExam.subject} | Grade: {selectedExam.gradeLevel}</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-8">
                     {selectedExam.questions.map((q, index) => (
-                        <div key={index}>
+                        <div key={q.id}>
                             <h3 className="font-semibold">{index + 1}. {q.question}</h3>
                             <RadioGroup className="mt-4 space-y-2">
-                            {q.options.map((option, i) => (
+                            {q.options.filter(opt => opt).map((option, i) => (
                                 <div key={i} className="flex items-center space-x-3 space-y-0">
                                 <RadioGroupItem value={option} id={`q${index}-o${i}`} />
                                 <Label htmlFor={`q${index}-o${i}`} className="font-normal">
@@ -120,17 +169,23 @@ export default function AssessmentPage() {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {availableExams.length > 0 ? (
+        {areExamsLoading || isUserLoading ? (
+            <>
+                <Skeleton className="h-48 w-full" />
+                <Skeleton className="h-48 w-full" />
+                <Skeleton className="h-48 w-full" />
+            </>
+        ) : availableExams && availableExams.length > 0 ? (
             availableExams.map(exam => (
                 <Card key={exam.id}>
                     <CardHeader>
                         <CardTitle className="text-xl">{exam.title}</CardTitle>
-                        <CardDescription>{exam.subject} | {exam.grade}</CardDescription>
+                        <CardDescription>{exam.subject} | {exam.gradeLevel}</CardDescription>
                     </CardHeader>
                     <CardContent>
                         <div className="flex items-center text-sm text-muted-foreground">
-                            <BookOpen className="mr-2 h-4 w-4" />
-                            <span>{exam.questions.length} questions</span>
+                             <BookOpen className="mr-2 h-4 w-4" />
+                            <span>Starts: {exam.startTime.toDate().toLocaleString()}</span>
                         </div>
                     </CardContent>
                     <CardFooter>
@@ -141,9 +196,11 @@ export default function AssessmentPage() {
                 </Card>
             ))
         ) : (
-            <p>No exams are available for you at this time.</p>
+            <p className="col-span-full text-center text-muted-foreground mt-8">No exams are scheduled for you at this time.</p>
         )}
       </div>
     </div>
   );
 }
+
+    
