@@ -8,49 +8,50 @@ import {
   Settings,
   LogOut,
   Brain,
-  Zap
-} from "lucide-react";
+  Zap,
+} from 'lucide-react';
 
-export default function StudentSidebar({ student }: { student?: any}) {
+export default function StudentSidebar({ student }: { student?: any }) {
   const pathname = usePathname();
   const menuItems = [
     {
       icon: Home,
-      label: "Dashboard",
-      href: "/dashboard",
+      label: 'Dashboard',
+      href: '/dashboard',
     },
     {
       icon: BookOpen,
-      label: "My Exams",
-      href: "/assessment",
+      label: 'My Exams',
+      href: '/assessment',
     },
     {
       icon: Zap,
-      label: "Practice",
-      href: "/practice",
+      label: 'Practice',
+      href: '/practice',
     },
     {
       icon: FileText,
-      label: "Results",
-      href: "#"
-    }
+      label: 'Results',
+      href: '#',
+    },
   ];
 
   const bottomItems = [
     {
       icon: Settings,
-      label: "Accessibility Settings",
-      href: "/settings/accessibility"
-    }
+      label: 'Settings',
+      href: '/settings/profile',
+    },
   ];
 
   return (
-    <div className="w-64 bg-slate-900/80 backdrop-blur-md text-white flex-col fixed left-0 top-0 h-full font-inter md:flex hidden transition-colors duration-200 border-r border-slate-700/60"
+    <div
+      className="w-64 bg-slate-900/80 backdrop-blur-md text-white flex-col fixed left-0 top-0 h-full font-inter md:flex hidden transition-colors duration-200 border-r border-slate-700/60"
       style={{
-        paddingTop: "32px",
-        paddingLeft: "24px",
-        paddingRight: "24px",
-        paddingBottom: "28px",
+        paddingTop: '32px',
+        paddingLeft: '24px',
+        paddingRight: '24px',
+        paddingBottom: '28px',
       }}
     >
       {/* Brand Section */}
@@ -90,19 +91,21 @@ export default function StudentSidebar({ student }: { student?: any}) {
                 } group`}
                 tabIndex={0}
               >
-                <IconComponent 
-                  size={18} 
+                <IconComponent
+                  size={18}
                   className={`mr-4 ${
-                    isActive 
-                      ? 'text-white' 
+                    isActive
+                      ? 'text-white'
                       : 'text-white/60 group-hover:text-white/80 transition-opacity'
-                  }`} 
+                  }`}
                 />
-                <span className={`font-inter text-[13px] ${
-                  isActive 
-                    ? 'font-medium text-white' 
-                    : 'font-normal text-white/60 group-hover:text-white/80 transition-opacity'
-                }`}>
+                <span
+                  className={`font-inter text-[13px] ${
+                    isActive
+                      ? 'font-medium text-white'
+                      : 'font-normal text-white/60 group-hover:text-white/80 transition-opacity'
+                  }`}
+                >
                   {item.label}
                 </span>
               </Link>
