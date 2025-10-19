@@ -59,7 +59,9 @@ export default function ProfileSettingsPage() {
   const [grade, setGrade] = useState('');
   const [stream, setStream] = useState('');
   const [profileImage, setProfileImage] = useState('');
+  const [newProfileImage, setNewProfileImage] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
+  const [isPhotoSaving, setIsPhotoSaving] = useState(false);
 
   const [isCameraOn, setIsCameraOn] = useState(false);
   const [cameraError, setCameraError] = useState<string | null>(null);
@@ -88,7 +90,7 @@ export default function ProfileSettingsPage() {
     if (file) {
       const reader = new FileReader();
       reader.onload = (e) => {
-        setProfileImage(e.target?.result as string);
+        setNewProfileImage(e.target?.result as string);
       };
       reader.readAsDataURL(file);
     }
@@ -132,8 +134,33 @@ export default function ProfileSettingsPage() {
       const context = canvas.getContext('2d');
       context?.drawImage(video, 0, 0, canvas.width, canvas.height);
       const dataUri = canvas.toDataURL('image/png');
-      setProfileImage(dataUri);
+      setNewProfileImage(dataUri);
       stopCamera();
+    }
+  };
+
+  const handleSavePhoto = async () => {
+    if (!user || !newProfileImage) {
+        toast({ variant: 'destructive', title: 'No new photo to save' });
+        return;
+    }
+    setIsPhotoSaving(true);
+    try {
+        await updateProfile(user, { photoURL: newProfileImage });
+        setProfileImage(newProfileImage);
+        setNewProfileImage(null);
+        toast({
+            title: 'Profile Photo Updated',
+            description: 'Your new photo has been saved.',
+        });
+    } catch (error: any) {
+        toast({
+            variant: 'destructive',
+            title: 'Photo Update Failed',
+            description: error.message,
+        });
+    } finally {
+        setIsPhotoSaving(false);
     }
   };
 
@@ -144,16 +171,13 @@ export default function ProfileSettingsPage() {
     }
     setIsSaving(true);
     
-    // In a real app, you would upload the image to Firebase Storage if it's a new data URI
-    // For this example, we'll just save the name and the (potentially long) data URI to the profile.
     try {
       await updateProfile(user, {
         displayName: name,
-        photoURL: profileImage,
       });
 
       // Also update grade/stream in your Firestore database here.
-      console.log('Saving profile:', { name, grade, stream, profileImage });
+      console.log('Saving profile info:', { name, grade, stream });
 
       toast({
         title: 'Profile Updated',
@@ -203,7 +227,7 @@ export default function ProfileSettingsPage() {
                  <Skeleton className="w-32 h-32 rounded-full" />
               ) : (
                 <Avatar className="w-32 h-32 border-4 border-primary/20">
-                  <AvatarImage src={profileImage} alt={name} />
+                  <AvatarImage src={newProfileImage || profileImage} alt={name} />
                   <AvatarFallback className="text-4xl">
                     {userInitial}
                   </AvatarFallback>
@@ -294,6 +318,20 @@ export default function ProfileSettingsPage() {
                 </TabsContent>
               </Tabs>
             </CardContent>
+            <CardFooter>
+                <Button
+                    className="w-full"
+                    onClick={handleSavePhoto}
+                    disabled={!newProfileImage || isPhotoSaving}
+                >
+                    {isPhotoSaving ? (
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    ) : (
+                        <Save className="mr-2 h-4 w-4" />
+                    )}
+                    {isPhotoSaving ? 'Saving...' : 'Save Profile Photo'}
+                </Button>
+            </CardFooter>
           </Card>
         </div>
 
@@ -395,5 +433,3 @@ export default function ProfileSettingsPage() {
     </div>
   );
 }
-
-    
