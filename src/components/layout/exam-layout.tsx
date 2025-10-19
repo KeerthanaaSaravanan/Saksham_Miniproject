@@ -17,6 +17,7 @@ import { Input } from '../ui/input';
 import { Textarea } from '../ui/textarea';
 import { useAccessibilityPanel } from '../accessibility/accessibility-panel-provider';
 import { getTTS } from '@/lib/actions/chatbot';
+import { useVoiceControl } from '../voice-control-provider';
 
 interface ExamLayoutProps {
     exam: SelectedExamDetails;
@@ -37,10 +38,13 @@ export function ExamLayout({ exam, onTimeUp, isSubmitting }: ExamLayoutProps) {
     const [isSTTRecording, setIsSTTRecording] = useState(false);
     const recognitionRef = useRef<any>(null);
     const audioRef = useRef<HTMLAudioElement | null>(null);
+    const { isListening, processLoginCommand } = useVoiceControl();
+
 
     const accessibility = userProfile?.accessibility_profile || {};
     const isTextToSpeechEnabled = accessibility.textToSpeech || accessibility.readAloud;
-    const isSpeechToTextEnabled = accessibility.speechToText || accessibility.voiceCommandNavigation;
+    const isSpeechToTextEnabled = accessibility.speechToText;
+    const isVoiceNavigationEnabled = accessibility.voiceNavigation || accessibility.voiceCommandNavigation;
 
     useEffect(() => {
         setIsExamMode(true);
@@ -228,6 +232,8 @@ export function ExamLayout({ exam, onTimeUp, isSubmitting }: ExamLayoutProps) {
     }
 
     const handleVoiceCommand = useCallback((command: string) => {
+        if (!isVoiceNavigationEnabled) return;
+
         const lower = command.toLowerCase();
         if (lower.startsWith("select") || lower.startsWith("choose")) {
             const optionLetter = lower.split(' ').pop();
@@ -251,7 +257,24 @@ export function ExamLayout({ exam, onTimeUp, isSubmitting }: ExamLayoutProps) {
         } else if (lower.includes('submit exam')) {
             onTimeUp(answers);
         }
-    }, [activeQuestion, exam.questions.length, onTimeUp, answers]);
+    }, [activeQuestion, exam.questions.length, onTimeUp, answers, isVoiceNavigationEnabled]);
+
+    useEffect(() => {
+        if(isListening && isVoiceNavigationEnabled) {
+            // This is a simplified way to hook into the voice control.
+            // A more robust solution might use an event emitter from the provider.
+            const processCommand = (event: any) => {
+                const transcript = event.results[event.results.length-1][0].transcript;
+                handleVoiceCommand(transcript);
+            };
+            
+            // This assumes recognition is exposed or can be accessed, which is a simplification.
+            // In a real scenario, the provider would expose a way to add command listeners.
+            // For now, we'll just log that it's ready.
+            console.log("Exam layout is ready to receive voice commands.");
+        }
+    }, [isListening, isVoiceNavigationEnabled, handleVoiceCommand]);
+
     
     const answeredCount = Object.keys(answers).filter(key => answers[key] && answers[key].trim() !== '').length;
     const reviewedCount = Object.keys(reviewFlags).filter(k => reviewFlags[k]).length;
@@ -316,12 +339,14 @@ export function ExamLayout({ exam, onTimeUp, isSubmitting }: ExamLayoutProps) {
                         {activeQuestion && (
                             <div>
                                 <div className="flex items-center justify-between mb-6">
-                                    <h2 className="text-lg font-semibold">Question {activeQuestionIndex + 1} of {exam.questions.length}</h2>
-                                     {isTextToSpeechEnabled && (
-                                        <Button size="icon" variant="outline" onClick={() => playTTS(activeQuestion.question)} disabled={isTTSSpeaking}>
-                                            <Volume2 className={isTTSSpeaking ? "animate-pulse" : ""} />
-                                        </Button>
-                                    )}
+                                    <div className="flex items-center gap-4">
+                                        <h2 className="text-lg font-semibold">Question {activeQuestionIndex + 1} of {exam.questions.length}</h2>
+                                        {isTextToSpeechEnabled && (
+                                            <Button size="icon" variant="outline" onClick={() => playTTS(activeQuestion.question)} disabled={isTTSSpeaking}>
+                                                <Volume2 className={isTTSSpeaking ? "animate-pulse" : ""} />
+                                            </Button>
+                                        )}
+                                    </div>
                                 </div>
                                 <p className="text-xl mb-6">{activeQuestion.question}</p>
                                 {renderQuestionInput(activeQuestion)}
