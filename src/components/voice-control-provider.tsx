@@ -42,7 +42,11 @@ export function VoiceControlProvider({ children }: { children: ReactNode }) {
             setIsLoading(false);
             resolve();
           };
-          audioRef.current!.play();
+          audioRef.current!.play().catch(e => {
+            console.error("Audio play failed:", e);
+            setIsLoading(false);
+            resolve();
+          });
         });
       } else {
         setIsLoading(false);
@@ -62,7 +66,7 @@ export function VoiceControlProvider({ children }: { children: ReactNode }) {
     
     if (lowerCaseCommand.includes('yes')) {
         setIsListening(true);
-        speak("Voice control is enabled. How can I help you?");
+        // This state change will trigger the useEffect
         return;
     }
     if (lowerCaseCommand.includes('no')) {
@@ -78,7 +82,7 @@ export function VoiceControlProvider({ children }: { children: ReactNode }) {
     if (lowerCaseCommand.includes('navigate to') || lowerCaseCommand.includes('go to') || lowerCaseCommand.includes('open')) {
       let path = '';
       if(lowerCaseCommand.includes('dashboard')) path = '/dashboard';
-      else if (lowerCaseCommand.includes('assessment')) path = '/assessment';
+      else if (lowerCaseCommand.includes('assessment') || lowerCaseCommand.includes('my exams')) path = '/assessment';
       else if (lowerCaseCommand.includes('practice')) path = '/practice';
       else if (lowerCaseCommand.includes('results')) path = '/results';
       else if (lowerCaseCommand.includes('profile')) path = '/settings/profile';
@@ -89,8 +93,11 @@ export function VoiceControlProvider({ children }: { children: ReactNode }) {
       if (path) {
           handleNavigation(path);
           toast({ title: 'Navigating', description: `Going to ${path}` });
+          await speak(`Navigating to ${path.split('/').pop() || 'the page'}.`);
       } else {
-           toast({ variant: 'destructive', title: 'Unknown Page', description: `Could not find page for command: "${command}"` });
+           const failedPage = lowerCaseCommand.replace(/navigate to|go to|open/g, '').trim();
+           toast({ variant: 'destructive', title: 'Unknown Page', description: `Could not find page: "${failedPage}"` });
+           await speak(`Sorry, I can't find a page called ${failedPage}.`);
       }
     } else {
         const res = await getChatbotResponse({
@@ -134,7 +141,7 @@ export function VoiceControlProvider({ children }: { children: ReactNode }) {
       console.error("Speech recognition error:", event.error);
       if (event.error === 'no-speech' || event.error === 'audio-capture') {
         // Ignore and let it restart
-      } else {
+      } else if (event.error !== 'aborted') { // Don't show toast for manual stop
         toast({ variant: 'destructive', title: 'Voice Error', description: event.error });
       }
     };
@@ -142,7 +149,7 @@ export function VoiceControlProvider({ children }: { children: ReactNode }) {
     recognition.onend = () => {
         // If listening is still supposed to be active, restart it.
         // This is a workaround for some browsers stopping recognition after a while.
-        if (isListening) {
+        if (isListening && recognitionRef.current === recognition) {
              try {
                 recognition.start();
              } catch(e) {
@@ -151,13 +158,29 @@ export function VoiceControlProvider({ children }: { children: ReactNode }) {
         }
     }
 
-    recognition.start();
-    recognitionRef.current = recognition;
+    try {
+      recognition.start();
+      recognitionRef.current = recognition;
+    } catch(e) {
+      console.error("Could not start recognition", e);
+      setIsListening(false);
+    }
 
   }, [toast, processCommand, isListening]);
 
+  const toggleListening = useCallback(async () => {
+    setIsListening(prev => {
+        const newListeningState = !prev;
+        if (newListeningState && pathname !== '/') {
+            const pageName = pathname.split('/').pop()?.replace('-', ' ') || 'the current page';
+            speak(`Voice control is enabled. You are on the ${pageName} page. What would you like to do?`);
+        }
+        return newListeningState;
+    });
+  }, [pathname, speak]);
+
   useEffect(() => {
-    // Only run this on the login page
+    // Special handling for the very first load on the login page
     if (pathname === '/') {
         const WELCOME_KEY = 'saksham_welcome_spoken';
         const hasBeenWelcomed = sessionStorage.getItem(WELCOME_KEY);
@@ -171,31 +194,28 @@ export function VoiceControlProvider({ children }: { children: ReactNode }) {
         }
     }
 
-    // Main logic for toggling listening state
+    // General logic for toggling listening state
     if (isListening) {
         startListener();
-        toast({ title: 'Voice Control Enabled', description: 'Listening for commands...' });
+        if(pathname !== '/') toast({ title: 'Voice Control Enabled', description: 'Listening for commands...' });
     } else {
         if (recognitionRef.current) {
+            recognitionRef.current.onend = null; // prevent restart on manual stop
             recognitionRef.current.stop();
             recognitionRef.current = null;
-            toast({ title: 'Voice Control Disabled' });
+            if(pathname !== '/') toast({ title: 'Voice Control Disabled' });
         }
     }
       
     return () => {
         if (recognitionRef.current) {
+            recognitionRef.current.onend = null;
             recognitionRef.current.stop();
             recognitionRef.current = null;
         }
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isListening, pathname]);
-
-
-  const toggleListening = () => {
-    setIsListening(prev => !prev);
-  };
 
   return (
     <VoiceControlContext.Provider value={{ isListening, toggleListening, isLoading }}>
