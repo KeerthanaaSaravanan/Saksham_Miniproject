@@ -28,6 +28,7 @@ import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { Skeleton } from '@/components/ui/skeleton';
 import { avatars } from '@/lib/avatars';
 import { AvatarSelector } from '@/components/AvatarSelector';
+import { errorEmitter, FirestorePermissionError } from '@/firebase';
 
 const gradeConfig = {
   'Class 6': { subjects: true },
@@ -74,11 +75,11 @@ export default function ProfileSettingsPage() {
             }
         } catch (error: any) {
             console.error("Error fetching user profile:", error);
-            toast({
-                variant: 'destructive',
-                title: 'Could not load profile',
-                description: 'An error occurred while loading your profile.',
-            })
+            const permissionError = new FirestorePermissionError({
+              path: userDocRef.path,
+              operation: 'get',
+            });
+            errorEmitter.emit('permission-error', permissionError);
         } finally {
             setIsProfileLoading(false);
         }
@@ -102,31 +103,42 @@ export default function ProfileSettingsPage() {
     }
     setIsSaving(true);
     
-    try {
-      if(user.displayName !== name) {
+    // This can still be awaited as it's a client-side SDK operation not subject to security rules
+    if (user.displayName !== name) {
+      try {
         await updateProfile(user, { displayName: name });
+      } catch (error: any) {
+        toast({ variant: 'destructive', title: 'Update Name Failed', description: error.message });
+        setIsSaving(false);
+        return;
       }
-
-      const userDocRef = doc(firestore, "users", user.uid);
-      await setDoc(userDocRef, {
-          displayName: name,
-          grade: grade,
-          stream: stream,
-      }, { merge: true });
-
-      toast({
-        title: 'Profile Updated',
-        description: 'Your personal information has been saved.',
-      });
-    } catch (error: any) {
-       toast({
-        variant: 'destructive',
-        title: 'Update Failed',
-        description: error.message,
-      });
-    } finally {
-      setIsSaving(false);
     }
+
+    const userDocRef = doc(firestore, "users", user.uid);
+    const dataToSave = {
+      displayName: name,
+      grade: grade,
+      stream: stream,
+    };
+    
+    setDoc(userDocRef, dataToSave, { merge: true })
+      .then(() => {
+        toast({
+          title: 'Profile Updated',
+          description: 'Your personal information has been saved.',
+        });
+      })
+      .catch(async (serverError) => {
+        const permissionError = new FirestorePermissionError({
+          path: userDocRef.path,
+          operation: 'update',
+          requestResourceData: dataToSave,
+        });
+        errorEmitter.emit('permission-error', permissionError);
+      })
+      .finally(() => {
+        setIsSaving(false);
+      });
   };
 
   const handleSavePhoto = async () => {
@@ -135,35 +147,40 @@ export default function ProfileSettingsPage() {
         return;
     }
     setIsPhotoSaving(true);
+
     try {
         await updateProfile(user, {
             photoURL: currentAvatarUrl,
         });
-
-        const userDocRef = doc(firestore, "users", user.uid);
-        await setDoc(userDocRef, {
-          photoURL: currentAvatarUrl,
-        }, { merge: true });
-
-        toast({
-            title: 'Avatar Updated!',
-            description: 'Your new profile picture has been saved.',
-        });
     } catch (error: any) {
-        let description = 'An unknown error occurred.';
-        if (error.code === 'auth/network-request-failed' || error.code === 'auth/unauthorized-domain') {
-            description = 'Network error: Please check your connection and ensure this domain is authorized in your Firebase console for authentication operations.';
-        } else {
-            description = error.message;
-        }
-        toast({
-            variant: 'destructive',
-            title: 'Photo Upload Failed',
-            description,
-        });
-    } finally {
+        toast({ variant: 'destructive', title: 'Avatar Update Failed', description: error.message });
         setIsPhotoSaving(false);
+        return;
     }
+
+    const userDocRef = doc(firestore, "users", user.uid);
+    const dataToSave = {
+      photoURL: currentAvatarUrl,
+    };
+
+    setDoc(userDocRef, dataToSave, { merge: true })
+      .then(() => {
+          toast({
+              title: 'Avatar Updated!',
+              description: 'Your new profile picture has been saved.',
+          });
+      })
+      .catch(async (serverError) => {
+          const permissionError = new FirestorePermissionError({
+            path: userDocRef.path,
+            operation: 'update',
+            requestResourceData: dataToSave,
+          });
+          errorEmitter.emit('permission-error', permissionError);
+      })
+      .finally(() => {
+          setIsPhotoSaving(false);
+      });
   };
   
   const isLoading = isUserLoading || isProfileLoading;
