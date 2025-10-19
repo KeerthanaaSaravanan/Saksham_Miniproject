@@ -132,13 +132,18 @@ export default function AssessmentListPage() {
         <AlertDialog open onOpenChange={() => setExamToConfirm(null)}>
           <AlertDialogContent>
             <AlertDialogHeader>
-              <AlertDialogTitle>Start Attempt: {examToConfirm.title}</AlertDialogTitle>
-              <AlertDialogDescription>
-                This exam will open in a new, fullscreen tab. You will have a time limit of {examToConfirm.durationMinutes || 60} minutes. 
-                <br /><br />
-                <strong className="text-destructive">Warning:</strong> Leaving the exam tab or window is not permitted. The exam will be terminated after a single warning if you switch tabs.
-                <br /><br />
-                Are you sure you wish to start now?
+              <AlertDialogTitle>Start attempt</AlertDialogTitle>
+              <AlertDialogDescription asChild>
+                <div className="space-y-4">
+                  <h3 className="text-lg font-semibold text-foreground">Time limit</h3>
+                  <p>Your attempt will have a time limit of {examToConfirm.durationMinutes || 60} minutes. When you start, the timer will begin to count down and cannot be paused. You must finish your attempt before it expires.</p>
+                  <p>Are you sure you wish to start now?</p>
+                   <div className="mt-4 p-3 bg-destructive/10 border border-destructive/20 rounded-md">
+                      <p className="text-xs text-destructive/90">
+                        <strong className="font-semibold">Proctoring Warning:</strong> This exam will open in a new, fullscreen tab. Leaving the exam tab or window is not permitted and will cause your exam to be submitted automatically.
+                      </p>
+                   </div>
+                </div>
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
