@@ -19,6 +19,7 @@ import {
   Mic,
   MicOff,
   Loader2,
+  HelpCircle,
 } from 'lucide-react';
 import { useChatbot } from '../chatbot/chatbot-provider';
 import {
@@ -132,7 +133,7 @@ export function RightSidebar() {
              <DropdownMenuItem
               onClick={() => router.push('/help')}
             >
-              <User className="mr-2 h-4 w-4" />
+              <HelpCircle className="mr-2 h-4 w-4" />
               <span>Help & Guidance</span>
             </DropdownMenuItem>
             <DropdownMenuSeparator />

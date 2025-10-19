@@ -38,7 +38,7 @@ export function ExamLayout({ exam, onTimeUp, isSubmitting }: ExamLayoutProps) {
     const [isSTTRecording, setIsSTTRecording] = useState(false);
     const recognitionRef = useRef<any>(null);
     const audioRef = useRef<HTMLAudioElement | null>(null);
-    const { isListening, processLoginCommand } = useVoiceControl();
+    const { isListening } = useVoiceControl();
 
 
     const accessibility = userProfile?.accessibility_profile || {};
