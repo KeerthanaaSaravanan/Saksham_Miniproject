@@ -140,7 +140,7 @@ export default function HomePage() {
                 className={`flex-1 flex items-center justify-center space-x-2 py-3 px-4 rounded-lg font-inter font-medium text-sm transition-all duration-200 ${
                   userType === 'faculty'
                     ? 'bg-white dark:bg-[#1E293B] text-[#38C5B0] shadow-sm'
-                    : 'text-muted-foreground hover:text-[#38C5B0]'
+                    : 'text-muted-foreground hover:text-[#38C_B0]'
                 }`}
               >
                 <User className="w-4 h-4" />
