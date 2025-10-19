@@ -10,7 +10,7 @@ import {
 } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, BookOpen, ArrowLeft } from 'lucide-react';
+import { Loader2, BookOpen } from 'lucide-react';
 import { useState, useEffect, useCallback } from 'react';
 import { useUser, useFirestore, useMemoFirebase, errorEmitter, FirestorePermissionError } from '@/firebase';
 import { collection, query, where, getDoc, doc, Timestamp, getDocs, writeBatch, serverTimestamp } from 'firebase/firestore';
@@ -44,6 +44,7 @@ export type AssessmentQuestion = {
   question: string;
   options: string[];
   correctAnswer: string;
+  type?: 'mcq' | 'fillup' | 'short-answer' | 'long-answer';
 };
 
 export type SelectedExamDetails = Exam & {
@@ -80,7 +81,7 @@ export default function AssessmentPage() {
       return {
         questionId,
         answer,
-        isCorrect,
+        isCorrect, // Note: this is for potential auto-grading, but faculty will review
         studentExamAttemptId: attemptRef.id,
       };
     });
@@ -98,14 +99,15 @@ export default function AssessmentPage() {
         examId: selectedExam.id,
         startTime: new Date(), // This should ideally be when the exam started
         endTime: serverTimestamp(),
-        score: score,
+        score: score, // This might be a provisional score
+        status: 'submitted', // For faculty review
     });
 
     try {
         await batch.commit();
         toast({
-            title: "Exam Submitted",
-            description: `Your score is ${score.toFixed(0)}%. Results have been saved.`
+            title: "Exam Submitted Successfully",
+            description: `Your answers have been saved and sent for review.`
         });
     } catch (error: any) {
         const permissionError = new FirestorePermissionError({
@@ -166,6 +168,7 @@ export default function AssessmentPage() {
             question: doc.data().question,
             options: doc.data().options,
             correctAnswer: doc.data().correctAnswer,
+            type: doc.data().type || 'mcq', // default to mcq
         })) as AssessmentQuestion[];
 
         setSelectedExam({ ...exam, questions });

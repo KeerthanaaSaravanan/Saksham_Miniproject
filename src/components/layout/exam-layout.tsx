@@ -13,6 +13,8 @@ import { Flag, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { RightSidebar } from './right-sidebar';
 import { useExamMode } from '@/hooks/use-exam-mode';
+import { Input } from '../ui/input';
+import { Textarea } from '../ui/textarea';
 
 interface ExamLayoutProps {
     exam: SelectedExamDetails;
@@ -74,8 +76,56 @@ export function ExamLayout({ exam, onTimeUp, onExit, isSubmitting }: ExamLayoutP
         if(answers[questionId]) return 'answered';
         return 'unanswered';
     }
+
+    const renderQuestionInput = (question: AssessmentQuestion) => {
+        const questionId = question.id;
+        const value = answers[questionId] || '';
+
+        switch (question.type) {
+            case 'mcq':
+                return (
+                    <RadioGroup
+                        className="mt-4 space-y-3"
+                        value={value}
+                        onValueChange={(val) => handleAnswerChange(questionId, val)}
+                    >
+                        {question.options.filter(opt => opt).map((option, i) => (
+                            <div key={i} className="flex items-center space-x-3 space-y-0 p-4 border rounded-lg hover:bg-muted/50 has-[:checked]:bg-primary/10 has-[:checked]:border-primary transition-colors">
+                                <RadioGroupItem value={option} id={`q${activeQuestionIndex}-o${i}`} />
+                                <Label htmlFor={`q${activeQuestionIndex}-o${i}`} className="font-normal text-base flex-1 cursor-pointer">
+                                    {option}
+                                </Label>
+                            </div>
+                        ))}
+                    </RadioGroup>
+                );
+            case 'fillup':
+            case 'short-answer':
+                return (
+                    <Input 
+                        className="mt-4"
+                        placeholder="Your answer"
+                        value={value}
+                        onChange={(e) => handleAnswerChange(questionId, e.target.value)}
+                    />
+                );
+            case 'long-answer':
+                 return (
+                    <Textarea
+                        className="mt-4 min-h-[150px]"
+                        placeholder="Your detailed answer"
+                        value={value}
+                        onChange={(e) => handleAnswerChange(questionId, e.target.value)}
+                    />
+                );
+            default:
+                 return (
+                    <p className="text-destructive mt-4">Unsupported question type: {question.type}</p>
+                 )
+        }
+    }
     
-    const answeredCount = Object.keys(answers).length;
+    const answeredCount = Object.keys(answers).filter(key => answers[key]).length;
     const reviewedCount = Object.keys(reviewFlags).filter(k => reviewFlags[k]).length;
 
     return (
@@ -133,20 +183,7 @@ export function ExamLayout({ exam, onTimeUp, onExit, isSubmitting }: ExamLayoutP
                             <div>
                                 <h2 className="text-lg font-semibold mb-6">Question {activeQuestionIndex + 1} of {exam.questions.length}</h2>
                                 <p className="text-xl mb-6">{activeQuestion.question}</p>
-                                <RadioGroup
-                                    className="mt-4 space-y-3"
-                                    value={answers[activeQuestion.id] || ""}
-                                    onValueChange={(value) => handleAnswerChange(activeQuestion.id, value)}
-                                >
-                                    {activeQuestion.options.filter(opt => opt).map((option, i) => (
-                                        <div key={i} className="flex items-center space-x-3 space-y-0 p-4 border rounded-lg hover:bg-muted/50 has-[:checked]:bg-primary/10 has-[:checked]:border-primary transition-colors">
-                                            <RadioGroupItem value={option} id={`q${activeQuestionIndex}-o${i}`} />
-                                            <Label htmlFor={`q${activeQuestionIndex}-o${i}`} className="font-normal text-base flex-1 cursor-pointer">
-                                                {option}
-                                            </Label>
-                                        </div>
-                                    ))}
-                                </RadioGroup>
+                                {renderQuestionInput(activeQuestion)}
                             </div>
                         )}
                     </div>
@@ -166,7 +203,7 @@ export function ExamLayout({ exam, onTimeUp, onExit, isSubmitting }: ExamLayoutP
                     </div>
                      <Button onClick={() => onTimeUp(answers)} disabled={isSubmitting}>
                         {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-                        Finish & Submit Exam
+                        Submit Exam
                     </Button>
                 </footer>
             </main>

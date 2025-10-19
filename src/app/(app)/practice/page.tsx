@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useCallback } from 'react';
-import { useForm, useFieldArray } from 'react-hook-form';
+import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import {
@@ -16,7 +16,6 @@ import { Button } from '@/components/ui/button';
 import {
   Form,
   FormControl,
-  FormDescription,
   FormField,
   FormItem,
   FormLabel,
@@ -30,14 +29,11 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
-import { Label } from '@/components/ui/label';
 import { createPracticeExam } from '@/lib/actions/practice-exam';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, BrainCircuit, Sparkles, Check, X } from 'lucide-react';
-import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
-import { Textarea } from '@/components/ui/textarea';
-import { Timer } from '@/components/Timer';
+import { Loader2, Sparkles, Check, X } from 'lucide-react';
+import { ExamLayout } from '@/components/layout/exam-layout';
+import type { SelectedExamDetails, AssessmentQuestion } from '@/app/(app)/assessment/page';
 
 const formSchema = z.object({
   subject: z.string().min(2, 'Subject must be at least 2 characters.'),
@@ -47,12 +43,6 @@ const formSchema = z.object({
   duration: z.coerce.number().min(1, 'Duration must be at least 1 minute.').max(120, 'Duration cannot exceed 120 minutes.'),
 });
 
-type Question = {
-  question: string;
-  type: 'mcq' | 'fillup' | 'short-answer' | 'long-answer';
-  options?: string[];
-  correctAnswer: string;
-};
 
 type Result = {
   question: string;
@@ -61,13 +51,9 @@ type Result = {
   isCorrect: boolean;
 };
 
-const answerSchema = z.object({
-    answers: z.array(z.object({ value: z.string() }))
-});
-
 export default function PracticePage() {
   const [isLoading, setIsLoading] = useState(false);
-  const [exam, setExam] = useState<{ questions: Question[], originalRequest: z.infer<typeof formSchema> } | null>(null);
+  const [exam, setExam] = useState<SelectedExamDetails | null>(null);
   const [results, setResults] = useState<Result[] | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -84,18 +70,6 @@ export default function PracticePage() {
     },
   });
 
-  const answerForm = useForm<z.infer<typeof answerSchema>>({
-    resolver: zodResolver(answerSchema),
-    defaultValues: {
-      answers: [],
-    },
-  });
-
-  const { fields } = useFieldArray({
-    control: answerForm.control,
-    name: "answers"
-  });
-
   async function onGenerate(values: z.infer<typeof formSchema>) {
     setIsLoading(true);
     setExam(null);
@@ -105,23 +79,41 @@ export default function PracticePage() {
     
     if ('error' in result) {
       toast({ variant: 'destructive', title: 'Generation Failed', description: result.error });
+      setIsLoading(false);
     } else {
-      setExam({ questions: result.exam, originalRequest: values });
-      answerForm.reset({ answers: result.exam.map(() => ({ value: '' }))});
+      // Adapt the AI-generated questions to the SelectedExamDetails format
+      const generatedQuestions: AssessmentQuestion[] = result.exam.map((q: any, index: number) => ({
+        id: `practice-${index}`,
+        question: q.question,
+        options: q.options || [],
+        correctAnswer: q.correctAnswer,
+        type: q.type,
+      }));
+
+      const examDetails: SelectedExamDetails = {
+        id: 'practice-exam',
+        title: `Practice: ${values.subject}`,
+        subject: values.lesson,
+        gradeLevel: 'Practice',
+        startTime: new Date() as any,
+        durationMinutes: values.duration,
+        questions: generatedQuestions,
+      };
+
+      setExam(examDetails);
       toast({ title: 'Practice Exam Generated', description: 'Your exam is ready to start.' });
+      setIsLoading(false);
     }
-    setIsLoading(false);
   }
   
-  const onSubmitAnswers = useCallback(async (data: z.infer<typeof answerSchema>) => {
+  const handleSubmitAnswers = useCallback(async (answers: Record<string, string>) => {
     if (!exam || isSubmitting) return;
     setIsSubmitting(true);
-    const userAnswers = data.answers.map(a => a.value);
+    toast({ title: "Grading your exam..." });
 
-    // For now, we will perform auto-correction on the client-side
-    // In a real app, this might be a separate AI call for more nuanced grading
-    const newResults = exam.questions.map((q, index) => {
-        const userAnswer = userAnswers[index];
+    // Perform auto-correction on the client-side
+    const newResults = exam.questions.map((q) => {
+        const userAnswer = answers[q.id] || '';
         const isCorrect = q.correctAnswer.toLowerCase().trim() === userAnswer.toLowerCase().trim();
         return {
             question: q.question,
@@ -132,67 +124,21 @@ export default function PracticePage() {
     });
     
     setResults(newResults);
-    setExam(null);
+    setExam(null); // Exit exam mode
     setIsSubmitting(false);
     toast({ title: "Exam Submitted!", description: "Your results are ready." });
   }, [exam, isSubmitting, toast]);
 
-  const renderQuestionInput = (question: Question, index: number) => {
-    switch(question.type) {
-      case 'mcq':
-        return (
-          <FormField
-            control={answerForm.control}
-            name={`answers.${index}.value`}
-            render={({ field }) => (
-              <FormItem className="mt-4 space-y-2">
-                <FormControl>
-                    <RadioGroup onValueChange={field.onChange} defaultValue={field.value} className="space-y-2">
-                        {question.options?.map((option, i) => (
-                            <FormItem key={i} className="flex items-center space-x-3 space-y-0">
-                                <FormControl>
-                                    <RadioGroupItem value={option} id={`q${index}-o${i}`} />
-                                </FormControl>
-                                <Label htmlFor={`q${index}-o${i}`} className="font-normal">{option}</Label>
-                            </FormItem>
-                        ))}
-                    </RadioGroup>
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-        );
-      case 'fillup':
-      case 'short-answer':
-        return (
-            <FormField
-                control={answerForm.control}
-                name={`answers.${index}.value`}
-                render={({ field }) => (
-                <FormItem className="mt-2">
-                    <FormControl><Input {...field} placeholder="Your answer" /></FormControl>
-                    <FormMessage />
-                </FormItem>
-                )}
-            />
-        );
-      case 'long-answer':
-        return (
-            <FormField
-                control={answerForm.control}
-                name={`answers.${index}.value`}
-                render={({ field }) => (
-                <FormItem className="mt-2">
-                    <FormControl><Textarea {...field} placeholder="Your detailed answer" /></FormControl>
-                    <FormMessage />
-                </FormItem>
-                )}
-            />
-        );
-      default:
-        return null;
-    }
+
+  if (exam) {
+    return (
+        <ExamLayout 
+            exam={exam}
+            onTimeUp={handleSubmitAnswers}
+            onExit={() => { setExam(null); setResults(null); }}
+            isSubmitting={isSubmitting}
+        />
+    );
   }
 
   return (
@@ -206,7 +152,7 @@ export default function PracticePage() {
         </div>
       </div>
 
-      {!exam && !results && (
+      {!results && (
         <Card>
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onGenerate)}>
@@ -252,39 +198,6 @@ export default function PracticePage() {
           </Form>
         </Card>
       )}
-
-      {exam && (
-        <Card>
-            <Form {...answerForm}>
-                <form onSubmit={answerForm.handleSubmit(onSubmitAnswers)}>
-                    <CardHeader className="flex flex-row items-center justify-between">
-                        <div>
-                            <CardTitle>Practice Exam: {exam.originalRequest.subject}</CardTitle>
-                            <CardDescription>Topic: {exam.originalRequest.lesson}</CardDescription>
-                        </div>
-                        <Timer 
-                            durationInMinutes={exam.originalRequest.duration}
-                            onTimeUp={() => answerForm.handleSubmit(onSubmitAnswers)()}
-                        />
-                    </CardHeader>
-                    <CardContent className="space-y-8">
-                        {exam.questions.map((q, index) => (
-                            <div key={index}>
-                                <h3 className="font-semibold">{index + 1}. {q.question}</h3>
-                                {renderQuestionInput(q, index)}
-                            </div>
-                        ))}
-                    </CardContent>
-                    <CardFooter className="gap-2">
-                        <Button type="submit" disabled={isSubmitting}>
-                            {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-                            Submit for Correction
-                        </Button>
-                    </CardFooter>
-                </form>
-            </Form>
-        </Card>
-      )}
       
       {results && (
         <Card>
@@ -309,7 +222,7 @@ export default function PracticePage() {
                 ))}
             </CardContent>
             <CardFooter>
-                <Button onClick={() => { setExam(null); setResults(null); }}>Take Another Practice Exam</Button>
+                <Button onClick={() => { setResults(null); }}>Take Another Practice Exam</Button>
             </CardFooter>
         </Card>
       )}
