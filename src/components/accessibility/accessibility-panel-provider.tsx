@@ -5,7 +5,7 @@ import React, { createContext, useState, useContext, ReactNode } from 'react';
 import { AccessibilityFlyout } from './accessibility-flyout';
 import { accessibilityModules } from './modules';
 import { useUser, useFirestore, errorEmitter, FirestorePermissionError } from '@/firebase';
-import { doc, setDoc } from 'firebase/firestore';
+import { doc, setDoc, onSnapshot } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 
 interface AccessibilityPanelContextType {
@@ -41,6 +41,12 @@ export function AccessibilityPanelProvider({ children }: { children: ReactNode }
         } else {
           setUserProfile({ accessibility_profile: {} }); // Default empty profile
         }
+      }, (error) => {
+        const permissionError = new FirestorePermissionError({
+            path: profileRef.path,
+            operation: 'get',
+        });
+        errorEmitter.emit('permission-error', permissionError);
       });
       return () => unsubscribe();
     }
