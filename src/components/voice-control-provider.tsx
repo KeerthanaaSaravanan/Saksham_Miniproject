@@ -33,6 +33,8 @@ export function VoiceControlProvider({ children }: { children: ReactNode }) {
   const { toast } = useToast();
   const [loginStep, setLoginStep] = useState<'idle' | 'ask-email' | 'confirm-email' | 'ask-password' | 'confirm-password' | 'submitting'>('idle');
   const [loginCredentials, setLoginCredentials] = useState({ email: '', password: '' });
+  const [initialWelcomeDone, setInitialWelcomeDone] = useState(false);
+
 
   const speak = useCallback(async (text: string) => {
     setIsLoading(true);
@@ -219,55 +221,62 @@ export function VoiceControlProvider({ children }: { children: ReactNode }) {
 
   }, [toast, processCommand, isListening]);
 
-  const toggleListening = useCallback(async () => {
-    setIsListening(prev => {
-        const newListeningState = !prev;
-        if (newListeningState && pathname !== '/') {
-            const pageName = pathname.split('/').pop()?.replace('-', ' ') || 'the current page';
-            speak(`Voice control is enabled. You are on the ${pageName} page. What would you like to do?`);
+  const toggleListening = () => {
+    setIsListening(prev => !prev);
+  };
+  
+  useEffect(() => {
+    // This effect runs when isListening state changes.
+    // It handles the side-effects (speaking, starting/stopping listener).
+    
+    if (isListening) {
+      startListener();
+      if (pathname !== '/') {
+        toast({ title: 'Voice Control Enabled', description: 'Listening for commands...' });
+        const pageName = pathname.split('/').pop()?.replace('-', ' ') || 'the current page';
+        speak(`Voice control is enabled. You are on the ${pageName} page. What would you like to do?`);
+      }
+    } else {
+      if (recognitionRef.current) {
+        recognitionRef.current.onend = null;
+        recognitionRef.current.stop();
+        recognitionRef.current = null;
+        if (pathname !== '/') {
+          toast({ title: 'Voice Control Disabled' });
         }
-        return newListeningState;
-    });
-  }, [pathname, speak]);
+      }
+    }
+
+    return () => {
+      if (recognitionRef.current) {
+        recognitionRef.current.onend = null;
+        recognitionRef.current.stop();
+        recognitionRef.current = null;
+      }
+    };
+  }, [isListening, pathname, speak, startListener, toast]);
 
   useEffect(() => {
-    if (pathname === '/') {
-        const WELCOME_KEY = 'saksham_welcome_spoken';
-        const hasBeenWelcomed = sessionStorage.getItem(WELCOME_KEY);
+    // This effect handles the one-time welcome message on the login page.
+    if (pathname === '/' && !initialWelcomeDone) {
+      setInitialWelcomeDone(true);
+      const WELCOME_KEY = 'saksham_welcome_spoken';
+      const hasBeenWelcomed = sessionStorage.getItem(WELCOME_KEY);
 
-        if (!hasBeenWelcomed) {
-            const timer = setTimeout(() => {
-                speak("Welcome to Saksham! Would you like me to guide you through login using voice commands? Please say 'yes' to begin or 'no' to continue manually.")
-                .then(() => {
-                    startListener();
-                });
-            }, 0);
-            sessionStorage.setItem(WELCOME_KEY, 'true');
-            return () => clearTimeout(timer);
-        }
+      if (!hasBeenWelcomed) {
+        // Use setTimeout to decouple from the initial render cycle.
+        const timer = setTimeout(() => {
+          speak("Welcome to Saksham! Would you like me to guide you through login using voice commands? Please say 'yes' to begin or 'no' to continue manually.")
+            .then(() => {
+              setIsListening(true); // Start listening after the prompt.
+            });
+        }, 0);
+        sessionStorage.setItem(WELCOME_KEY, 'true');
+        return () => clearTimeout(timer);
+      }
     }
+  }, [pathname, speak, initialWelcomeDone]);
 
-    if (isListening) {
-        startListener();
-        if(pathname !== '/') toast({ title: 'Voice Control Enabled', description: 'Listening for commands...' });
-    } else {
-        if (recognitionRef.current) {
-            recognitionRef.current.onend = null; 
-            recognitionRef.current.stop();
-            recognitionRef.current = null;
-            if(pathname !== '/') toast({ title: 'Voice Control Disabled' });
-        }
-    }
-      
-    return () => {
-        if (recognitionRef.current) {
-            recognitionRef.current.onend = null;
-            recognitionRef.current.stop();
-            recognitionRef.current = null;
-        }
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isListening, pathname]);
 
   return (
     <VoiceControlContext.Provider value={{ isListening, toggleListening, isLoading, processLoginCommand }}>
