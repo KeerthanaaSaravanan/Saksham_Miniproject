@@ -13,7 +13,7 @@ import { useToast } from '@/hooks/use-toast';
 import { Loader2, BookOpen, ArrowLeft } from 'lucide-react';
 import { useState, useEffect, useCallback } from 'react';
 import { useUser, useFirestore, useMemoFirebase, errorEmitter, FirestorePermissionError } from '@/firebase';
-import { collection, query, where, getDoc, doc, Timestamp, getDocs } from 'firebase/firestore';
+import { collection, query, where, getDoc, doc, Timestamp, getDocs, writeBatch, serverTimestamp } from 'firebase/firestore';
 import { useCollection } from '@/firebase/firestore/use-collection';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ExamLayout } from '@/components/layout/exam-layout';
@@ -61,21 +61,64 @@ export default function AssessmentPage() {
   const firestore = useFirestore();
   const [grade, setGrade] = useState('');
 
-
-  const handleSubmitExam = useCallback(() => {
-    if (isSubmitting) return;
+  const handleSubmitExam = useCallback(async (answers: Record<string, string>) => {
+    if (isSubmitting || !selectedExam || !user || !firestore) return;
 
     setIsSubmitting(true);
-    // In a real app, you would submit answers to the backend for grading
-    setTimeout(() => {
+    toast({ title: 'Submitting Exam...', description: 'Please wait while we process your submission.' });
+
+    const attemptRef = doc(collection(firestore, 'users', user.uid, 'exam_attempts'));
+    const answersCollectionRef = collection(attemptRef, 'answers');
+
+    const batch = writeBatch(firestore);
+
+    let correctCount = 0;
+    const studentAnswers = Object.entries(answers).map(([questionId, answer]) => {
+      const question = selectedExam.questions.find(q => q.id === questionId);
+      const isCorrect = question ? question.correctAnswer.toLowerCase().trim() === answer.toLowerCase().trim() : false;
+      if (isCorrect) correctCount++;
+      return {
+        questionId,
+        answer,
+        isCorrect,
+        studentExamAttemptId: attemptRef.id,
+      };
+    });
+    
+    // Save each answer
+    studentAnswers.forEach(ans => {
+        const answerRef = doc(answersCollectionRef);
+        batch.set(answerRef, ans);
+    });
+
+    // Save the overall attempt
+    const score = (correctCount / selectedExam.questions.length) * 100;
+    batch.set(attemptRef, {
+        userId: user.uid,
+        examId: selectedExam.id,
+        startTime: new Date(), // This should ideally be when the exam started
+        endTime: serverTimestamp(),
+        score: score,
+    });
+
+    try {
+        await batch.commit();
         toast({
             title: "Exam Submitted",
-            description: "Your answers have been recorded. Results will be available soon."
+            description: `Your score is ${score.toFixed(0)}%. Results have been saved.`
         });
+    } catch (error: any) {
+        const permissionError = new FirestorePermissionError({
+            path: attemptRef.path,
+            operation: 'write',
+            requestResourceData: { attempt: 'data', answers: 'data' }
+        });
+        errorEmitter.emit('permission-error', permissionError);
+    } finally {
         setSelectedExam(null);
         setIsSubmitting(false);
-    }, 1500);
-  }, [isSubmitting, toast]);
+    }
+  }, [isSubmitting, selectedExam, user, firestore, toast]);
   
 
   useEffect(() => {
@@ -211,7 +254,7 @@ export default function AssessmentPage() {
             <AlertDialogHeader>
               <AlertDialogTitle>Start Attempt: {examToConfirm.title}</AlertDialogTitle>
               <AlertDialogDescription>
-                Your attempt will have a time limit of {examToConfirm.durationMinutes || 'N/A'} minutes. 
+                Your attempt will have a time limit of {examToConfirm.durationMinutes || 60} minutes. 
                 When you start, the timer will begin to count down and cannot be paused. 
                 You must finish your attempt before it expires.
                 <br /><br />

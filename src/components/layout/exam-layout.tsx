@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
@@ -9,13 +9,14 @@ import { Timer } from '@/components/Timer';
 import { useProctoring } from '@/hooks/use-proctoring';
 import { useToast } from '@/hooks/use-toast';
 import type { SelectedExamDetails, AssessmentQuestion } from '@/app/(app)/assessment/page';
-import { ArrowLeft, Flag, Loader2 } from 'lucide-react';
+import { Flag, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { RightSidebar } from './right-sidebar';
+import { useExamMode } from '@/hooks/use-exam-mode';
 
 interface ExamLayoutProps {
     exam: SelectedExamDetails;
-    onTimeUp: () => void;
+    onTimeUp: (answers: Record<string, string>) => void;
     onExit: () => void;
     isSubmitting: boolean;
 }
@@ -27,6 +28,12 @@ export function ExamLayout({ exam, onTimeUp, onExit, isSubmitting }: ExamLayoutP
     const [answers, setAnswers] = useState<Record<string, string>>({});
     const [reviewFlags, setReviewFlags] = useState<Record<string, boolean>>({});
     const { toast } = useToast();
+    const { setIsExamMode } = useExamMode();
+
+    useEffect(() => {
+        setIsExamMode(true);
+        return () => setIsExamMode(false);
+    }, [setIsExamMode]);
 
     const proctoringCallbacks = useMemo(() => ({
         onLeave: () => {
@@ -42,12 +49,12 @@ export function ExamLayout({ exam, onTimeUp, onExit, isSubmitting }: ExamLayoutP
             title: 'Exam Automatically Submitted',
             description: 'You have left the exam tab too many times.',
           });
-          onTimeUp(); // Use the same handler for submission
+          onTimeUp(answers);
         }
-    }), [toast, onTimeUp]);
+    }), [toast, onTimeUp, answers]);
 
     useProctoring({
-        isActive: true, // Always active when this layout is shown
+        isActive: true,
         ...proctoringCallbacks
     });
 
@@ -116,7 +123,7 @@ export function ExamLayout({ exam, onTimeUp, onExit, isSubmitting }: ExamLayoutP
                     {exam.durationMinutes && (
                         <Timer
                             durationInMinutes={exam.durationMinutes}
-                            onTimeUp={onTimeUp}
+                            onTimeUp={() => onTimeUp(answers)}
                         />
                     )}
                 </header>
@@ -157,7 +164,7 @@ export function ExamLayout({ exam, onTimeUp, onExit, isSubmitting }: ExamLayoutP
                             Next
                         </Button>
                     </div>
-                     <Button onClick={onTimeUp} disabled={isSubmitting}>
+                     <Button onClick={() => onTimeUp(answers)} disabled={isSubmitting}>
                         {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
                         Finish & Submit Exam
                     </Button>
