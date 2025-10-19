@@ -32,16 +32,6 @@ export default function StudentSidebar({ student }: { student?: any}) {
       icon: FileText,
       label: "Results",
       href: "#"
-    },
-    {
-      icon: Award,
-      label: "Achievements",
-      href: "#"
-    },
-    {
-      icon: BarChart3,
-      label: "Progress",
-      href: "#"
     }
   ];
 
@@ -50,11 +40,6 @@ export default function StudentSidebar({ student }: { student?: any}) {
       icon: Settings,
       label: "Accessibility Settings",
       href: "/settings/accessibility"
-    },
-    {
-      icon: HelpCircle,
-      label: "Help & Support",
-      href: "#"
     }
   ];
 

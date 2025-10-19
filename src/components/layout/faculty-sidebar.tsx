@@ -51,11 +51,6 @@ export default function FacultySidebar({ faculty }: { faculty?: any }) {
       icon: Settings,
       label: "Platform Settings",
       href: "#"
-    },
-    {
-      icon: HelpCircle,
-      label: "Help & Support",
-      href: "#"
     }
   ];
 
