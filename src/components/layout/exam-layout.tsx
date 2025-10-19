@@ -142,7 +142,7 @@ export function ExamLayout({ exam, onTimeUp, isSubmitting }: ExamLayoutProps) {
     const reviewedCount = Object.keys(reviewFlags).filter(k => reviewFlags[k]).length;
 
     return (
-        <div className="fixed inset-0 bg-background flex">
+        <div className="fixed inset-0 bg-background flex noselect" onContextMenu={(e) => e.preventDefault()}>
             {/* Left Panel: Question Palette */}
             <div className="w-64 border-r bg-card flex flex-col p-4">
                 <h3 className="font-bold text-lg mb-1">Questions</h3>
