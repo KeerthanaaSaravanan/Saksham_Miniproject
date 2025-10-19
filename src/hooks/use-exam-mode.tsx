@@ -1,10 +1,11 @@
 'use client';
 
-import React, { createContext, useState, useContext, ReactNode, useMemo } from 'react';
+import React, { createContext, useState, useContext, ReactNode, useMemo, useEffect } from 'react';
 import { usePathname } from 'next/navigation';
 
 interface ExamModeContextType {
   isExamMode: boolean;
+  setIsExamMode: (isExam: boolean) => void;
 }
 
 const ExamModeContext = createContext<ExamModeContextType | undefined>(undefined);
@@ -19,11 +20,19 @@ export function useExamMode() {
 
 export function ExamModeProvider({ children }: { children: ReactNode }) {
   const pathname = usePathname();
-  // This could be made more robust, e.g. checking for an active exam state
-  const isExamMode = pathname.includes('/assessment') || pathname.includes('/practice');
+  const [isExamMode, setIsExamMode] = useState(pathname.includes('/assessment'));
+
+  useEffect(() => {
+    // This logic covers navigation-based exam mode detection.
+    // The assessment page itself will override this for active sessions.
+    const isCurrentlyInExamPath = pathname.includes('/assessment') || pathname.includes('/practice');
+    setIsExamMode(isCurrentlyInExamPath);
+  }, [pathname]);
+
 
   const value = useMemo(() => ({
-    isExamMode
+    isExamMode,
+    setIsExamMode
   }), [isExamMode]);
 
   return (

@@ -9,8 +9,6 @@ import {
   CardFooter,
 } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
-import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2, BookOpen, ArrowLeft } from 'lucide-react';
 import { useState, useEffect, useCallback } from 'react';
@@ -18,8 +16,18 @@ import { useUser, useFirestore, useMemoFirebase, errorEmitter, FirestorePermissi
 import { collection, query, where, getDoc, doc, Timestamp, getDocs } from 'firebase/firestore';
 import { useCollection } from '@/firebase/firestore/use-collection';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Timer } from '@/components/Timer';
-import { useProctoring } from '@/hooks/use-proctoring';
+import { ExamLayout } from '@/components/layout/exam-layout';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
+
 
 // Matches the Firestore data structure
 type Exam = {
@@ -31,14 +39,14 @@ type Exam = {
     durationMinutes?: number;
 };
 
-type AssessmentQuestion = {
+export type AssessmentQuestion = {
   id: string;
   question: string;
   options: string[];
-  answer: string; // `correctAnswer` in Firestore
+  correctAnswer: string;
 };
 
-type SelectedExamDetails = Exam & {
+export type SelectedExamDetails = Exam & {
     questions: AssessmentQuestion[];
 }
 
@@ -46,11 +54,13 @@ export default function AssessmentPage() {
   const [selectedExam, setSelectedExam] = useState<SelectedExamDetails | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isLoadingExam, setIsLoadingExam] = useState(false);
+  const [examToConfirm, setExamToConfirm] = useState<Exam | null>(null);
   const { toast } = useToast();
   
   const { user, isUserLoading } = useUser();
   const firestore = useFirestore();
   const [grade, setGrade] = useState('');
+
 
   const handleSubmitExam = useCallback(() => {
     if (isSubmitting) return;
@@ -67,29 +77,6 @@ export default function AssessmentPage() {
     }, 1500);
   }, [isSubmitting, toast]);
   
-  const proctoringCallbacks = {
-    onLeave: () => {
-      toast({
-        variant: 'destructive',
-        title: 'Warning: Left Exam Tab',
-        description: 'Leaving the exam tab is prohibited. Further violations will result in automatic submission.',
-      });
-    },
-    onViolationLimitReached: () => {
-      toast({
-        variant: 'destructive',
-        title: 'Exam Automatically Submitted',
-        description: 'You have left the exam tab too many times.',
-      });
-      handleSubmitExam();
-    }
-  }
-
-  useProctoring({
-    isActive: !!selectedExam,
-    ...proctoringCallbacks
-  });
-
 
   useEffect(() => {
     if (user && firestore) {
@@ -124,6 +111,7 @@ export default function AssessmentPage() {
 
   const handleStartExam = async (exam: Exam) => {
     if (!firestore) return;
+    setExamToConfirm(null);
     setIsLoadingExam(true);
     toast({ title: `Loading Exam: ${exam.title}` });
 
@@ -134,7 +122,7 @@ export default function AssessmentPage() {
             id: doc.id,
             question: doc.data().question,
             options: doc.data().options,
-            answer: doc.data().correctAnswer,
+            correctAnswer: doc.data().correctAnswer,
         })) as AssessmentQuestion[];
 
         setSelectedExam({ ...exam, questions });
@@ -149,6 +137,10 @@ export default function AssessmentPage() {
     }
   }
 
+  const handleBackToDashboard = () => {
+    setSelectedExam(null);
+  }
+
   if (isLoadingExam) {
       return (
           <div className="flex justify-center items-center h-64">
@@ -159,94 +151,80 @@ export default function AssessmentPage() {
 
   if (selectedExam) {
     return (
-        <div className="space-y-6">
-            <header className="flex justify-between items-center">
-                <Button variant="outline" onClick={() => setSelectedExam(null)}>
-                    <ArrowLeft className="mr-2 h-4 w-4" />
-                    Back to Exams
-                </Button>
-                {selectedExam.durationMinutes && (
-                    <Timer 
-                        durationInMinutes={selectedExam.durationMinutes}
-                        onTimeUp={handleSubmitExam}
-                    />
-                )}
-            </header>
-            <Card>
-                <CardHeader>
-                    <CardTitle>{selectedExam.title}</CardTitle>
-                    <CardDescription>Subject: {selectedExam.subject} | Grade: {selectedExam.gradeLevel}</CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-8">
-                    {selectedExam.questions.map((q, index) => (
-                        <div key={q.id}>
-                            <h3 className="font-semibold">{index + 1}. {q.question}</h3>
-                            <RadioGroup className="mt-4 space-y-2">
-                            {q.options.filter(opt => opt).map((option, i) => (
-                                <div key={i} className="flex items-center space-x-3 space-y-0">
-                                <RadioGroupItem value={option} id={`q${index}-o${i}`} />
-                                <Label htmlFor={`q${index}-o${i}`} className="font-normal">
-                                    {option}
-                                </Label>
-                                </div>
-                            ))}
-                            </RadioGroup>
-                        </div>
-                    ))}
-                </CardContent>
-                <CardFooter className="gap-2">
-                    <Button onClick={handleSubmitExam} disabled={isSubmitting}>
-                        {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-                        Finish & Submit Exam
-                    </Button>
-                </CardFooter>
-            </Card>
-        </div>
+        <ExamLayout 
+            exam={selectedExam}
+            onTimeUp={handleSubmitExam}
+            onExit={handleBackToDashboard}
+            isSubmitting={isSubmitting}
+        />
     )
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex justify-between items-start">
-        <div>
-            <h1 className="text-3xl font-bold font-headline">My Exams</h1>
-            <p className="text-muted-foreground">
-                Available examinations for your grade level.
-            </p>
+    <>
+      <div className="space-y-6">
+        <div className="flex justify-between items-start">
+          <div>
+              <h1 className="text-3xl font-bold font-headline">My Exams</h1>
+              <p className="text-muted-foreground">
+                  Available examinations for your grade level.
+              </p>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {areExamsLoading || isUserLoading ? (
+              <>
+                  <Skeleton className="h-48 w-full" />
+                  <Skeleton className="h-48 w-full" />
+                  <Skeleton className="h-48 w-full" />
+              </>
+          ) : availableExams && availableExams.length > 0 ? (
+              availableExams.map(exam => (
+                  <Card key={exam.id}>
+                      <CardHeader>
+                          <CardTitle className="text-xl">{exam.title}</CardTitle>
+                          <CardDescription>{exam.subject} | {exam.gradeLevel}</CardDescription>
+                      </CardHeader>
+                      <CardContent>
+                          <div className="flex items-center text-sm text-muted-foreground">
+                              <BookOpen className="mr-2 h-4 w-4" />
+                              <span>Starts: {exam.startTime.toDate().toLocaleString()}</span>
+                          </div>
+                      </CardContent>
+                      <CardFooter>
+                          <Button className="w-full" onClick={() => setExamToConfirm(exam)}>
+                              Start Exam
+                          </Button>
+                      </CardFooter>
+                  </Card>
+              ))
+          ) : (
+              <p className="col-span-full text-center text-muted-foreground mt-8">No exams are scheduled for you at this time.</p>
+          )}
         </div>
       </div>
-
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {areExamsLoading || isUserLoading ? (
-            <>
-                <Skeleton className="h-48 w-full" />
-                <Skeleton className="h-48 w-full" />
-                <Skeleton className="h-48 w-full" />
-            </>
-        ) : availableExams && availableExams.length > 0 ? (
-            availableExams.map(exam => (
-                <Card key={exam.id}>
-                    <CardHeader>
-                        <CardTitle className="text-xl">{exam.title}</CardTitle>
-                        <CardDescription>{exam.subject} | {exam.gradeLevel}</CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                        <div className="flex items-center text-sm text-muted-foreground">
-                             <BookOpen className="mr-2 h-4 w-4" />
-                            <span>Starts: {exam.startTime.toDate().toLocaleString()}</span>
-                        </div>
-                    </CardContent>
-                    <CardFooter>
-                        <Button className="w-full" onClick={() => handleStartExam(exam)}>
-                            Start Exam
-                        </Button>
-                    </CardFooter>
-                </Card>
-            ))
-        ) : (
-            <p className="col-span-full text-center text-muted-foreground mt-8">No exams are scheduled for you at this time.</p>
-        )}
-      </div>
-    </div>
+      
+      {examToConfirm && (
+        <AlertDialog open onOpenChange={() => setExamToConfirm(null)}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Start Attempt: {examToConfirm.title}</AlertDialogTitle>
+              <AlertDialogDescription>
+                Your attempt will have a time limit of {examToConfirm.durationMinutes || 'N/A'} minutes. 
+                When you start, the timer will begin to count down and cannot be paused. 
+                You must finish your attempt before it expires.
+                <br /><br />
+                Are you sure you wish to start now?
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancel</AlertDialogCancel>
+              <AlertDialogAction onClick={() => handleStartExam(examToConfirm)}>Start attempt</AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+      )}
+    </>
   );
 }
