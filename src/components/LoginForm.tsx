@@ -7,16 +7,21 @@ import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { useAuth, initiateEmailSignUp } from '@/firebase';
-import { GoogleAuthProvider, signInWithPopup } from 'firebase/auth';
+import { useAuth } from '@/firebase';
+import { GoogleAuthProvider, signInWithPopup, createUserWithEmailAndPassword } from 'firebase/auth';
 
 export default function LoginForm() {
   const [email, setEmail] = useState('');
+  const [password, setPassword] = useState(''); // Added for completeness, though hidden in UI
   const router = useRouter();
   const auth = useAuth();
 
   const handleGoogleSignIn = async () => {
     const provider = new GoogleAuthProvider();
+    if (!auth) {
+      console.error("Auth service is not available.");
+      return;
+    }
     try {
       await signInWithPopup(auth, provider);
       router.push('/dashboard');
@@ -25,12 +30,19 @@ export default function LoginForm() {
     }
   };
 
-  const handleSignUp = (e: React.FormEvent) => {
+  const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
-    // For now, faculty login is removed from this flow to match the image.
-    // We can add it back if needed.
-    initiateEmailSignUp(auth, email, ''); // Password field is not in the new design.
-    router.push('/dashboard');
+     if (!auth) {
+      console.error("Auth service is not available.");
+      return;
+    }
+    try {
+      // Using a placeholder password as it's not in the UI
+      await createUserWithEmailAndPassword(auth, email, password || 'defaultPassword');
+      router.push('/dashboard');
+    } catch (error) {
+        console.error("Error during email sign-up:", error);
+    }
   };
 
   const GoogleIcon = () => (
@@ -43,8 +55,8 @@ export default function LoginForm() {
   );
 
   return (
-    <div className="w-full max-w-sm mx-auto flex flex-col items-center justify-center space-y-6">
-       <h1 className="text-3xl font-semibold text-center">Create your account</h1>
+    <div className="bg-card rounded-2xl shadow-xl border p-8 space-y-6">
+       <h1 className="text-3xl font-semibold text-center text-foreground">Create your account</h1>
       
       <Button variant="outline" className="w-full h-12 text-base" onClick={handleGoogleSignIn}>
         <GoogleIcon />
@@ -77,12 +89,12 @@ export default function LoginForm() {
             </Link>
             .
         </p>
-        <Button type="submit" className="w-full h-12 bg-gray-900 text-white hover:bg-gray-800">
+        <Button type="submit" className="w-full h-12 bg-foreground text-background hover:bg-foreground/90">
           Sign up
         </Button>
       </form>
 
-      <p className="text-sm text-muted-foreground">
+      <p className="text-sm text-muted-foreground text-center">
         Already have an account?{' '}
         <Link href="#" className="underline hover:text-primary">
           Log in
