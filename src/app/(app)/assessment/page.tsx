@@ -10,7 +10,7 @@ import {
 } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, BookOpen } from 'lucide-react';
+import { Clock, BookOpen } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { useUser, useFirestore, useMemoFirebase, errorEmitter, FirestorePermissionError } from '@/firebase';
 import { collection, query, where, getDoc, doc, Timestamp } from 'firebase/firestore';
@@ -35,6 +35,7 @@ type Exam = {
     subject: string;
     gradeLevel: string;
     startTime: Timestamp;
+    endTime: Timestamp;
     durationMinutes?: number;
 };
 
@@ -45,15 +46,19 @@ export default function AssessmentListPage() {
   const { user, isUserLoading } = useUser();
   const firestore = useFirestore();
   const [grade, setGrade] = useState('');
+  const [isProfileLoading, setIsProfileLoading] = useState(true);
 
   useEffect(() => {
     if (user && firestore) {
       const fetchUserProfile = async () => {
+        setIsProfileLoading(true);
         const userDocRef = doc(firestore, 'users', user.uid);
         try {
             const userDocSnap = await getDoc(userDocRef);
             if (userDocSnap.exists()) {
               setGrade(userDocSnap.data().grade || '');
+            } else {
+              toast({ variant: 'destructive', title: 'Profile Not Found', description: 'Please complete your profile in settings.'})
             }
         } catch (error: any) {
             const permissionError = new FirestorePermissionError({
@@ -61,11 +66,15 @@ export default function AssessmentListPage() {
               operation: 'get',
             });
             errorEmitter.emit('permission-error', permissionError);
+        } finally {
+            setIsProfileLoading(false);
         }
       };
       fetchUserProfile();
+    } else if (!isUserLoading) {
+      setIsProfileLoading(false);
     }
-  }, [user, firestore]);
+  }, [user, firestore, isUserLoading, toast]);
 
   const examsQuery = useMemoFirebase(() => {
     if (!firestore || !grade) return null;
@@ -83,6 +92,8 @@ export default function AssessmentListPage() {
     window.open(`/assessment/${examId}`, '_blank', 'noopener,noreferrer');
   }
 
+  const isLoading = areExamsLoading || isUserLoading || isProfileLoading;
+
   return (
     <>
       <div className="space-y-6">
@@ -96,27 +107,31 @@ export default function AssessmentListPage() {
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {areExamsLoading || isUserLoading ? (
+          {isLoading ? (
               <>
-                  <Skeleton className="h-48 w-full" />
-                  <Skeleton className="h-48 w-full" />
-                  <Skeleton className="h-48 w-full" />
+                  <Skeleton className="h-56 w-full" />
+                  <Skeleton className="h-56 w-full" />
+                  <Skeleton className="h-56 w-full" />
               </>
           ) : availableExams && availableExams.length > 0 ? (
               availableExams.map(exam => (
-                  <Card key={exam.id}>
+                  <Card key={exam.id} className="flex flex-col cursor-pointer hover:border-primary transition-colors" onClick={() => setExamToConfirm(exam)}>
                       <CardHeader>
                           <CardTitle className="text-xl">{exam.title}</CardTitle>
                           <CardDescription>{exam.subject} | {exam.gradeLevel}</CardDescription>
                       </CardHeader>
-                      <CardContent>
+                      <CardContent className="flex-grow space-y-2">
+                           <div className="flex items-center text-sm text-muted-foreground">
+                              <Clock className="mr-2 h-4 w-4" />
+                              <span>Duration: {exam.durationMinutes || 'N/A'} minutes</span>
+                          </div>
                           <div className="flex items-center text-sm text-muted-foreground">
                               <BookOpen className="mr-2 h-4 w-4" />
                               <span>Starts: {exam.startTime.toDate().toLocaleString()}</span>
                           </div>
                       </CardContent>
                       <CardFooter>
-                          <Button className="w-full" onClick={() => setExamToConfirm(exam)}>
+                          <Button className="w-full">
                               Start Exam
                           </Button>
                       </CardFooter>
@@ -132,23 +147,23 @@ export default function AssessmentListPage() {
         <AlertDialog open onOpenChange={() => setExamToConfirm(null)}>
           <AlertDialogContent>
             <AlertDialogHeader>
-              <AlertDialogTitle>Start attempt</AlertDialogTitle>
+              <AlertDialogTitle>Start "{examToConfirm.title}"?</AlertDialogTitle>
               <AlertDialogDescription asChild>
-                <div className="space-y-4">
-                  <h3 className="text-lg font-semibold text-foreground">Time limit</h3>
-                  <p>Your attempt will have a time limit of {examToConfirm.durationMinutes || 60} minutes. When you start, the timer will begin to count down and cannot be paused. You must finish your attempt before it expires.</p>
-                  <p>Are you sure you wish to start now?</p>
-                   <div className="mt-4 p-3 bg-destructive/10 border border-destructive/20 rounded-md">
-                      <p className="text-xs text-destructive/90">
-                        <strong className="font-semibold">Proctoring Warning:</strong> This exam will open in a new, fullscreen tab. Leaving the exam tab or window is not permitted and will cause your exam to be submitted automatically.
-                      </p>
-                   </div>
+                <div className="space-y-4 pt-2">
+                  <p className="font-semibold">Please read the following instructions carefully:</p>
+                  <ul className="list-disc list-inside space-y-2 text-sm text-muted-foreground">
+                    <li>The exam will have a time limit of <strong className="text-foreground">{examToConfirm.durationMinutes || 60} minutes</strong>.</li>
+                    <li>The timer will start immediately and cannot be paused.</li>
+                    <li>This exam will open in a new, fullscreen window.</li>
+                    <li><strong className="text-destructive">Leaving the exam tab or window is not permitted and will cause your exam to be submitted automatically.</strong></li>
+                  </ul>
+                   <p className="font-semibold pt-2">Are you sure you wish to start now?</p>
                 </div>
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
               <AlertDialogCancel>Cancel</AlertDialogCancel>
-              <AlertDialogAction onClick={() => handleStartExam(examToConfirm.id)}>Start attempt</AlertDialogAction>
+              <AlertDialogAction onClick={() => handleStartExam(examToConfirm.id)}>Start Exam</AlertDialogAction>
             </AlertDialogFooter>
           </AlertDialogContent>
         </AlertDialog>

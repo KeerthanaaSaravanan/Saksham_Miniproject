@@ -16,6 +16,7 @@ import { Button } from '@/components/ui/button';
 import {
   Form,
   FormControl,
+  FormDescription,
   FormField,
   FormItem,
   FormLabel,
@@ -38,7 +39,7 @@ import { collection, serverTimestamp, doc, writeBatch } from 'firebase/firestore
 
 const questionSchema = z.object({
   question: z.string().min(5, "Question must be at least 5 characters."),
-  options: z.array(z.string().min(1, "Option cannot be empty.")).min(2, "Must have at least 2 options."),
+  options: z.array(z.string()).min(2, "Must have at least 2 options."),
   correctAnswer: z.string().min(1, "Correct answer is required."),
   type: z.string().default('mcq'), // Default to multiple choice
   difficulty: z.string().default('medium'),
@@ -48,8 +49,9 @@ const formSchema = z.object({
   title: z.string().min(5, 'Title must be at least 5 characters.'),
   subject: z.string().min(1, 'Subject is required.'),
   gradeLevel: z.string().min(1, 'Grade level is required.'),
-  startTime: z.string().min(1, 'Start time is required.'), // Added for scheduling
-  endTime: z.string().min(1, 'End time is required.'),   // Added for scheduling
+  startTime: z.string().min(1, 'Start time is required.'),
+  endTime: z.string().min(1, 'End time is required.'),
+  durationMinutes: z.coerce.number().min(1, 'Duration must be at least 1 minute.'),
   questions: z.array(questionSchema).min(1, "You must add at least one question.")
 });
 
@@ -66,6 +68,7 @@ export default function UploadPage() {
       gradeLevel: '',
       startTime: '',
       endTime: '',
+      durationMinutes: 60,
       questions: [],
     },
   });
@@ -96,6 +99,7 @@ export default function UploadPage() {
         gradeLevel: values.gradeLevel,
         startTime: new Date(values.startTime),
         endTime: new Date(values.endTime),
+        durationMinutes: values.durationMinutes,
         createdAt: serverTimestamp(),
     };
     batch.set(newExamRef, examData);
@@ -103,8 +107,11 @@ export default function UploadPage() {
     // 2. Add all questions to the subcollection
     values.questions.forEach(question => {
         const newQuestionRef = doc(questionsCollectionRef);
+        const { options, ...restOfQuestion } = question;
+        const filteredOptions = options.filter(opt => opt.trim() !== '');
         batch.set(newQuestionRef, {
-            ...question,
+            ...restOfQuestion,
+            options: filteredOptions,
             examId: newExamRef.id,
         });
     });
@@ -163,7 +170,7 @@ export default function UploadPage() {
                   </FormItem>
                 )}
               />
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <FormField
                   control={form.control}
                   name="subject"
@@ -195,6 +202,19 @@ export default function UploadPage() {
                           <SelectItem value="Class 10">Class 10</SelectItem>
                         </SelectContent>
                       </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                 <FormField
+                  control={form.control}
+                  name="durationMinutes"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Duration (minutes)</FormLabel>
+                      <FormControl>
+                        <Input type="number" placeholder="e.g., 60" {...field} />
+                      </FormControl>
                       <FormMessage />
                     </FormItem>
                   )}
@@ -236,9 +256,9 @@ export default function UploadPage() {
                 <div className="flex items-center justify-between">
                     <div>
                         <CardTitle>Questions</CardTitle>
-                        <CardDescription>Add questions for this exam.</CardDescription>
+                        <CardDescription>Add questions for this exam. Only MCQ type is supported currently.</CardDescription>
                     </div>
-                    <Button type="button" variant="outline" size="sm" onClick={() => append({ question: '', options: ['', ''], correctAnswer: '', type: 'mcq', difficulty: 'medium'})}>
+                    <Button type="button" variant="outline" size="sm" onClick={() => append({ question: '', options: ['', '', '', ''], correctAnswer: '', type: 'mcq', difficulty: 'medium'})}>
                         <PlusCircle className="mr-2 h-4 w-4" />
                         Add Question
                     </Button>
@@ -265,13 +285,14 @@ export default function UploadPage() {
                             )}
                         />
 
-                        {/* Options - For now, only supporting MCQs */}
                         <div className="space-y-2">
                              <FormLabel>Options</FormLabel>
-                             <FormField control={form.control} name={`questions.${index}.options.0`} render={({ field }) => ( <FormItem><FormControl><Input {...field} placeholder="Option A" /></FormControl><FormMessage /></FormItem>)} />
-                             <FormField control={form.control} name={`questions.${index}.options.1`} render={({ field }) => ( <FormItem><FormControl><Input {...field} placeholder="Option B" /></FormControl><FormMessage /></FormItem>)} />
-                             <FormField control={form.control} name={`questions.${index}.options.2`} render={({ field }) => ( <FormItem><FormControl><Input {...field} placeholder="Option C (optional)" /></FormControl><FormMessage /></FormItem>)} />
-                             <FormField control={form.control} name={`questions.${index}.options.3`} render={({ field }) => ( <FormItem><FormControl><Input {...field} placeholder="Option D (optional)" /></FormControl><FormMessage /></FormItem>)} />
+                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <FormField control={form.control} name={`questions.${index}.options.0`} render={({ field }) => ( <FormItem><FormControl><Input {...field} placeholder="Option A" /></FormControl><FormMessage /></FormItem>)} />
+                                <FormField control={form.control} name={`questions.${index}.options.1`} render={({ field }) => ( <FormItem><FormControl><Input {...field} placeholder="Option B" /></FormControl><FormMessage /></FormItem>)} />
+                                <FormField control={form.control} name={`questions.${index}.options.2`} render={({ field }) => ( <FormItem><FormControl><Input {...field} placeholder="Option C" /></FormControl><FormMessage /></FormItem>)} />
+                                <FormField control={form.control} name={`questions.${index}.options.3`} render={({ field }) => ( <FormItem><FormControl><Input {...field} placeholder="Option D" /></FormControl><FormMessage /></FormItem>)} />
+                             </div>
                         </div>
 
                         <FormField

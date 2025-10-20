@@ -17,6 +17,7 @@ type Exam = {
     subject: string;
     gradeLevel: string;
     startTime: Timestamp;
+    endTime: Timestamp;
     durationMinutes?: number;
 };
 
@@ -67,8 +68,8 @@ export default function AssessmentPage({ params }: { params: { examId: string }}
         if (!examData || !firestore) return;
 
         try {
-            const questionsQuery = collection(firestore, 'exams', examData.id, 'questions');
-            const querySnapshot = await getDocs(questionsQuery);
+            const questionsCollectionRef = collection(firestore, 'exams', examData.id, 'questions');
+            const querySnapshot = await getDocs(questionsCollectionRef);
             const questions = querySnapshot.docs.map(d => ({
                 id: d.id,
                 ...d.data(),
@@ -125,30 +126,34 @@ export default function AssessmentPage({ params }: { params: { examId: string }}
     batch.set(attemptRef, {
         userId: user.uid,
         examId: selectedExam.id,
-        startTime: new Date(),
+        startTime: new Date(), // This should ideally be when the student starts
         endTime: serverTimestamp(),
         score: score,
         status: 'submitted',
     });
 
-    try {
-        await batch.commit();
-        toast({
-            title: "Exam Submitted Successfully",
-            description: `Your answers have been saved. You can now close this tab.`
-        });
-        // We can't close the tab automatically due to browser security
-        // So we can replace the UI.
-        setIsSubmitting(true); 
-    } catch (error: any) {
-        const permissionError = new FirestorePermissionError({
-            path: attemptRef.path,
-            operation: 'write',
-            requestResourceData: { attempt: 'data', answers: 'data' }
-        });
-        errorEmitter.emit('permission-error', permissionError);
-        setIsSubmitting(false); // Allow retry
-    }
+    batch.commit()
+      .then(() => {
+          toast({
+              title: "Exam Submitted Successfully",
+              description: `Your answers have been saved. You can now close this tab.`
+          });
+          // We can't close the tab automatically due to browser security
+          // So we can replace the UI to prevent re-submission.
+          setIsSubmitting(true); // Keep it in a 'submitted' state
+      })
+      .catch((error: any) => {
+          const permissionError = new FirestorePermissionError({
+              path: attemptRef.path,
+              operation: 'write', // This is a batch write operation
+              requestResourceData: { 
+                  attempt: { examId: selectedExam.id, score },
+                  answers: studentAnswers 
+              }
+          });
+          errorEmitter.emit('permission-error', permissionError);
+          setIsSubmitting(false); // Allow retry
+      });
   }, [isSubmitting, selectedExam, user, firestore, toast]);
   
 
@@ -161,10 +166,12 @@ export default function AssessmentPage({ params }: { params: { examId: string }}
       )
   }
 
+  // After submission is successful, isSubmitting stays true.
   if (isSubmitting) {
       return (
-           <div className="fixed inset-0 bg-background flex justify-center items-center">
-              <h1 className="text-2xl font-bold">Exam Submitted. You may close this tab.</h1>
+           <div className="fixed inset-0 bg-background flex flex-col justify-center items-center text-center p-4">
+              <h1 className="text-3xl font-bold text-primary">Exam Submitted Successfully!</h1>
+              <p className="text-muted-foreground mt-2">Your responses have been recorded. You may now close this window.</p>
           </div>
       )
   }
