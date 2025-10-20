@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import {
   Card,
   CardContent,
@@ -53,7 +53,7 @@ export default function ProfileSettingsPage() {
   const { user, isUserLoading } = useUser();
   const firestore = useFirestore();
   const pathname = usePathname();
-  const isFaculty = pathname.includes('/admin');
+  const isFaculty = useMemo(() => pathname.includes('/admin'), [pathname]);
 
   // Common State
   const [name, setName] = useState('');
@@ -351,5 +351,3 @@ export default function ProfileSettingsPage() {
     </div>
   );
 }
-
-    

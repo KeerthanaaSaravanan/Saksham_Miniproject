@@ -1,3 +1,4 @@
+
 'use client';
 
 import {
@@ -18,7 +19,7 @@ import {
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
-import { MoreHorizontal, Users, FilePlus, Clock, TrendingUp, BookOpen, Activity } from 'lucide-react';
+import { MoreHorizontal, Users, FilePlus, Clock, BookOpen, Activity } from 'lucide-react';
 import { Progress } from '@/components/ui/progress';
 import { ChartConfig, ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart';
 import { Bar, BarChart, ResponsiveContainer, XAxis, YAxis } from "recharts";
@@ -52,12 +53,20 @@ const chartConfig = {
 export default function AdminDashboardPage() {
   return (
     <div className="space-y-6 text-foreground">
-      <header className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-foreground">Faculty Dashboard</h1>
-          <p className="text-muted-foreground">Welcome back, Dr. Evelyn Reed!</p>
+       <div className="bg-gradient-to-r from-primary/80 to-accent/80 p-8 rounded-xl relative overflow-hidden text-primary-foreground shadow-lg">
+        <div className="flex justify-between items-start">
+            <div className="flex items-center gap-4">
+                 <div className="text-3xl">👋</div>
+                  <div>
+                    <h2 className="text-3xl font-bold">Welcome back, Dr. Reed!</h2>
+                    <p className="opacity-80 max-w-lg">
+                       Here's a summary of your academic operations. Let's get started.
+                    </p>
+                  </div>
+            </div>
         </div>
-      </header>
+       </div>
+
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <Card>
