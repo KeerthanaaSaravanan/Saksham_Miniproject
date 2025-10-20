@@ -1,0 +1,150 @@
+'use client';
+
+import { useState, useEffect } from 'react';
+import { useFirestore, useCollection, useMemoFirebase } from '@/firebase';
+import { collection, query, Timestamp } from 'firebase/firestore';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion";
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Skeleton } from '@/components/ui/skeleton';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { MoreHorizontal, Download, Edit, Send } from 'lucide-react';
+
+type Exam = {
+    id: string;
+    title: string;
+    subject: string;
+    gradeLevel: string;
+    startTime: Timestamp;
+    endTime: Timestamp;
+    durationMinutes?: number;
+};
+
+// Mock data, in a real app this would come from a query
+const mockSubmissions = [
+    { studentName: 'Alex Johnson', submittedAt: new Date(), status: 'Pending' },
+    { studentName: 'Maria Garcia', submittedAt: new Date(), status: 'Pending' },
+    { studentName: 'Sam Chen', submittedAt: new Date(), status: 'Graded' },
+];
+
+
+const getExamStatus = (startTime: Timestamp, endTime: Timestamp): { text: string; variant: "default" | "secondary" | "destructive" | "outline" } => {
+    const now = new Date();
+    const start = startTime.toDate();
+    const end = endTime.toDate();
+
+    if (now < start) {
+        return { text: 'Upcoming', variant: 'secondary' };
+    } else if (now > end) {
+        return { text: 'Completed', variant: 'outline' };
+    } else {
+        return { text: 'Live', variant: 'destructive' };
+    }
+};
+
+export default function ExaminationsPage() {
+    const firestore = useFirestore();
+
+    const examsQuery = useMemoFirebase(() => {
+        if (!firestore) return null;
+        return query(collection(firestore, 'exams'));
+    }, [firestore]);
+
+    const { data: exams, isLoading: areExamsLoading } = useCollection<Exam>(examsQuery);
+    
+    return (
+        <div className="space-y-6">
+            <div>
+                <h1 className="text-3xl font-bold font-headline">Examinations</h1>
+                <p className="text-muted-foreground">
+                    Manage upcoming, live, and completed exams.
+                </p>
+            </div>
+            
+            {areExamsLoading ? (
+                 <div className="space-y-4">
+                    <Skeleton className="h-20 w-full" />
+                    <Skeleton className="h-20 w-full" />
+                    <Skeleton className="h-20 w-full" />
+                 </div>
+            ) : !exams || exams.length === 0 ? (
+                 <Card className="flex flex-col items-center justify-center p-12 text-center border-dashed">
+                    <h2 className="mt-6 text-xl font-semibold">No Exams Found</h2>
+                    <p className="mt-2 text-muted-foreground">
+                        You haven't uploaded any question papers yet.
+                    </p>
+                </Card>
+            ) : (
+                <Accordion type="single" collapsible className="w-full space-y-4">
+                    {exams.map(exam => {
+                        const status = getExamStatus(exam.startTime, exam.endTime);
+                        return (
+                            <AccordionItem key={exam.id} value={exam.id} className="border-b-0">
+                                <Card className="overflow-hidden">
+                                    <AccordionTrigger className="p-6 hover:no-underline [&[data-state=open]]:bg-muted/50">
+                                        <div className="flex justify-between items-center w-full">
+                                            <div className="text-left">
+                                                <CardTitle className="text-lg">{exam.title}</CardTitle>
+                                                <CardDescription className="mt-1 flex items-center gap-2">
+                                                    <span>{exam.subject}</span>
+                                                    <Badge variant="outline">{exam.gradeLevel}</Badge>
+                                                    <span>Starts: {exam.startTime.toDate().toLocaleString()}</span>
+                                                </CardDescription>
+                                            </div>
+                                            <Badge variant={status.variant} className="h-6">{status.text}</Badge>
+                                        </div>
+                                    </AccordionTrigger>
+                                    <AccordionContent className="px-6 pb-6">
+                                        <div className="space-y-6 mt-4 pt-4 border-t">
+                                            <div className="flex justify-between items-center">
+                                                 <h3 className="text-lg font-semibold">Student Submissions</h3>
+                                                 <div className="flex gap-2">
+                                                    <Button variant="outline" size="sm"><Edit className="mr-2 h-4 w-4" /> Edit Exam</Button>
+                                                    <Button variant="default" size="sm"><Send className="mr-2 h-4 w-4" /> Publish Results</Button>
+                                                 </div>
+                                            </div>
+                                            <Card>
+                                                <CardContent className="p-0">
+                                                    <Table>
+                                                        <TableHeader>
+                                                            <TableRow>
+                                                                <TableHead>Student Name</TableHead>
+                                                                <TableHead>Submitted At</TableHead>
+                                                                <TableHead>Status</TableHead>
+                                                                <TableHead className="text-right">Actions</TableHead>
+                                                            </TableRow>
+                                                        </TableHeader>
+                                                        <TableBody>
+                                                            {mockSubmissions.map(sub => (
+                                                                <TableRow key={sub.studentName}>
+                                                                    <TableCell className="font-medium">{sub.studentName}</TableCell>
+                                                                    <TableCell>{sub.submittedAt.toLocaleString()}</TableCell>
+                                                                    <TableCell><Badge variant={sub.status === 'Graded' ? 'secondary' : 'default'}>{sub.status}</Badge></TableCell>
+                                                                    <TableCell className="text-right">
+                                                                        <Button variant="ghost" size="icon">
+                                                                            <MoreHorizontal className="h-4 w-4" />
+                                                                        </Button>
+                                                                    </TableCell>
+                                                                </TableRow>
+                                                            ))}
+                                                        </TableBody>
+                                                    </Table>
+                                                </CardContent>
+                                            </Card>
+                                        </div>
+                                    </AccordionContent>
+                                </Card>
+                            </AccordionItem>
+                        )
+                    })}
+                </Accordion>
+            )}
+        </div>
+    );
+}

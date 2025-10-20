@@ -32,7 +32,7 @@ export default function FacultySidebar({ faculty }: { faculty?: any }) {
     {
       icon: FileText,
       label: "Examinations",
-      href: "#"
+      href: "/admin/examinations"
     },
     {
       icon: Users,
