@@ -1,5 +1,9 @@
+
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion"
-import { Eye, Ear, Hand, BookOpen, Brain } from "lucide-react"
+import { Eye, Ear, Hand, BookOpen, Brain, Info, ChevronRight } from "lucide-react"
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
+import { Button } from "@/components/ui/button"
+import Link from "next/link"
 
 export default function HelpPage() {
   return (
@@ -10,6 +14,23 @@ export default function HelpPage() {
           Everything you need to know about using the Saksham platform.
         </p>
       </div>
+      
+      <Card className="bg-primary/5 border-primary/20">
+          <CardHeader className="flex flex-row items-center justify-between">
+              <div className="flex items-center gap-4">
+                 <div className="w-12 h-12 rounded-lg bg-primary/10 flex items-center justify-center">
+                    <Info className="w-6 h-6 text-primary" />
+                </div>
+                <div>
+                    <CardTitle>Application Flow</CardTitle>
+                    <CardDescription>Get a bird's-eye view of how the entire Saksham platform works for both students and faculty.</CardDescription>
+                </div>
+              </div>
+              <Button asChild>
+                  <Link href="/flow">View Flow Diagram <ChevronRight className="ml-2 h-4 w-4" /></Link>
+              </Button>
+          </CardHeader>
+      </Card>
 
       <Accordion type="single" collapsible className="w-full">
         <AccordionItem value="item-1">

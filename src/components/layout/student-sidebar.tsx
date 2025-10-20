@@ -1,3 +1,4 @@
+
 'use client';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
@@ -55,11 +56,6 @@ export default function StudentSidebar({ student }: { student?: any }) {
       icon: Brain,
       label: 'Accessibility Settings',
       href: '/settings/accessibility',
-    },
-    {
-      icon: Info,
-      label: 'Application Flow',
-      href: '/flow',
     },
     {
       icon: HelpCircle,

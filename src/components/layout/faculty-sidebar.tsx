@@ -1,3 +1,4 @@
+
 'use client';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
@@ -13,7 +14,8 @@ import {
   ChevronDown,
   CheckSquare,
   Clock,
-  Info
+  Info,
+  HelpCircle
 } from "lucide-react";
 
 export default function FacultySidebar({ faculty }: { faculty?: any }) {
@@ -48,9 +50,9 @@ export default function FacultySidebar({ faculty }: { faculty?: any }) {
 
   const bottomItems = [
     {
-      icon: Info,
-      label: "Application Flow",
-      href: "/flow"
+      icon: HelpCircle,
+      label: "Help & Guidance",
+      href: "/help"
     },
     {
       icon: Settings,
