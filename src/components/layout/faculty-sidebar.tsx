@@ -35,7 +35,7 @@ export default function FacultySidebar({ faculty }: { faculty?: any }) {
     {
       icon: BarChart3,
       label: "Analytics",
-      href: "#"
+      href: "/admin/analytics"
     },
   ];
 
