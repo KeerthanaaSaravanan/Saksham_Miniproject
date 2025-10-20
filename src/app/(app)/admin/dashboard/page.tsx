@@ -53,13 +53,11 @@ const chartConfig = {
 export default function AdminDashboardPage() {
   return (
     <div className="space-y-8">
-      <div className="flex justify-between items-center">
-        <div>
-          <h1 className="text-3xl font-bold font-headline">Welcome back, Dr. Reed!</h1>
-          <p className="text-muted-foreground">
-              Here's a summary of your academic operations and student progress.
-          </p>
-        </div>
+      <div>
+        <h1 className="text-3xl font-bold font-headline">Welcome back, Dr. Reed!</h1>
+        <p className="text-muted-foreground">
+            Here's a summary of your academic operations and student progress.
+        </p>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
