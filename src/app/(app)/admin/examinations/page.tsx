@@ -1,8 +1,9 @@
+
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useFirestore, useCollection, useMemoFirebase } from '@/firebase';
-import { collection, query, Timestamp } from 'firebase/firestore';
+import { collection, query, Timestamp, getDocs } from 'firebase/firestore';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import {
   Accordion,
@@ -14,7 +15,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { MoreHorizontal, Edit, Send } from 'lucide-react';
+import { MoreHorizontal, Edit, Send, Loader2 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 
@@ -28,13 +29,13 @@ type Exam = {
     durationMinutes?: number;
 };
 
-// Mock data, in a real app this would come from a query
-const mockSubmissions = [
-    { studentName: 'Alex Johnson', submittedAt: new Date(), status: 'Pending' },
-    { studentName: 'Maria Garcia', submittedAt: new Date(), status: 'Pending' },
-    { studentName: 'Sam Chen', submittedAt: new Date(), status: 'Graded' },
-];
-
+type Submission = {
+    studentId: string;
+    studentName: string;
+    submittedAt: Date;
+    status: 'Pending' | 'Graded';
+    score: number;
+}
 
 const getExamStatus = (startTime: Timestamp, endTime: Timestamp): { text: string; variant: "default" | "secondary" | "destructive" | "outline" } => {
     const now = new Date();
@@ -49,6 +50,88 @@ const getExamStatus = (startTime: Timestamp, endTime: Timestamp): { text: string
         return { text: 'Live', variant: 'destructive' };
     }
 };
+
+const ExamSubmissions = ({ examId }: { examId: string }) => {
+    const firestore = useFirestore();
+    const [submissions, setSubmissions] = useState<Submission[]>([]);
+    const [isLoading, setIsLoading] = useState(true);
+
+    useEffect(() => {
+        const fetchSubmissions = async () => {
+            if (!firestore) return;
+            setIsLoading(true);
+            const attempts: Submission[] = [];
+            const usersSnap = await getDocs(collection(firestore, 'users'));
+            for (const userDoc of usersSnap.docs) {
+                 const attemptsQuery = query(collection(firestore, 'users', userDoc.id, 'exam_attempts'), where => where('examId', '==', examId));
+                 const attemptsSnap = await getDocs(attemptsQuery);
+                 attemptsSnap.forEach(doc => {
+                     const data = doc.data();
+                     attempts.push({
+                         studentId: userDoc.id,
+                         studentName: userDoc.data().displayName || 'Anonymous',
+                         submittedAt: data.endTime.toDate(),
+                         status: data.status === 'graded' ? 'Graded' : 'Pending',
+                         score: data.score
+                     });
+                 });
+            }
+            setSubmissions(attempts);
+            setIsLoading(false);
+        }
+        fetchSubmissions();
+    }, [firestore, examId]);
+    
+    if (isLoading) {
+        return <div className="flex justify-center p-8"><Loader2 className="animate-spin" /></div>;
+    }
+
+    if (submissions.length === 0) {
+        return <p className="text-center text-muted-foreground p-8">No submissions for this exam yet.</p>
+    }
+
+    return (
+        <Card>
+            <CardContent className="p-0">
+                <Table>
+                    <TableHeader>
+                        <TableRow>
+                            <TableHead>Student Name</TableHead>
+                            <TableHead>Submitted At</TableHead>
+                            <TableHead>Score</TableHead>
+                            <TableHead>Status</TableHead>
+                            <TableHead className="text-right">Actions</TableHead>
+                        </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                        {submissions.map(sub => (
+                            <TableRow key={sub.studentId}>
+                                <TableCell className="font-medium">{sub.studentName}</TableCell>
+                                <TableCell>{sub.submittedAt.toLocaleString()}</TableCell>
+                                <TableCell>{sub.score.toFixed(1)}%</TableCell>
+                                <TableCell><Badge variant={sub.status === 'Graded' ? 'secondary' : 'default'}>{sub.status}</Badge></TableCell>
+                                <TableCell className="text-right">
+                                   <DropdownMenu>
+                                        <DropdownMenuTrigger asChild>
+                                            <Button variant="ghost" size="icon">
+                                                <MoreHorizontal className="h-4 w-4" />
+                                            </Button>
+                                        </DropdownMenuTrigger>
+                                        <DropdownMenuContent align="end">
+                                            <DropdownMenuItem>View Answer Sheet</DropdownMenuItem>
+                                            <DropdownMenuItem>Grade Submission</DropdownMenuItem>
+                                        </DropdownMenuContent>
+                                    </DropdownMenu>
+                                </TableCell>
+                            </TableRow>
+                        ))}
+                    </TableBody>
+                </Table>
+            </CardContent>
+        </Card>
+    );
+}
+
 
 export default function ExaminationsPage() {
     const firestore = useFirestore();
@@ -82,6 +165,7 @@ export default function ExaminationsPage() {
                     <p className="mt-2 text-muted-foreground">
                         You haven't uploaded any question papers yet.
                     </p>
+                     <Button className="mt-4" onClick={() => router.push('/admin/upload')}>Create Exam</Button>
                 </Card>
             ) : (
                 <Accordion type="single" collapsible className="w-full space-y-4">
@@ -114,42 +198,7 @@ export default function ExaminationsPage() {
                                                     <Button variant="default" size="sm"><Send className="mr-2 h-4 w-4" /> Publish Results</Button>
                                                  </div>
                                             </div>
-                                            <Card>
-                                                <CardContent className="p-0">
-                                                    <Table>
-                                                        <TableHeader>
-                                                            <TableRow>
-                                                                <TableHead>Student Name</TableHead>
-                                                                <TableHead>Submitted At</TableHead>
-                                                                <TableHead>Status</TableHead>
-                                                                <TableHead className="text-right">Actions</TableHead>
-                                                            </TableRow>
-                                                        </TableHeader>
-                                                        <TableBody>
-                                                            {mockSubmissions.map(sub => (
-                                                                <TableRow key={sub.studentName}>
-                                                                    <TableCell className="font-medium">{sub.studentName}</TableCell>
-                                                                    <TableCell>{sub.submittedAt.toLocaleString()}</TableCell>
-                                                                    <TableCell><Badge variant={sub.status === 'Graded' ? 'secondary' : 'default'}>{sub.status}</Badge></TableCell>
-                                                                    <TableCell className="text-right">
-                                                                       <DropdownMenu>
-                                                                            <DropdownMenuTrigger asChild>
-                                                                                <Button variant="ghost" size="icon">
-                                                                                    <MoreHorizontal className="h-4 w-4" />
-                                                                                </Button>
-                                                                            </DropdownMenuTrigger>
-                                                                            <DropdownMenuContent align="end">
-                                                                                <DropdownMenuItem>View Answer Sheet</DropdownMenuItem>
-                                                                                <DropdownMenuItem>Grade Submission</DropdownMenuItem>
-                                                                            </DropdownMenuContent>
-                                                                        </DropdownMenu>
-                                                                    </TableCell>
-                                                                </TableRow>
-                                                            ))}
-                                                        </TableBody>
-                                                    </Table>
-                                                </CardContent>
-                                            </Card>
+                                           <ExamSubmissions examId={exam.id} />
                                         </div>
                                     </AccordionContent>
                                 </Card>

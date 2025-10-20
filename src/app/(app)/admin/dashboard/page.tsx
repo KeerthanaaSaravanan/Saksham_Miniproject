@@ -24,10 +24,10 @@ import { Progress } from '@/components/ui/progress';
 import { ChartConfig, ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart';
 import { Bar, BarChart, ResponsiveContainer, XAxis, YAxis } from "recharts";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
-import { useUser, useFirestore, useMemoFirebase } from '@/firebase';
+import { useUser, useFirestore } from '@/firebase';
 import { Skeleton } from '@/components/ui/skeleton';
-import { useState, useEffect, useMemo } from 'react';
-import { collection, query, where, getDocs, Timestamp } from 'firebase/firestore';
+import { useState, useEffect } from 'react';
+import { collection, query, where, getDocs, Timestamp, doc } from 'firebase/firestore';
 
 type Student = {
     id: string;
@@ -43,6 +43,7 @@ type Exam = {
     title: string;
     subject: string;
     startTime: Timestamp;
+    endTime: Timestamp;
 };
 
 type SubjectPerformance = {
@@ -68,13 +69,28 @@ export default function AdminDashboardPage() {
         const fetchData = async () => {
             setIsLoading(true);
             
+            // Fetch all exams first to get their subjects
+            const examsQuery = query(collection(firestore, 'exams'));
+            const examsSnap = await getDocs(examsQuery);
+            const now = new Date();
+            
+            const examDetails: {[key: string]: {subject: string, startTime: Timestamp, endTime: Timestamp}} = {};
+            examsSnap.docs.forEach(doc => {
+                const data = doc.data();
+                examDetails[doc.id] = { subject: data.subject, startTime: data.startTime, endTime: data.endTime };
+            });
+
+            const upcomingExams = examsSnap.docs
+                .map(doc => ({ id: doc.id, ...doc.data() } as Exam))
+                .filter(exam => exam.startTime.toDate() > now && exam.startTime.toDate() < new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000))
+                .sort((a, b) => a.startTime.toDate().getTime() - b.startTime.toDate().getTime());
+            
+            setExams(upcomingExams);
+
             // Fetch Students and their progress
             const usersQuery = query(collection(firestore, 'users'), where('role', '==', 'student'));
             const usersSnap = await getDocs(usersQuery);
             const studentList: Student[] = [];
-            let totalAttemptsScore = 0;
-            let totalAttemptsCount = 0;
-
             const subjectScores: { [key: string]: { total: number, count: number } } = {};
 
             for (const userDoc of usersSnap.docs) {
@@ -90,10 +106,13 @@ export default function AdminDashboardPage() {
                         const attemptData = attemptDoc.data();
                         totalScore += attemptData.score;
                         
-                        // For subject performance chart
-                        const examId = attemptData.examId;
-                        // This part is inefficient and should be denormalized in a real app
-                        // but for now, we'll make a quick fetch to get subject
+                        // Use pre-fetched exam details for subject performance
+                        const subject = examDetails[attemptData.examId]?.subject;
+                        if(subject) {
+                            if(!subjectScores[subject]) subjectScores[subject] = { total: 0, count: 0 };
+                            subjectScores[subject].total += attemptData.score;
+                            subjectScores[subject].count++;
+                        }
                     });
                     studentProgress = totalScore / attemptsSnap.size;
                 }
@@ -104,46 +123,10 @@ export default function AdminDashboardPage() {
                     email: userData.email,
                     progress: studentProgress,
                     disability: 'N/A', // This would need to be fetched from their accessibility profile
-                    avatar: userData.photoURL || `https://picsum.photos/seed/${userDoc.id}/40/40`,
+                    avatar: userData.photoURL || `https://i.pravatar.cc/40?u=${userDoc.id}`,
                 });
             }
             setStudents(studentList);
-
-            // Fetch Exams for deadlines and stats
-            const examsQuery = query(collection(firestore, 'exams'));
-            const examsSnap = await getDocs(examsQuery);
-            const now = new Date();
-            const oneWeekFromNow = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
-            
-            const examList = examsSnap.docs
-                .map(doc => ({ id: doc.id, ...doc.data() } as Exam))
-                .filter(exam => exam.startTime.toDate() > now && exam.startTime.toDate() < oneWeekFromNow)
-                .sort((a, b) => a.startTime.toDate().getTime() - b.startTime.toDate().getTime());
-            
-            setExams(examList);
-
-            // Calculate subject performance
-            // This is a very inefficient way, in a real app you would denormalize or use a function
-            const allAttempts: { score: number; examId: string }[] = [];
-            for (const userDoc of usersSnap.docs) {
-                 const attemptsQuery = collection(firestore, 'users', userDoc.id, 'exam_attempts');
-                 const attemptsSnap = await getDocs(attemptsQuery);
-                 attemptsSnap.forEach(doc => allAttempts.push(doc.data() as any));
-            }
-            
-            const examDetails: {[key: string]: {subject: string}} = {};
-            for(const examDoc of examsSnap.docs) {
-                examDetails[examDoc.id] = examDoc.data() as any;
-            }
-
-            allAttempts.forEach(attempt => {
-                const subject = examDetails[attempt.examId]?.subject;
-                if(subject) {
-                    if(!subjectScores[subject]) subjectScores[subject] = { total: 0, count: 0 };
-                    subjectScores[subject].total += attempt.score;
-                    subjectScores[subject].count++;
-                }
-            });
             
             const performanceData = Object.entries(subjectScores).map(([subject, data]) => ({
                 subject,
@@ -156,8 +139,7 @@ export default function AdminDashboardPage() {
                 ...prev,
                 totalStudents: usersSnap.size,
                 assessmentsCreated: examsSnap.size,
-                activeExams: examsSnap.docs.filter(doc => {
-                    const exam = doc.data() as Exam;
+                activeExams: Object.values(examDetails).filter(exam => {
                     return exam.startTime.toDate() < now && exam.endTime.toDate() > now;
                 }).length,
             }));
