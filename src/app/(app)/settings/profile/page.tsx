@@ -77,7 +77,7 @@ export default function ProfileSettingsPage() {
     if (!isUserLoading && user && firestore) {
       const fetchUserProfile = async () => {
         setIsProfileLoading(true);
-        setName(user.displayName || (isFaculty ? 'Dr. Dakshata' : ''));
+        setName(user.displayName || '');
         setCurrentAvatarUrl(user.photoURL || avatars[0].url);
         
         const userDocRef = doc(firestore, 'users', user.uid);
@@ -107,7 +107,6 @@ export default function ProfileSettingsPage() {
       fetchUserProfile();
     } else if (!isUserLoading) {
         setIsProfileLoading(false);
-         if(isFaculty) setName('Dr. Dakshata');
     }
   }, [user, firestore, isUserLoading, isFaculty]);
 

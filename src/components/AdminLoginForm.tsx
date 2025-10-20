@@ -7,11 +7,8 @@ import { Label } from '@/components/ui/label';
 import { useRouter } from 'next/navigation';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2, KeyRound, AtSign, Eye, EyeOff } from 'lucide-react';
-
-const adminUsers = {
-  'dakshata@gmail.com': 'saksham',
-  'sai@gamil.com': 'saksham',
-};
+import { useAuth } from '@/firebase';
+import { signInWithEmailAndPassword } from 'firebase/auth';
 
 export function AdminLoginForm() {
   const [email, setEmail] = useState('');
@@ -20,31 +17,44 @@ export function AdminLoginForm() {
   const [showPassword, setShowPassword] = useState(false);
   const router = useRouter();
   const { toast } = useToast();
+  const auth = useAuth();
 
   const handleAdminLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
 
-    // Simulate network delay
-    await new Promise((resolve) => setTimeout(resolve, 1000));
+    if (!auth) {
+      toast({
+        variant: 'destructive',
+        title: 'Error',
+        description: 'Authentication service is not available.',
+      });
+      setIsLoading(false);
+      return;
+    }
 
-    const expectedPassword = adminUsers[email as keyof typeof adminUsers];
-
-    if (expectedPassword && password === expectedPassword) {
+    try {
+      await signInWithEmailAndPassword(auth, email, password);
       toast({
         title: 'Admin Login Successful',
         description: 'Welcome back, Admin!',
       });
       router.push('/admin/dashboard');
-    } else {
+    } catch (error: any) {
+      let description = 'An unexpected error occurred.';
+      if (error.code === 'auth/user-not-found' || error.code === 'auth/wrong-password' || error.code === 'auth/invalid-credential') {
+        description = 'Invalid email or password for admin account.';
+      } else if (error.code === 'auth/invalid-email') {
+        description = 'The email address is not valid.';
+      }
       toast({
         variant: 'destructive',
         title: 'Login Failed',
-        description: 'Invalid email or password for admin account.',
+        description: description,
       });
+    } finally {
+      setIsLoading(false);
     }
-
-    setIsLoading(false);
   };
 
   return (
