@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState } from 'react';
@@ -8,8 +9,8 @@ import { useRouter } from 'next/navigation';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2, KeyRound, AtSign, Eye, EyeOff } from 'lucide-react';
 import { useAuth, useFirestore, errorEmitter, FirestorePermissionError } from '@/firebase';
-import { signInWithEmailAndPassword } from 'firebase/auth';
-import { doc, getDoc } from 'firebase/firestore';
+import { signInWithEmailAndPassword, createUserWithEmailAndPassword } from 'firebase/auth';
+import { doc, getDoc, setDoc } from 'firebase/firestore';
 
 export function AdminLoginForm() {
   const [email, setEmail] = useState('');
@@ -36,6 +37,7 @@ export function AdminLoginForm() {
     }
 
     try {
+      // First, try to sign in
       const userCredential = await signInWithEmailAndPassword(auth, email, password);
       const user = userCredential.user;
 
@@ -50,7 +52,6 @@ export function AdminLoginForm() {
         });
         router.push('/admin/dashboard');
       } else {
-        // Not a faculty member, sign them out and show error
         await auth.signOut();
         toast({
           variant: 'destructive',
@@ -58,24 +59,56 @@ export function AdminLoginForm() {
           description: 'This account does not have faculty privileges.',
         });
       }
-
     } catch (error: any) {
-      let description = 'An unexpected error occurred.';
-      if (error.code === 'auth/user-not-found' || error.code === 'auth/wrong-password' || error.code === 'auth/invalid-credential') {
-        description = 'Invalid email or password for faculty account.';
-      } else if (error.code === 'auth/invalid-email') {
-        description = 'The email address is not valid.';
-      } else if (error.name === 'FirebaseError') { // Catch Firestore permission errors
-        description = 'Could not verify faculty status. Please check permissions.';
-        const permissionError = new FirestorePermissionError({ path: `users/${auth.currentUser?.uid}`, operation: 'get' });
-        errorEmitter.emit('permission-error', permissionError);
+      // If user not found, attempt to create a new faculty account
+      if (error.code === 'auth/user-not-found' || error.code === 'auth/invalid-credential') {
+        try {
+          const newUserCredential = await createUserWithEmailAndPassword(auth, email, password);
+          const newUser = newUserCredential.user;
+          
+          const userDocRef = doc(firestore, 'users', newUser.uid);
+          const facultyData = {
+              displayName: email.split('@')[0],
+              email: newUser.email,
+              uid: newUser.uid,
+              role: 'faculty'
+          };
+          
+          // Set the user's role to 'faculty' in Firestore
+          await setDoc(userDocRef, facultyData);
+          
+          toast({
+            title: 'Faculty Account Created',
+            description: 'Welcome! Your account has been provisioned.',
+          });
+          router.push('/admin/dashboard');
+
+        } catch (signUpError: any) {
+          toast({
+            variant: 'destructive',
+            title: 'Sign-Up Failed',
+            description: signUpError.message || 'Could not create faculty account.',
+          });
+        }
+      } else {
+        // Handle other sign-in errors
+        let description = 'An unexpected error occurred.';
+        if (error.code === 'auth/wrong-password') {
+            description = 'Invalid email or password for faculty account.';
+        } else if (error.code === 'auth/invalid-email') {
+          description = 'The email address is not valid.';
+        } else if (error.name === 'FirebaseError') {
+          description = 'Could not verify faculty status. Please check permissions.';
+          const permissionError = new FirestorePermissionError({ path: `users/${auth.currentUser?.uid}`, operation: 'get' });
+          errorEmitter.emit('permission-error', permissionError);
+        }
+        
+        toast({
+          variant: 'destructive',
+          title: 'Login Failed',
+          description: description,
+        });
       }
-      
-      toast({
-        variant: 'destructive',
-        title: 'Login Failed',
-        description: description,
-      });
     } finally {
       setIsLoading(false);
     }
