@@ -24,7 +24,8 @@ import { Progress } from '@/components/ui/progress';
 import { ChartConfig, ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart';
 import { Bar, BarChart, ResponsiveContainer, XAxis, YAxis } from "recharts";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
-
+import { useUser } from '@/firebase';
+import { Skeleton } from '@/components/ui/skeleton';
 
 const students = [
   { name: 'Alex Johnson', email: 'alex.j@example.com', progress: 78, disability: 'Dyslexia', avatar: 'https://picsum.photos/seed/alex/40/40' },
@@ -51,14 +52,25 @@ const chartConfig = {
 } satisfies ChartConfig
 
 export default function AdminDashboardPage() {
+    const { user, isUserLoading } = useUser();
+    const facultyName = user?.displayName || 'Faculty';
+
   return (
     <div className="space-y-8">
-      <div>
-        <h1 className="text-3xl font-bold font-headline">Welcome back, Dr. Reed!</h1>
-        <p className="text-muted-foreground">
-            Here's a summary of your academic operations and student progress.
-        </p>
-      </div>
+      {isUserLoading ? (
+        <div className="space-y-2">
+            <Skeleton className="h-8 w-64" />
+            <Skeleton className="h-5 w-96" />
+        </div>
+      ) : (
+        <div>
+            <h1 className="text-3xl font-bold font-headline">Welcome back, {facultyName}!</h1>
+            <p className="text-muted-foreground">
+                Here's a summary of your academic operations and student progress.
+            </p>
+        </div>
+      )}
+
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <Card>
