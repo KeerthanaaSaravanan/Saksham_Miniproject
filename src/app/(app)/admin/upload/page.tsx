@@ -76,10 +76,7 @@ function UploadPageComponent() {
   const [uploadedFile, setUploadedFile] = useState<File | null>(null);
   const { toast } = useToast();
   const firestore = useFirestore();
-
-  const form = useForm<z.infer<typeof formSchema>>({
-    resolver: zodResolver(formSchema),
-    defaultValues: {
+  const defaultValues = {
       title: '',
       subject: '',
       gradeLevel: '',
@@ -88,7 +85,11 @@ function UploadPageComponent() {
       endTime: '',
       durationMinutes: 180,
       questions: [],
-    },
+    };
+
+  const form = useForm<z.infer<typeof formSchema>>({
+    resolver: zodResolver(formSchema),
+    defaultValues: defaultValues,
   });
 
   const { fields, append, remove, replace } = useFieldArray({
@@ -144,8 +145,12 @@ function UploadPageComponent() {
             setIsDataLoading(false);
         }
     }
-    fetchExamData();
-  }, [examId, firestore, form, replace, router, toast]);
+    if (isEditMode) {
+      fetchExamData();
+    } else {
+        form.reset(defaultValues);
+    }
+  }, [examId, firestore, form, replace, router, toast, isEditMode]);
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -197,6 +202,12 @@ function UploadPageComponent() {
         setIsParsing(false);
     };
   };
+  
+  const handleCreateNew = () => {
+    form.reset(defaultValues);
+    setUploadedFile(null);
+    router.push('/admin/upload');
+  }
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
     if (!firestore) {
@@ -277,7 +288,7 @@ function UploadPageComponent() {
               {isEditMode ? 'Modify the details of the existing exam.' : 'Create exams using AI-powered document parsing or manual entry.'}
             </p>
           </div>
-          <Button variant="outline" onClick={() => router.push('/admin/upload')}>
+          <Button variant="outline" onClick={handleCreateNew}>
             <FilePlusIcon className="mr-2 h-4 w-4" />
             Create New
           </Button>
@@ -302,7 +313,7 @@ function UploadPageComponent() {
                 )} />
                 <FormField control={form.control} name="gradeLevel" render={({ field }) => (
                   <FormItem><FormLabel>Grade Level</FormLabel><Select onValueChange={field.onChange} value={field.value}><FormControl><SelectTrigger><SelectValue placeholder="Select a grade" /></SelectTrigger></FormControl><SelectContent>
-                          {[...Array(5)].map((_, i) => <SelectItem key={i+8} value={`Class ${i + 8}`}>{`Class ${i + 8}`}</SelectItem>)}
+                          {[...Array(7)].map((_, i) => <SelectItem key={i+6} value={`Class ${i + 6}`}>{`Class ${i + 6}`}</SelectItem>)}
                   </SelectContent></Select><FormMessage /></FormItem>
                 )} />
               </div>
