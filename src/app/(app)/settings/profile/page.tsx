@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -45,6 +46,7 @@ const gradeConfig = {
   'Competitive Exam': { streams: ['UPSC', 'TNPSC', 'GATE', 'CSAT'] },
 };
 
+const facultyGrades = ['Class 6', 'Class 7', 'Class 8', 'Class 9', 'Class 10', 'Class 11', 'Class 12'];
 const facultySubjects = ["Mathematics", "Physics", "Chemistry", "Biology", "Social Studies", "English", "Computer Science"];
 
 export default function ProfileSettingsPage() {
@@ -133,7 +135,7 @@ export default function ProfileSettingsPage() {
     }
 
     const userDocRef = doc(firestore, "users", user.uid);
-    let dataToSave: any = { displayName: name };
+    let dataToSave: any = { displayName: name, email: user.email, uid: user.uid };
 
     if (isFaculty) {
         dataToSave = { ...dataToSave, handledGrades, handledSubjects, role: 'faculty' };
@@ -287,7 +289,7 @@ export default function ProfileSettingsPage() {
                       <div className="space-y-4">
                         <Label><Briefcase className="inline-block mr-2" />Handled Grades</Label>
                         <div className="grid grid-cols-2 md:grid-cols-3 gap-4 p-4 border rounded-md">
-                            {['Class 6', 'Class 7', 'Class 8', 'Class 9', 'Class 10', 'Class 11', 'Class 12'].map(g => (
+                            {facultyGrades.map(g => (
                                 <div key={g} className="flex items-center space-x-2">
                                     <Checkbox id={`grade-${g}`} checked={handledGrades.includes(g)} onCheckedChange={(checked) => onGradeCheckedChange(g, !!checked)} />
                                     <Label htmlFor={`grade-${g}`} className="font-normal">{g}</Label>
@@ -349,3 +351,5 @@ export default function ProfileSettingsPage() {
     </div>
   );
 }
+
+    
