@@ -217,126 +217,96 @@ export default function AdminDashboardPage() {
         </Card>
       </div>
 
-       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <Card className="lg:col-span-2">
-            <CardHeader>
-                <CardTitle>Average Performance by Subject</CardTitle>
-                <CardDescription>An overview of student scores across different subjects.</CardDescription>
-            </CardHeader>
-            <CardContent className="pl-2">
-                {isLoading ? <Skeleton className="h-[250px] w-full" /> : (
-                    subjectPerformance.length > 0 ? (
-                        <ChartContainer config={chartConfig} className="h-[250px] w-full">
-                            <BarChart accessibilityLayer data={subjectPerformance}>
-                                <XAxis dataKey="subject" tickLine={false} tickMargin={10} axisLine={false} tickFormatter={(value) => value.slice(0, 8)} />
-                                <YAxis stroke="#888888" fontSize={12} tickLine={false} axisLine={false} />
-                                <ChartTooltip cursor={false} content={<ChartTooltipContent />} />
-                                <Bar dataKey="score" fill="var(--color-score)" radius={4} />
-                            </BarChart>
-                        </ChartContainer>
+       <div className="grid grid-cols-1 xl:grid-cols-5 gap-6">
+            <Card className="xl:col-span-2">
+                <CardHeader>
+                    <CardTitle>Average Performance by Subject</CardTitle>
+                    <CardDescription>An overview of student scores across different subjects.</CardDescription>
+                </CardHeader>
+                <CardContent className="pl-2">
+                    {isLoading ? <Skeleton className="h-[300px] w-full" /> : (
+                        subjectPerformance.length > 0 ? (
+                            <ChartContainer config={chartConfig} className="h-[300px] w-full">
+                                <BarChart accessibilityLayer data={subjectPerformance}>
+                                    <XAxis dataKey="subject" tickLine={false} tickMargin={10} axisLine={false} tickFormatter={(value) => value.slice(0, 8)} />
+                                    <YAxis stroke="#888888" fontSize={12} tickLine={false} axisLine={false} />
+                                    <ChartTooltip cursor={false} content={<ChartTooltipContent />} />
+                                    <Bar dataKey="score" fill="var(--color-score)" radius={4} />
+                                </BarChart>
+                            </ChartContainer>
+                        ) : (
+                            <div className="h-[300px] flex items-center justify-center text-muted-foreground">No performance data available yet.</div>
+                        )
+                    )}
+                </CardContent>
+            </Card>
+            <Card className="xl:col-span-3">
+                <CardHeader>
+                    <CardTitle>Student Progress Overview</CardTitle>
+                    <CardDescription>A summary of student performance and activity.</CardDescription>
+                </CardHeader>
+                <CardContent>
+                    {isLoading ? (
+                        <div className="space-y-2">
+                            {[...Array(5)].map((_, i) => <Skeleton key={i} className="h-14 w-full" />)}
+                        </div>
                     ) : (
-                        <div className="h-[250px] flex items-center justify-center text-muted-foreground">No performance data available yet.</div>
-                    )
-                )}
-            </CardContent>
-        </Card>
-        <Card>
-            <CardHeader>
-                <CardTitle>Upcoming Deadlines</CardTitle>
-                 <CardDescription>Exams and grading scheduled for this week.</CardDescription>
-            </CardHeader>
-            <CardContent className="grid gap-4">
-                {isLoading ? (
-                    <div className="space-y-4">
-                        <Skeleton className="h-12 w-full" />
-                        <Skeleton className="h-12 w-full" />
-                        <Skeleton className="h-12 w-full" />
-                    </div>
-                ) : exams.length > 0 ? (
-                    exams.slice(0, 3).map(exam => (
-                        <div key={exam.id} className="flex items-center">
-                            <div className="rounded-full bg-primary/10 p-3">
-                                <BookOpen className="h-5 w-5 text-primary" />
-                            </div>
-                            <div className="ml-4 space-y-1">
-                                <p className="text-sm font-medium leading-none">{exam.title}</p>
-                                <p className="text-sm text-muted-foreground">{exam.startTime.toDate().toLocaleString()}</p>
-                            </div>
-                        </div>
-                    ))
-                ) : (
-                    <div className="flex items-center justify-center h-full text-sm text-muted-foreground">No upcoming deadlines this week.</div>
-                )}
-            </CardContent>
-        </Card>
+                    <Table>
+                        <TableHeader>
+                        <TableRow>
+                            <TableHead>Student</TableHead>
+                            <TableHead>Accessibility Need</TableHead>
+                            <TableHead className="w-48">Overall Progress</TableHead>
+                            <TableHead className='text-right'>Actions</TableHead>
+                        </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                        {students.map((student) => (
+                            <TableRow key={student.id}>
+                            <TableCell>
+                                <div className="flex items-center gap-4">
+                                <Avatar className="h-9 w-9">
+                                    <AvatarImage src={student.avatar} alt="Avatar" />
+                                    <AvatarFallback>{student.name.charAt(0)}</AvatarFallback>
+                                </Avatar>
+                                <div className="grid gap-1">
+                                    <p className="text-sm font-medium leading-none text-foreground">{student.name}</p>
+                                    <p className="text-xs text-muted-foreground">{student.email}</p>
+                                </div>
+                                </div>
+                            </TableCell>
+                            <TableCell>
+                                <Badge variant={student.disability === 'N/A' ? "secondary" : "outline"}>{student.disability}</Badge>
+                            </TableCell>
+                            <TableCell>
+                                <div className="flex items-center gap-2">
+                                    <Progress value={student.progress} className="w-full bg-muted h-2" />
+                                    <span className="text-xs text-muted-foreground font-medium">{student.progress.toFixed(0)}%</span>
+                                </div>
+                            </TableCell>
+                            <TableCell className='text-right'>
+                                <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                    <Button aria-haspopup="true" size="icon" variant="ghost">
+                                    <MoreHorizontal className="h-4 w-4" />
+                                    <span className="sr-only">Toggle menu</span>
+                                    </Button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent align="end">
+                                    <DropdownMenuItem>View Profile</DropdownMenuItem>
+                                    <DropdownMenuItem>Check Submissions</DropdownMenuItem>
+                                    <DropdownMenuItem>Send Message</DropdownMenuItem>
+                                </DropdownMenuContent>
+                                </DropdownMenu>
+                            </TableCell>
+                            </TableRow>
+                        ))}
+                        </TableBody>
+                    </Table>
+                    )}
+                </CardContent>
+            </Card>
        </div>
-
-      <Card>
-        <CardHeader>
-          <CardTitle>Student Progress Overview</CardTitle>
-          <CardDescription>A summary of student performance and activity.</CardDescription>
-        </CardHeader>
-        <CardContent>
-            {isLoading ? (
-                <div className="space-y-2">
-                    {[...Array(5)].map((_, i) => <Skeleton key={i} className="h-14 w-full" />)}
-                </div>
-            ) : (
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Student</TableHead>
-                    <TableHead>Accessibility Need</TableHead>
-                    <TableHead className="w-48">Overall Progress</TableHead>
-                    <TableHead className='text-right'>Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {students.map((student) => (
-                    <TableRow key={student.id}>
-                      <TableCell>
-                        <div className="flex items-center gap-4">
-                          <Avatar className="h-9 w-9">
-                            <AvatarImage src={student.avatar} alt="Avatar" />
-                            <AvatarFallback>{student.name.charAt(0)}</AvatarFallback>
-                          </Avatar>
-                          <div className="grid gap-1">
-                            <p className="text-sm font-medium leading-none text-foreground">{student.name}</p>
-                            <p className="text-xs text-muted-foreground">{student.email}</p>
-                          </div>
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <Badge variant={student.disability === 'N/A' ? "secondary" : "outline"}>{student.disability}</Badge>
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex items-center gap-2">
-                            <Progress value={student.progress} className="w-full bg-muted h-2" />
-                            <span className="text-xs text-muted-foreground font-medium">{student.progress.toFixed(0)}%</span>
-                        </div>
-                      </TableCell>
-                      <TableCell className='text-right'>
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                             <Button aria-haspopup="true" size="icon" variant="ghost">
-                              <MoreHorizontal className="h-4 w-4" />
-                              <span className="sr-only">Toggle menu</span>
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end">
-                            <DropdownMenuItem>View Profile</DropdownMenuItem>
-                            <DropdownMenuItem>Check Submissions</DropdownMenuItem>
-                            <DropdownMenuItem>Send Message</DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            )}
-        </CardContent>
-      </Card>
     </div>
   );
 }
