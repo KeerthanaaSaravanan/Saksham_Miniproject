@@ -13,7 +13,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { User, GraduationCap, Save, Loader2, Image as ImageIcon } from 'lucide-react';
+import { User, GraduationCap, Save, Loader2, Image as ImageIcon, Briefcase } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import {
   Select,
@@ -28,6 +28,8 @@ import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { Skeleton } from '@/components/ui/skeleton';
 import { avatars } from '@/lib/avatars';
 import { AvatarSelector } from '@/components/AvatarSelector';
+import { Checkbox } from '@/components/ui/checkbox';
+import { usePathname } from 'next/navigation';
 
 const gradeConfig = {
   'Class 6': { subjects: true },
@@ -43,13 +45,26 @@ const gradeConfig = {
   'Competitive Exam': { streams: ['UPSC', 'TNPSC', 'GATE', 'CSAT'] },
 };
 
+const facultySubjects = ["Mathematics", "Physics", "Chemistry", "Biology", "Social Studies", "English", "Computer Science"];
+
 export default function ProfileSettingsPage() {
   const { user, isUserLoading } = useUser();
   const firestore = useFirestore();
+  const pathname = usePathname();
+  const isFaculty = pathname.includes('/admin');
+
+  // Common State
   const [name, setName] = useState('');
+  const [currentAvatarUrl, setCurrentAvatarUrl] = useState(avatars[0].url);
+  
+  // Student State
   const [grade, setGrade] = useState('');
   const [stream, setStream] = useState('');
-  const [currentAvatarUrl, setCurrentAvatarUrl] = useState(avatars[0].url);
+
+  // Faculty State
+  const [handledGrades, setHandledGrades] = useState<string[]>([]);
+  const [handledSubjects, setHandledSubjects] = useState<string[]>([]);
+
   const [isSaving, setIsSaving] = useState(false);
   const [isPhotoSaving, setIsPhotoSaving] = useState(false);
   const [isProfileLoading, setIsProfileLoading] = useState(true);
@@ -60,7 +75,7 @@ export default function ProfileSettingsPage() {
     if (!isUserLoading && user && firestore) {
       const fetchUserProfile = async () => {
         setIsProfileLoading(true);
-        setName(user.displayName || '');
+        setName(user.displayName || (isFaculty ? 'Dr. Dakshata' : ''));
         setCurrentAvatarUrl(user.photoURL || avatars[0].url);
         
         const userDocRef = doc(firestore, 'users', user.uid);
@@ -68,8 +83,13 @@ export default function ProfileSettingsPage() {
             const userDocSnap = await getDoc(userDocRef);
             if (userDocSnap.exists()) {
               const userData = userDocSnap.data();
-              setGrade(userData.grade || '');
-              setStream(userData.stream || '');
+              if(isFaculty) {
+                setHandledGrades(userData.handledGrades || []);
+                setHandledSubjects(userData.handledSubjects || []);
+              } else {
+                setGrade(userData.grade || '');
+                setStream(userData.stream || '');
+              }
             }
         } catch (error: any) {
             const permissionError = new FirestorePermissionError({
@@ -85,13 +105,14 @@ export default function ProfileSettingsPage() {
       fetchUserProfile();
     } else if (!isUserLoading) {
         setIsProfileLoading(false);
+         if(isFaculty) setName('Dr. Dakshata');
     }
-  }, [user, firestore, isUserLoading]);
+  }, [user, firestore, isUserLoading, isFaculty]);
 
 
   const selectedGradeConfig = gradeConfig[grade as keyof typeof gradeConfig];
   
-  const userInitial = name.split(' ').map((n) => n[0]).join('') || 'U';
+  const userInitial = name.split(' ').map((n) => n[0]).join('') || (isFaculty ? 'F' : 'U');
 
   const handleSaveChanges = async () => {
     if (!user || !firestore) {
@@ -100,6 +121,7 @@ export default function ProfileSettingsPage() {
     }
     setIsSaving(true);
     
+    // This part is common for both students and faculty
     if (user.displayName !== name) {
       try {
         await updateProfile(user, { displayName: name });
@@ -111,11 +133,13 @@ export default function ProfileSettingsPage() {
     }
 
     const userDocRef = doc(firestore, "users", user.uid);
-    const dataToSave = {
-      displayName: name,
-      grade: grade,
-      stream: stream,
-    };
+    let dataToSave: any = { displayName: name };
+
+    if (isFaculty) {
+        dataToSave = { ...dataToSave, handledGrades, handledSubjects, role: 'faculty' };
+    } else {
+        dataToSave = { ...dataToSave, grade, stream, role: 'student' };
+    }
     
     setDoc(userDocRef, dataToSave, { merge: true })
       .then(() => {
@@ -145,9 +169,7 @@ export default function ProfileSettingsPage() {
     setIsPhotoSaving(true);
 
     try {
-        await updateProfile(user, {
-            photoURL: currentAvatarUrl,
-        });
+        await updateProfile(user, { photoURL: currentAvatarUrl });
     } catch (error: any) {
         toast({ variant: 'destructive', title: 'Avatar Update Failed', description: error.message });
         setIsPhotoSaving(false);
@@ -155,16 +177,11 @@ export default function ProfileSettingsPage() {
     }
 
     const userDocRef = doc(firestore, "users", user.uid);
-    const dataToSave = {
-      photoURL: currentAvatarUrl,
-    };
+    const dataToSave = { photoURL: currentAvatarUrl };
 
     setDoc(userDocRef, dataToSave, { merge: true })
       .then(() => {
-          toast({
-              title: 'Avatar Updated!',
-              description: 'Your new profile picture has been saved.',
-          });
+          toast({ title: 'Avatar Updated!', description: 'Your new profile picture has been saved.' });
       })
       .catch(async (serverError) => {
           const permissionError = new FirestorePermissionError({
@@ -178,13 +195,20 @@ export default function ProfileSettingsPage() {
           setIsPhotoSaving(false);
       });
   };
+
+  const onGradeCheckedChange = (grade: string, isChecked: boolean) => {
+    setHandledGrades(prev => isChecked ? [...prev, grade] : prev.filter(g => g !== grade));
+  };
+  const onSubjectCheckedChange = (subject: string, isChecked: boolean) => {
+    setHandledSubjects(prev => isChecked ? [...prev, subject] : prev.filter(s => s !== subject));
+  };
   
   const isLoading = isUserLoading || isProfileLoading;
 
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-3xl font-bold font-headline">Profile Settings</h1>
+        <h1 className="text-3xl font-bold font-headline">{isFaculty ? "Faculty Profile" : "Profile Settings"}</h1>
         <p className="text-muted-foreground">
           Manage your personal information and preferences.
         </p>
@@ -222,11 +246,7 @@ export default function ProfileSettingsPage() {
                 disabled={isPhotoSaving || isLoading}
                 className="w-full"
               >
-                {isPhotoSaving ? (
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                ) : (
-                  <ImageIcon className="mr-2 h-4 w-4" />
-                )}
+                {isPhotoSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <ImageIcon className="mr-2 h-4 w-4" />}
                 {isPhotoSaving ? 'Saving...' : 'Save Avatar'}
               </Button>
             </CardFooter>
@@ -238,7 +258,7 @@ export default function ProfileSettingsPage() {
             <CardHeader>
               <CardTitle>Personal Information</CardTitle>
               <CardDescription>
-                Update your name and grade level.
+                Update your name and {isFaculty ? 'teaching specializations' : 'grade level'}.
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
@@ -259,69 +279,67 @@ export default function ProfileSettingsPage() {
                     <Label htmlFor="name">
                       <User className="inline-block mr-2" /> Full Name
                     </Label>
-                    <Input
-                      id="name"
-                      value={name}
-                      onChange={(e) => setName(e.target.value)}
-                      className="h-12 text-base"
-                    />
+                    <Input id="name" value={name} onChange={(e) => setName(e.target.value)} className="h-12 text-base" />
                   </div>
+                  
+                  {isFaculty ? (
+                    <>
+                      <div className="space-y-4">
+                        <Label><Briefcase className="inline-block mr-2" />Handled Grades</Label>
+                        <div className="grid grid-cols-2 md:grid-cols-3 gap-4 p-4 border rounded-md">
+                            {['Class 6', 'Class 7', 'Class 8', 'Class 9', 'Class 10', 'Class 11', 'Class 12'].map(g => (
+                                <div key={g} className="flex items-center space-x-2">
+                                    <Checkbox id={`grade-${g}`} checked={handledGrades.includes(g)} onCheckedChange={(checked) => onGradeCheckedChange(g, !!checked)} />
+                                    <Label htmlFor={`grade-${g}`} className="font-normal">{g}</Label>
+                                </div>
+                            ))}
+                        </div>
+                      </div>
+                       <div className="space-y-4">
+                        <Label><Briefcase className="inline-block mr-2" />Handled Subjects</Label>
+                        <div className="grid grid-cols-2 md:grid-cols-3 gap-4 p-4 border rounded-md">
+                            {facultySubjects.map(s => (
+                                <div key={s} className="flex items-center space-x-2">
+                                    <Checkbox id={`subj-${s}`} checked={handledSubjects.includes(s)} onCheckedChange={(checked) => onSubjectCheckedChange(s, !!checked)} />
+                                    <Label htmlFor={`subj-${s}`} className="font-normal">{s}</Label>
+                                </div>
+                            ))}
+                        </div>
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      <div className="space-y-2">
+                        <Label htmlFor="grade">
+                          <GraduationCap className="inline-block mr-2" /> Grade / Level
+                        </Label>
+                        <Select value={grade} onValueChange={(value) => { setGrade(value); setStream(''); }}>
+                          <SelectTrigger id="grade" className="h-12 text-base"><SelectValue placeholder="Select your grade or level" /></SelectTrigger>
+                          <SelectContent>
+                            {Object.keys(gradeConfig).map((g) => (<SelectItem key={g} value={g}>{g}</SelectItem>))}
+                          </SelectContent>
+                        </Select>
+                      </div>
 
-                  <div className="space-y-2">
-                    <Label htmlFor="grade">
-                      <GraduationCap className="inline-block mr-2" /> Grade / Level
-                    </Label>
-                    <Select
-                      value={grade}
-                      onValueChange={(value) => {
-                        setGrade(value);
-                        setStream('');
-                      }}
-                    >
-                      <SelectTrigger id="grade" className="h-12 text-base">
-                        <SelectValue placeholder="Select your grade or level" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {Object.keys(gradeConfig).map((g) => (
-                          <SelectItem key={g} value={g}>
-                            {g}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  {grade && selectedGradeConfig?.streams && (
-                    <div className="space-y-2 animate-fade-in">
-                      <Label htmlFor="stream">Stream / Exam</Label>
-                      <Select value={stream} onValueChange={setStream} required>
-                        <SelectTrigger id="stream" className="h-12 text-base">
-                          <SelectValue placeholder="Select your stream or exam" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {selectedGradeConfig.streams.map((s) => (
-                            <SelectItem key={s} value={s}>
-                              {s}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
+                      {grade && selectedGradeConfig?.streams && (
+                        <div className="space-y-2 animate-fade-in">
+                          <Label htmlFor="stream">Stream / Exam</Label>
+                          <Select value={stream} onValueChange={setStream} required>
+                            <SelectTrigger id="stream" className="h-12 text-base"><SelectValue placeholder="Select your stream or exam" /></SelectTrigger>
+                            <SelectContent>
+                              {selectedGradeConfig.streams.map((s) => (<SelectItem key={s} value={s}>{s}</SelectItem>))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      )}
+                    </>
                   )}
                 </>
               )}
             </CardContent>
             <CardFooter>
-              <Button
-                size="lg"
-                onClick={handleSaveChanges}
-                disabled={isSaving || isLoading}
-              >
-                {isSaving ? (
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                ) : (
-                  <Save className="mr-2 h-4 w-4" />
-                )}
+              <Button size="lg" onClick={handleSaveChanges} disabled={isSaving || isLoading}>
+                {isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
                 {isSaving ? 'Saving...' : 'Save Changes'}
               </Button>
             </CardFooter>
@@ -331,4 +349,3 @@ export default function ProfileSettingsPage() {
     </div>
   );
 }
-    

@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { useForm, useFieldArray } from 'react-hook-form';
+import { useForm, useFieldArray, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import {
@@ -32,17 +32,19 @@ import {
 } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, Upload, PlusCircle, XCircle } from 'lucide-react';
+import { Loader2, Upload, PlusCircle, XCircle, FileText, Wand2 } from 'lucide-react';
 import { useFirestore, errorEmitter, FirestorePermissionError } from '@/firebase';
 import { collection, serverTimestamp, doc, writeBatch } from 'firebase/firestore';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { extractQuestionsFromDocument } from '@/lib/actions/document-parser';
 
 
 const questionSchema = z.object({
   question: z.string().min(5, "Question must be at least 5 characters."),
-  options: z.array(z.string()).min(2, "Must have at least 2 options."),
+  type: z.enum(['mcq', 'fillup', 'short-answer', 'long-answer']),
+  options: z.array(z.string()).optional(),
   correctAnswer: z.string().min(1, "Correct answer is required."),
-  type: z.string().default('mcq'), // Default to multiple choice
-  difficulty: z.string().default('medium'),
+  marks: z.coerce.number().min(1, "Marks are required."),
 });
 
 const formSchema = z.object({
@@ -57,6 +59,8 @@ const formSchema = z.object({
 
 export default function UploadPage() {
   const [isLoading, setIsLoading] = useState(false);
+  const [isParsing, setIsParsing] = useState(false);
+  const [uploadedFile, setUploadedFile] = useState<File | null>(null);
   const { toast } = useToast();
   const firestore = useFirestore();
 
@@ -68,15 +72,64 @@ export default function UploadPage() {
       gradeLevel: '',
       startTime: '',
       endTime: '',
-      durationMinutes: 60,
+      durationMinutes: 180,
       questions: [],
     },
   });
 
-  const { fields, append, remove } = useFieldArray({
+  const { fields, append, remove, replace } = useFieldArray({
     control: form.control,
     name: "questions"
   });
+
+  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file) {
+      setUploadedFile(file);
+    }
+  };
+
+  const handleParseDocument = async () => {
+    if (!uploadedFile) {
+        toast({ variant: 'destructive', title: 'No File Selected', description: 'Please select a document to parse.'});
+        return;
+    }
+    if (!form.getValues('subject') || !form.getValues('gradeLevel')) {
+      toast({ variant: 'destructive', title: 'Missing Details', description: 'Please select a subject and grade level before parsing.' });
+      return;
+    }
+
+    setIsParsing(true);
+    
+    const reader = new FileReader();
+    reader.readAsDataURL(uploadedFile);
+    reader.onload = async () => {
+        const dataUri = reader.result as string;
+        try {
+            const result = await extractQuestionsFromDocument({
+                documentDataUri: dataUri,
+                subject: form.getValues('subject'),
+                gradeLevel: form.getValues('gradeLevel'),
+            });
+
+            if ('error' in result) {
+                throw new Error(result.error);
+            }
+            
+            replace(result.questions); // Replace existing questions with parsed ones
+            toast({ title: 'Parsing Successful', description: `Extracted ${result.questions.length} questions from the document.` });
+
+        } catch (error: any) {
+            toast({ variant: 'destructive', title: 'Parsing Failed', description: error.message });
+        } finally {
+            setIsParsing(false);
+        }
+    };
+    reader.onerror = (error) => {
+        toast({ variant: 'destructive', title: 'File Read Error', description: 'Could not read the selected file.' });
+        setIsParsing(false);
+    };
+  };
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
     if (!firestore) {
@@ -87,12 +140,11 @@ export default function UploadPage() {
     setIsLoading(true);
 
     const examsCollectionRef = collection(firestore, 'exams');
-    const newExamRef = doc(examsCollectionRef); // Create a new doc ref with a generated ID
+    const newExamRef = doc(examsCollectionRef);
     const questionsCollectionRef = collection(newExamRef, 'questions');
 
     const batch = writeBatch(firestore);
 
-    // 1. Set the main exam document
     const examData = {
         title: values.title,
         subject: values.subject,
@@ -104,14 +156,10 @@ export default function UploadPage() {
     };
     batch.set(newExamRef, examData);
     
-    // 2. Add all questions to the subcollection
     values.questions.forEach(question => {
         const newQuestionRef = doc(questionsCollectionRef);
-        const { options, ...restOfQuestion } = question;
-        const filteredOptions = options.filter(opt => opt.trim() !== '');
         batch.set(newQuestionRef, {
-            ...restOfQuestion,
-            options: filteredOptions,
+            ...question,
             examId: newExamRef.id,
         });
     });
@@ -120,15 +168,15 @@ export default function UploadPage() {
       .then(() => {
         toast({
           title: 'Exam Uploaded Successfully',
-          description: `The exam "${values.title}" has been added to the system.`,
+          description: `The exam "${values.title}" has been added.`,
         });
         form.reset();
+        setUploadedFile(null);
       })
       .catch((error: any) => {
-        // Here we create and emit the contextual error
         const permissionError = new FirestorePermissionError({
-          path: newExamRef.path, // We can use the exam path as the primary point of failure
-          operation: 'write', // A batch can contain multiple ops, 'write' is a safe generalization
+          path: newExamRef.path,
+          operation: 'write',
           requestResourceData: { exam: examData, questions: values.questions },
         });
         errorEmitter.emit('permission-error', permissionError);
@@ -143,7 +191,7 @@ export default function UploadPage() {
       <div>
         <h1 className="text-3xl font-bold font-headline">Upload Question Paper</h1>
         <p className="text-muted-foreground">
-          Create and schedule a new examination by filling out the form below.
+          Create exams using AI-powered document parsing or manual entry.
         </p>
       </div>
 
@@ -153,170 +201,145 @@ export default function UploadPage() {
             <CardHeader>
               <CardTitle>Exam Details</CardTitle>
               <CardDescription>
-                Provide the basic information and scheduling for the new exam.
+                Provide the basic information for the new exam.
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              <FormField
-                control={form.control}
-                name="title"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Exam Title</FormLabel>
-                    <FormControl>
-                      <Input placeholder="e.g., Mid-Term Algebra" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+              <FormField control={form.control} name="title" render={({ field }) => (
+                  <FormItem><FormLabel>Exam Title</FormLabel><FormControl><Input placeholder="e.g., Mid-Term Social Studies" {...field} /></FormControl><FormMessage /></FormItem>
+              )} />
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <FormField
-                  control={form.control}
-                  name="subject"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Subject</FormLabel>
-                      <FormControl>
-                        <Input placeholder="e.g., Mathematics" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name="gradeLevel"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Grade Level</FormLabel>
-                      <Select onValueChange={field.onChange} defaultValue={field.value}>
-                        <FormControl>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select a grade" />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          <SelectItem value="Class 8">Class 8</SelectItem>
-                          <SelectItem value="Class 9">Class 9</SelectItem>
-                          <SelectItem value="Class 10">Class 10</SelectItem>
-                        </SelectContent>
-                      </Select>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                 <FormField
-                  control={form.control}
-                  name="durationMinutes"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Duration (minutes)</FormLabel>
-                      <FormControl>
-                        <Input type="number" placeholder="e.g., 60" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+                <FormField control={form.control} name="subject" render={({ field }) => (
+                    <FormItem><FormLabel>Subject</FormLabel><FormControl><Input placeholder="e.g., Social Studies" {...field} /></FormControl><FormMessage /></FormItem>
+                )} />
+                <FormField control={form.control} name="gradeLevel" render={({ field }) => (
+                  <FormItem><FormLabel>Grade Level</FormLabel><Select onValueChange={field.onChange} defaultValue={field.value}><FormControl><SelectTrigger><SelectValue placeholder="Select a grade" /></SelectTrigger></FormControl><SelectContent>
+                          {[...Array(5)].map((_, i) => <SelectItem key={i+8} value={`Class ${i + 8}`}>{`Class ${i + 8}`}</SelectItem>)}
+                  </SelectContent></Select><FormMessage /></FormItem>
+                )} />
+                 <FormField control={form.control} name="durationMinutes" render={({ field }) => (
+                    <FormItem><FormLabel>Duration (minutes)</FormLabel><FormControl><Input type="number" placeholder="e.g., 180" {...field} /></FormControl><FormMessage /></FormItem>
+                 )} />
               </div>
                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                 <FormField
-                    control={form.control}
-                    name="startTime"
-                    render={({ field }) => (
-                        <FormItem>
-                        <FormLabel>Start Time</FormLabel>
-                        <FormControl>
-                            <Input type="datetime-local" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                        </FormItem>
-                    )}
-                    />
-                <FormField
-                    control={form.control}
-                    name="endTime"
-                    render={({ field }) => (
-                        <FormItem>
-                        <FormLabel>End Time</FormLabel>
-                        <FormControl>
-                            <Input type="datetime-local" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                        </FormItem>
-                    )}
-                    />
+                 <FormField control={form.control} name="startTime" render={({ field }) => (
+                    <FormItem><FormLabel>Start Time</FormLabel><FormControl><Input type="datetime-local" {...field} /></FormControl><FormMessage /></FormItem>
+                 )} />
+                <FormField control={form.control} name="endTime" render={({ field }) => (
+                    <FormItem><FormLabel>End Time</FormLabel><FormControl><Input type="datetime-local" {...field} /></FormControl><FormMessage /></FormItem>
+                 )} />
                </div>
             </CardContent>
           </Card>
 
-          <Card>
-            <CardHeader>
-                <div className="flex items-center justify-between">
-                    <div>
-                        <CardTitle>Questions</CardTitle>
-                        <CardDescription>Add questions for this exam. Only MCQ type is supported currently.</CardDescription>
-                    </div>
-                    <Button type="button" variant="outline" size="sm" onClick={() => append({ question: '', options: ['', '', '', ''], correctAnswer: '', type: 'mcq', difficulty: 'medium'})}>
-                        <PlusCircle className="mr-2 h-4 w-4" />
-                        Add Question
-                    </Button>
-                </div>
-            </CardHeader>
-            <CardContent className="space-y-6">
-                {fields.map((field, index) => (
-                    <div key={field.id} className="p-4 border rounded-lg relative space-y-4">
-                        <Button type="button" variant="ghost" size="icon" className="absolute top-2 right-2" onClick={() => remove(index)}>
-                            <XCircle className="h-5 w-5 text-destructive" />
-                        </Button>
-                        
-                        <FormField
-                            control={form.control}
-                            name={`questions.${index}.question`}
-                            render={({ field }) => (
-                                <FormItem>
-                                <FormLabel>Question {index + 1}</FormLabel>
-                                <FormControl>
-                                    <Textarea placeholder="Enter the question text" {...field} />
-                                </FormControl>
-                                <FormMessage />
-                                </FormItem>
-                            )}
-                        />
-
+        <Tabs defaultValue="ai-upload">
+            <TabsList className="grid w-full grid-cols-2">
+                <TabsTrigger value="ai-upload">AI Document Upload</TabsTrigger>
+                <TabsTrigger value="manual">Manual Question Entry</TabsTrigger>
+            </TabsList>
+            <TabsContent value="ai-upload">
+                <Card>
+                    <CardHeader>
+                        <CardTitle>AI-Powered Question Extraction</CardTitle>
+                        <CardDescription>Upload a DOCX or PDF file, and our AI will automatically extract and structure the questions for you.</CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
                         <div className="space-y-2">
-                             <FormLabel>Options</FormLabel>
-                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                <FormField control={form.control} name={`questions.${index}.options.0`} render={({ field }) => ( <FormItem><FormControl><Input {...field} placeholder="Option A" /></FormControl><FormMessage /></FormItem>)} />
-                                <FormField control={form.control} name={`questions.${index}.options.1`} render={({ field }) => ( <FormItem><FormControl><Input {...field} placeholder="Option B" /></FormControl><FormMessage /></FormItem>)} />
-                                <FormField control={form.control} name={`questions.${index}.options.2`} render={({ field }) => ( <FormItem><FormControl><Input {...field} placeholder="Option C" /></FormControl><FormMessage /></FormItem>)} />
-                                <FormField control={form.control} name={`questions.${index}.options.3`} render={({ field }) => ( <FormItem><FormControl><Input {...field} placeholder="Option D" /></FormControl><FormMessage /></FormItem>)} />
-                             </div>
+                             <Label htmlFor="file-upload">Exam Document</Label>
+                             <Input id="file-upload" type="file" onChange={handleFileChange} accept=".pdf,.doc,.docx" />
+                             {uploadedFile && <p className="text-sm text-muted-foreground">Selected: {uploadedFile.name}</p>}
                         </div>
+                    </CardContent>
+                    <CardFooter>
+                         <Button type="button" onClick={handleParseDocument} disabled={isParsing || !uploadedFile}>
+                            {isParsing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Wand2 className="mr-2 h-4 w-4" />}
+                            {isParsing ? 'Parsing Document...' : 'Parse with AI'}
+                        </Button>
+                    </CardFooter>
+                </Card>
+            </TabsContent>
+            <TabsContent value="manual">
+                <Card>
+                    <CardHeader>
+                        <div className="flex items-center justify-between">
+                            <div>
+                                <CardTitle>Manual Questions</CardTitle>
+                                <CardDescription>Add questions for this exam one by one.</CardDescription>
+                            </div>
+                            <Button type="button" variant="outline" size="sm" onClick={() => append({ question: '', type: 'mcq', options: ['', '', '', ''], correctAnswer: '', marks: 5 })}>
+                                <PlusCircle className="mr-2 h-4 w-4" />
+                                Add Question
+                            </Button>
+                        </div>
+                    </CardHeader>
+                </Card>
+            </TabsContent>
+        </Tabs>
+        
+        {fields.length > 0 && (
+            <Card>
+                <CardHeader>
+                    <CardTitle>Extracted Questions</CardTitle>
+                    <CardDescription>Review and edit the questions extracted by the AI or entered manually.</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-6">
+                    {fields.map((field, index) => (
+                        <div key={field.id} className="p-4 border rounded-lg relative space-y-4">
+                            <Button type="button" variant="ghost" size="icon" className="absolute top-2 right-2" onClick={() => remove(index)}>
+                                <XCircle className="h-5 w-5 text-destructive" />
+                            </Button>
+                            
+                            <FormField control={form.control} name={`questions.${index}.question`} render={({ field }) => (
+                                <FormItem><FormLabel>Question {index + 1}</FormLabel><FormControl><Textarea placeholder="Enter the question text" {...field} /></FormControl><FormMessage /></FormItem>
+                            )} />
 
-                        <FormField
-                            control={form.control}
-                            name={`questions.${index}.correctAnswer`}
-                            render={({ field }) => (
-                                <FormItem>
-                                <FormLabel>Correct Answer</FormLabel>
-                                <FormControl>
-                                    <Input placeholder="Enter the exact correct answer" {...field} />
-                                </FormControl>
-                                <FormDescription>This must match one of the options exactly.</FormDescription>
-                                <FormMessage />
-                                </FormItem>
-                            )}
-                        />
-                    </div>
-                ))}
-                {form.formState.errors.questions && <p className="text-sm font-medium text-destructive">{form.formState.errors.questions.message || form.formState.errors.questions.root?.message}</p>}
-            </CardContent>
-          </Card>
+                            <div className="grid grid-cols-3 gap-4">
+                                <FormField control={form.control} name={`questions.${index}.type`} render={({ field }) => (
+                                    <FormItem><FormLabel>Type</FormLabel><Select onValueChange={field.onChange} defaultValue={field.value}>
+                                        <FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl>
+                                        <SelectContent>
+                                            <SelectItem value="mcq">Multiple Choice</SelectItem>
+                                            <SelectItem value="fillup">Fill in the Blank</SelectItem>
+                                            <SelectItem value="short-answer">Short Answer</SelectItem>
+                                            <SelectItem value="long-answer">Long Answer</SelectItem>
+                                        </SelectContent>
+                                    </Select><FormMessage /></FormItem>
+                                )} />
+                                <FormField control={form.control} name={`questions.${index}.marks`} render={({ field }) => (
+                                    <FormItem><FormLabel>Marks</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>
+                                )} />
+                            </div>
+
+                            <Controller
+                                control={form.control}
+                                name={`questions.${index}.type`}
+                                render={({ field: { value } }) => value === 'mcq' ? (
+                                    <div className="space-y-2">
+                                        <FormLabel>Options</FormLabel>
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                            <FormField control={form.control} name={`questions.${index}.options.0`} render={({ field }) => ( <FormItem><FormControl><Input {...field} placeholder="Option A" /></FormControl><FormMessage /></FormItem>)} />
+                                            <FormField control={form.control} name={`questions.${index}.options.1`} render={({ field }) => ( <FormItem><FormControl><Input {...field} placeholder="Option B" /></FormControl><FormMessage /></FormItem>)} />
+                                            <FormField control={form.control} name={`questions.${index}.options.2`} render={({ field }) => ( <FormItem><FormControl><Input {...field} placeholder="Option C" /></FormControl><FormMessage /></FormItem>)} />
+                                            <FormField control={form.control} name={`questions.${index}.options.3`} render={({ field }) => ( <FormItem><FormControl><Input {...field} placeholder="Option D" /></FormControl><FormMessage /></FormItem>)} />
+                                        </div>
+                                    </div>
+                                ) : null}
+                            />
+
+                            <FormField control={form.control} name={`questions.${index}.correctAnswer`} render={({ field }) => (
+                                <FormItem><FormLabel>Correct Answer</FormLabel><FormControl>
+                                <Textarea placeholder="Enter the exact correct answer" {...field} rows={2} />
+                                </FormControl><FormDescription>For MCQs, this must match one of the options exactly.</FormDescription><FormMessage /></FormItem>
+                            )} />
+                        </div>
+                    ))}
+                    {form.formState.errors.questions && <p className="text-sm font-medium text-destructive">{form.formState.errors.questions.message || form.formState.errors.questions.root?.message}</p>}
+                </CardContent>
+            </Card>
+        )}
 
           <div className="flex justify-end">
-            <Button type="submit" disabled={isLoading} size="lg">
+            <Button type="submit" disabled={isLoading || fields.length === 0} size="lg">
                 {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Upload className="mr-2 h-4 w-4" />}
                 {isLoading ? 'Uploading...' : 'Upload Exam'}
             </Button>
