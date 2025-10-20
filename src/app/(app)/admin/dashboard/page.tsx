@@ -52,15 +52,15 @@ const chartConfig = {
 
 export default function AdminDashboardPage() {
   return (
-    <div className="space-y-6 text-foreground">
+    <div className="space-y-8">
        <div className="bg-gradient-to-r from-primary/80 to-accent/80 p-8 rounded-xl relative overflow-hidden text-primary-foreground shadow-lg">
         <div className="flex justify-between items-start">
             <div className="flex items-center gap-4">
-                 <div className="text-3xl">👋</div>
+                 <div className="text-4xl">👋</div>
                   <div>
-                    <h2 className="text-3xl font-bold">Welcome back, Dr. Reed!</h2>
-                    <p className="opacity-80 max-w-lg">
-                       Here's a summary of your academic operations. Let's get started.
+                    <h2 className="text-3xl font-bold font-headline">Welcome back, Dr. Reed!</h2>
+                    <p className="opacity-80 max-w-lg mt-1">
+                       Here's a summary of your academic operations and student progress.
                     </p>
                   </div>
             </div>
@@ -117,7 +117,7 @@ export default function AdminDashboardPage() {
                 <CardTitle>Average Performance by Subject</CardTitle>
                 <CardDescription>An overview of recent student scores across different subjects.</CardDescription>
             </CardHeader>
-            <CardContent>
+            <CardContent className="pl-2">
                  <ChartContainer config={chartConfig} className="h-[250px] w-full">
                     <BarChart accessibilityLayer data={chartData}>
                         <XAxis
@@ -137,7 +137,7 @@ export default function AdminDashboardPage() {
         <Card>
             <CardHeader>
                 <CardTitle>Upcoming Deadlines</CardTitle>
-                 <CardDescription>Exams scheduled for this week.</CardDescription>
+                 <CardDescription>Exams and grading scheduled for this week.</CardDescription>
             </CardHeader>
             <CardContent className="grid gap-4">
                  <div className="flex items-center">
@@ -163,7 +163,7 @@ export default function AdminDashboardPage() {
                       <BookOpen className="h-5 w-5 text-green-500" />
                     </div>
                     <div className="ml-4 space-y-1">
-                      <p className="text-sm font-medium leading-none">English Essay</p>
+                      <p className="text-sm font-medium leading-none">English Essay Due</p>
                       <p className="text-sm text-muted-foreground">In 5 days</p>
                     </div>
                   </div>
@@ -173,8 +173,8 @@ export default function AdminDashboardPage() {
 
       <Card>
         <CardHeader>
-          <CardTitle>Student Progress</CardTitle>
-          <CardDescription>An overview of all student activity.</CardDescription>
+          <CardTitle>Student Progress Overview</CardTitle>
+          <CardDescription>A summary of student performance and activity.</CardDescription>
         </CardHeader>
         <CardContent>
           <Table>
@@ -182,7 +182,7 @@ export default function AdminDashboardPage() {
               <TableRow>
                 <TableHead>Student</TableHead>
                 <TableHead>Accessibility Need</TableHead>
-                <TableHead>Overall Progress</TableHead>
+                <TableHead className="w-48">Overall Progress</TableHead>
                 <TableHead className='text-right'>Actions</TableHead>
               </TableRow>
             </TableHeader>
@@ -202,12 +202,12 @@ export default function AdminDashboardPage() {
                     </div>
                   </TableCell>
                   <TableCell>
-                    <Badge variant="outline">{student.disability}</Badge>
+                    <Badge variant={student.disability === 'N/A' ? "secondary" : "outline"}>{student.disability}</Badge>
                   </TableCell>
                   <TableCell>
                     <div className="flex items-center gap-2">
-                        <Progress value={student.progress} className="w-24 bg-muted h-2" />
-                        <span className="text-xs text-muted-foreground">{student.progress}%</span>
+                        <Progress value={student.progress} className="w-full bg-muted h-2" />
+                        <span className="text-xs text-muted-foreground font-medium">{student.progress}%</span>
                     </div>
                   </TableCell>
                   <TableCell className='text-right'>
