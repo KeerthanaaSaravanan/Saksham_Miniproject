@@ -358,7 +358,7 @@ export function ExamLayout({ exam, onTimeUp, isSubmitting }: ExamLayoutProps) {
             )}
 
             {/* Main Panel: Exam Content */}
-            <main className="flex-1 flex flex-col md:mr-20">
+            <main className="flex-1 flex flex-col md:mr-16">
                 <header className="flex justify-between items-center border-b p-4">
                     <div>
                         <h1 className={cn("text-xl font-bold", textSizeClass)}>{exam.title}</h1>
