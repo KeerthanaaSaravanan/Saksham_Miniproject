@@ -32,8 +32,8 @@ export function Timer({ durationInMinutes, onTimeUp }: TimerProps) {
   const minutes = Math.floor(secondsLeft / 60);
   const seconds = secondsLeft % 60;
 
-  const isLowTime = secondsLeft < 60;
-  const useVisualAlert = accessibility.visualAlerts;
+  const isLowTime = secondsLeft < 300; // 5 minutes
+  const useVisualAlert = accessibility.visualAlerts || accessibility.timeReminders;
 
   return (
     <div className={cn(`flex items-center gap-2 font-mono px-3 py-1.5 rounded-lg text-sm font-semibold border`, 

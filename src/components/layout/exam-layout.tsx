@@ -10,7 +10,7 @@ import { Timer } from '@/components/Timer';
 import { useProctoring } from '@/hooks/use-proctoring';
 import { useToast } from '@/hooks/use-toast';
 import type { SelectedExamDetails, AssessmentQuestion } from '@/app/(app)/assessment/[examId]/page';
-import { Flag, Loader2, Volume2, Mic, MicOff, ChevronRight, ChevronLeft, Repeat, HelpCircle } from 'lucide-react';
+import { Flag, Loader2, Volume2, Mic, MicOff, ChevronRight, ChevronLeft, HelpCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { RightSidebar } from './right-sidebar';
 import { useExamMode } from '@/hooks/use-exam-mode';
@@ -39,13 +39,13 @@ export function ExamLayout({ exam, onTimeUp, isSubmitting }: ExamLayoutProps) {
     const [isSTTRecording, setIsSTTRecording] = useState(false);
     const recognitionRef = useRef<any>(null);
     const audioRef = useRef<HTMLAudioElement | null>(null);
-    const { isListening } = useVoiceControl();
 
 
     const accessibility = userProfile?.accessibility_profile || {};
     const isTextToSpeechEnabled = accessibility.textToSpeech || accessibility.readAloud;
     const isSpeechToTextEnabled = accessibility.speechToText;
     const isVoiceNavigationEnabled = accessibility.voiceNavigation || accessibility.voiceCommandNavigation;
+    const useFocusMode = accessibility.focusMode || accessibility.simplifiedLayout;
     const textSizeClass = accessibility.largeText === 'large' ? 'text-lg' : accessibility.largeText === 'xlarge' ? 'text-xl' : '';
 
     useEffect(() => {
@@ -120,6 +120,15 @@ export function ExamLayout({ exam, onTimeUp, isSubmitting }: ExamLayoutProps) {
 
     const handleAnswerChange = (questionId: string, value: string) => {
         setAnswers(prev => ({ ...prev, [questionId]: value }));
+        if (accessibility.autoSave) {
+            // Here you would typically trigger a non-blocking save to Firestore
+            console.log(`Autosaving answer for ${questionId}: ${value}`);
+             toast({
+                title: 'Answer Saved',
+                description: 'Your answer has been automatically saved.',
+                duration: 2000,
+             });
+        }
         if(isTextToSpeechEnabled) {
             const selectedOption = exam.questions.find(q => q.id === questionId)?.options.find(o => o === value);
             if(selectedOption) {
@@ -279,9 +288,9 @@ export function ExamLayout({ exam, onTimeUp, isSubmitting }: ExamLayoutProps) {
             toggleReviewFlag(activeQuestion.id);
         } else if (lower.includes('submit exam') || lower.includes('finish exam')) {
             onTimeUp(answers);
-        } else if (lower.includes('repeat question')) {
+        } else if (lower.includes('read question')) {
             playTTS(activeQuestion.question);
-        } else if (lower.includes('repeat options')) {
+        } else if (lower.includes('read options')) {
             const optionsText = activeQuestion.options?.map((opt, i) => `Option ${String.fromCharCode(65 + i)}: ${opt}`).join('. ');
             playTTS(optionsText || 'There are no options for this question.');
         } else if(isSpeechToTextEnabled && (lower.startsWith('answer') || lower.startsWith('my answer is'))) {
@@ -311,39 +320,42 @@ export function ExamLayout({ exam, onTimeUp, isSubmitting }: ExamLayoutProps) {
             textSizeClass
         )} onContextMenu={(e) => e.preventDefault()}>
             <audio ref={audioRef} className="hidden" />
+            
             {/* Left Panel: Question Palette */}
-            <div className="w-64 border-r bg-card flex flex-col p-4">
-                <h3 className="font-bold text-lg mb-1">Questions</h3>
-                <p className="text-xs text-muted-foreground mb-4">Navigate between questions.</p>
-                <ScrollArea className="flex-1 pr-2">
-                    <div className="grid grid-cols-5 gap-2">
-                        {exam.questions.map((q, index) => {
-                            const status = getQuestionStatus(index);
-                            return (
-                                <Button
-                                    key={q.id}
-                                    variant={activeQuestionIndex === index ? 'default' : 'outline'}
-                                    size="icon"
-                                    onClick={() => setActiveQuestionIndex(index)}
-                                    className={cn("h-9 w-9 relative", {
-                                        'bg-green-500/20 border-green-500 text-green-700 hover:bg-green-500/30': status === 'answered' && activeQuestionIndex !== index,
-                                        'bg-yellow-500/20 border-yellow-500 text-yellow-700 hover:bg-yellow-500/30': status === 'review' && activeQuestionIndex !== index,
-                                    })}
-                                    aria-label={`Go to question ${index + 1}`}
-                                >
-                                    {index + 1}
-                                     {status === 'review' && <Flag className="absolute -top-1 -right-1 h-3 w-3 text-yellow-600 fill-yellow-500" />}
-                                </Button>
-                            );
-                        })}
+            {!useFocusMode && (
+                 <div className="w-64 border-r bg-card flex flex-col p-4">
+                    <h3 className="font-bold text-lg mb-1">Questions</h3>
+                    <p className="text-xs text-muted-foreground mb-4">Navigate between questions.</p>
+                    <ScrollArea className="flex-1 pr-2">
+                        <div className="grid grid-cols-5 gap-2">
+                            {exam.questions.map((q, index) => {
+                                const status = getQuestionStatus(index);
+                                return (
+                                    <Button
+                                        key={q.id}
+                                        variant={activeQuestionIndex === index ? 'default' : 'outline'}
+                                        size="icon"
+                                        onClick={() => setActiveQuestionIndex(index)}
+                                        className={cn("h-9 w-9 relative", {
+                                            'bg-green-500/20 border-green-500 text-green-700 hover:bg-green-500/30': status === 'answered' && activeQuestionIndex !== index,
+                                            'bg-yellow-500/20 border-yellow-500 text-yellow-700 hover:bg-yellow-500/30': status === 'review' && activeQuestionIndex !== index,
+                                        })}
+                                        aria-label={`Go to question ${index + 1}`}
+                                    >
+                                        {index + 1}
+                                        {status === 'review' && <Flag className="absolute -top-1 -right-1 h-3 w-3 text-yellow-600 fill-yellow-500" />}
+                                    </Button>
+                                );
+                            })}
+                        </div>
+                    </ScrollArea>
+                    <div className="mt-4 text-xs space-y-2 text-muted-foreground">
+                    <div className="flex justify-between items-center"><div className="flex items-center gap-2"><div className="w-3 h-3 rounded-full bg-green-500/20 border border-green-500"/> Answered</div> <span>{answeredCount}</span></div>
+                    <div className="flex justify-between items-center"><div className="flex items-center gap-2"><div className="w-3 h-3 rounded-full bg-border"/> Unanswered</div> <span>{exam.questions.length - answeredCount}</span></div>
+                    <div className="flex justify-between items-center"><div className="flex items-center gap-2"><div className="w-3 h-3 rounded-full bg-yellow-500/20 border-yellow-500"/> Review</div> <span>{reviewedCount}</span></div>
                     </div>
-                </ScrollArea>
-                <div className="mt-4 text-xs space-y-2 text-muted-foreground">
-                   <div className="flex justify-between items-center"><div className="flex items-center gap-2"><div className="w-3 h-3 rounded-full bg-green-500/20 border border-green-500"/> Answered</div> <span>{answeredCount}</span></div>
-                   <div className="flex justify-between items-center"><div className="flex items-center gap-2"><div className="w-3 h-3 rounded-full bg-border"/> Unanswered</div> <span>{exam.questions.length - answeredCount}</span></div>
-                   <div className="flex justify-between items-center"><div className="flex items-center gap-2"><div className="w-3 h-3 rounded-full bg-yellow-500/20 border-yellow-500"/> Review</div> <span>{reviewedCount}</span></div>
                 </div>
-            </div>
+            )}
 
             {/* Main Panel: Exam Content */}
             <main className="flex-1 flex flex-col md:mr-20">
@@ -354,12 +366,12 @@ export function ExamLayout({ exam, onTimeUp, isSubmitting }: ExamLayoutProps) {
                     </div>
                      {isTextToSpeechEnabled && (
                         <div className="flex gap-2">
-                             <Button size="sm" variant="outline" onClick={() => playTTS(activeQuestion.question)} disabled={isTTSSpeaking} aria-label="Repeat Question">
-                                <Repeat className="mr-2" /> Repeat Question
+                             <Button size="icon" variant="outline" onClick={() => playTTS(activeQuestion.question)} disabled={isTTSSpeaking} aria-label="Read Question Aloud">
+                                <Volume2 />
                             </Button>
                              {activeQuestion.options && activeQuestion.options.length > 0 && (
-                                 <Button size="sm" variant="outline" onClick={() => playTTS(activeQuestion.options.map((opt, i) => `Option ${String.fromCharCode(65 + i)}: ${opt}`).join('. '))} disabled={isTTSSpeaking} aria-label="Repeat Options">
-                                    <Repeat className="mr-2" /> Repeat Options
+                                 <Button size="icon" variant="outline" onClick={() => playTTS(activeQuestion.options.map((opt, i) => `Option ${String.fromCharCode(65 + i)}: ${opt}`).join('. '))} disabled={isTTSSpeaking} aria-label="Read Options Aloud">
+                                    <HelpCircle />
                                 </Button>
                              )}
                         </div>
