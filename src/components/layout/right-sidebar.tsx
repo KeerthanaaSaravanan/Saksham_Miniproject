@@ -109,7 +109,7 @@ export function RightSidebar() {
                       <Skeleton className="h-10 w-10 rounded-full" />
                     ) : (
                       <Avatar className="h-10 w-10">
-                        <AvatarImage src={user?.photoURL || ''} alt={userName} />
+                        <AvatarImage src={user?.photoURL ?? undefined} alt={userName} />
                         <AvatarFallback>{userInitial}</AvatarFallback>
                       </Avatar>
                     )}
