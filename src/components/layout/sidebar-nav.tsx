@@ -26,5 +26,6 @@ export function SidebarNav() {
     return <FacultySidebar faculty={faculty} />;
   }
 
+  // Default to student sidebar for all other routes under /
   return <StudentSidebar student={student} />;
 }

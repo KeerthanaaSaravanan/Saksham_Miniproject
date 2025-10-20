@@ -35,7 +35,7 @@ import { Badge } from '../ui/badge';
 import { useExamMode } from '@/hooks/use-exam-mode';
 import { cn } from '@/lib/utils';
 import { useUser, useAuth } from '@/firebase';
-import { useRouter } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation';
 import { useTheme } from 'next-themes';
 import { Avatar, AvatarFallback, AvatarImage } from '../ui/avatar';
 import { Skeleton } from '../ui/skeleton';
@@ -61,6 +61,11 @@ const notifications = [
 ];
 
 export function RightSidebar() {
+  const pathname = usePathname();
+  if (pathname.startsWith('/admin')) {
+    return null;
+  }
+
   const { setOpenModule } = useAccessibilityPanel();
   const { setIsOpen: setChatbotOpen } = useChatbot();
   const { isExamMode } = useExamMode();
@@ -104,7 +109,7 @@ export function RightSidebar() {
                       <Skeleton className="h-10 w-10 rounded-full" />
                     ) : (
                       <Avatar className="h-10 w-10">
-                        <AvatarImage src={user?.photoURL || undefined} alt={userName} />
+                        <AvatarImage src={user?.photoURL || ''} alt={userName} />
                         <AvatarFallback>{userInitial}</AvatarFallback>
                       </Avatar>
                     )}
