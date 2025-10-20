@@ -49,7 +49,7 @@ export const accessibilityModules: AccessibilityModule[] = [
       icon: Ear,
       iconColor: 'text-purple-500',
       features: [
-        { key: 'realTimeCaptions', label: 'Real-time Captions', description: 'Provides captions for any audio content.', icon: Type, type: 'boolean', defaultValue: false },
+        { key: 'realTimeCaptions', label: 'Real-time Captions (Coming Soon)', description: 'Provides captions for any audio content.', icon: Type, type: 'boolean', defaultValue: false },
         { key: 'signLanguageAvatar', label: 'AI Sign Language Avatar (Coming Soon)', description: 'Shows an avatar interpreting questions.', icon: Presentation, type: 'boolean', defaultValue: false },
         { key: 'visualAlerts', label: 'Visual Pop-up Alerts', description: 'Replaces sound alerts with on-screen pop-ups.', icon: Zap, type: 'boolean', defaultValue: false },
         { key: 'chatbotHelp', label: 'Text-based Chatbot Help', description: 'Get help via text instead of voice.', icon: Bot, type: 'boolean', defaultValue: false }
@@ -66,20 +66,20 @@ export const accessibilityModules: AccessibilityModule[] = [
         { key: 'eyeTracking', label: 'Eye-tracking Control (Coming Soon)', description: 'Use your eyes to select answers.', icon: ScanEye, type: 'boolean', defaultValue: false },
         { key: 'gestureRecognition', label: 'AI Gesture Recognition (Coming Soon)', description: 'Use head or hand gestures.', icon: Hand, type: 'boolean', defaultValue: false },
         { key: 'autoSave', label: 'Auto-save Answers', description: 'Automatically saves your progress.', icon: Save, type: 'boolean', defaultValue: true },
-        { key: 'predictiveText', label: 'Predictive Typing', description: 'Speeds up written answers.', icon: Type, type: 'boolean', defaultValue: false },
+        { key: 'predictiveText', label: 'Predictive Typing (Coming Soon)', description: 'Speeds up written answers.', icon: Type, type: 'boolean', defaultValue: false },
       ]
     },
     {
       id: 'sld',
-      title: 'Learning Disability',
+      title: 'Specific Learning Disability',
       subtitle: 'Dyslexia, Dysgraphia, etc.',
       icon: BookOpen,
       iconColor: 'text-green-500',
       features: [
-        { key: 'aiTextSimplifier', label: 'AI Text Simplifier', description: 'Rephrases complex questions simply.', icon: Brain, type: 'boolean', defaultValue: false },
+        { key: 'aiTextSimplifier', label: 'AI Text Simplifier (Coming Soon)', description: 'Rephrases complex questions simply.', icon: Brain, type: 'boolean', defaultValue: false },
         { key: 'dyslexiaFriendlyFont', label: 'Dyslexia-friendly Fonts', description: 'Switch to easier-to-read fonts.', icon: Type, type: 'boolean', defaultValue: false },
-        { key: 'wordHighlighting', label: 'Word Highlighting', description: 'Focus on one word at a time.', icon: Focus, type: 'boolean', defaultValue: false },
-        { key: 'aiSpellCheck', label: 'AI Spell-check', description: 'Advanced spelling corrections.', icon: SpellCheck, type: 'boolean', defaultValue: true },
+        { key: 'wordHighlighting', label: 'Word Highlighting (Coming Soon)', description: 'Focus on one word at a time.', icon: Focus, type: 'boolean', defaultValue: false },
+        { key: 'aiSpellCheck', label: 'AI Spell-check (Coming Soon)', description: 'Advanced spelling corrections.', icon: SpellCheck, type: 'boolean', defaultValue: true },
         { key: 'readAloud', label: 'Read-aloud Support', description: 'Have any text read to you.', icon: Volume2, type: 'boolean', defaultValue: false }
       ]
     },
