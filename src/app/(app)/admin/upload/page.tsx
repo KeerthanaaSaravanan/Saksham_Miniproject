@@ -149,6 +149,8 @@ function UploadPageComponent() {
       fetchExamData();
     } else {
         form.reset(defaultValues);
+        setUploadedFile(null); // Ensure file is cleared when not in edit mode
+        setIsDataLoading(false);
     }
   }, [examId, firestore, form, replace, router, toast, isEditMode]);
 
@@ -204,8 +206,7 @@ function UploadPageComponent() {
   };
   
   const handleCreateNew = () => {
-    form.reset(defaultValues);
-    setUploadedFile(null);
+    // Navigate to the clean upload page URL, which will trigger the useEffect
     router.push('/admin/upload');
   }
 
@@ -465,3 +466,5 @@ export default function UploadPage() {
         </Suspense>
     )
 }
+
+    
