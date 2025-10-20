@@ -6,7 +6,7 @@ import {
 import { Loader2 } from 'lucide-react';
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useUser, useFirestore, errorEmitter, FirestorePermissionError, useMemoFirebase } from '@/firebase';
-import { collection, doc, Timestamp, getDocs, writeBatch, serverTimestamp } from 'firebase/firestore';
+import { collection, doc, Timestamp, getDocs, writeBatch, serverTimestamp, addDoc } from 'firebase/firestore';
 import { ExamLayout } from '@/components/layout/exam-layout';
 import { useDoc } from '@/firebase/firestore/use-doc';
 
@@ -118,7 +118,7 @@ export default function AssessmentPage({ params }: { params: { examId: string }}
     });
     
     studentAnswers.forEach(ans => {
-        const answerRef = doc(answersCollectionRef);
+        const answerRef = doc(collection(answersCollectionRef));
         batch.set(answerRef, ans);
     });
 

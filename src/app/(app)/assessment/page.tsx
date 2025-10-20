@@ -56,7 +56,7 @@ export default function AssessmentListPage() {
         try {
             const userDocSnap = await getDoc(userDocRef);
             if (userDocSnap.exists()) {
-              setGrade(userDocSnap.data().grade || '');
+              setGrade(userDocSnap.data().gradeLevel || '');
             } else {
               toast({ variant: 'destructive', title: 'Profile Not Found', description: 'Please complete your profile in settings.'})
             }

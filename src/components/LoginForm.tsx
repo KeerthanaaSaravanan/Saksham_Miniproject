@@ -158,10 +158,11 @@ export default function LoginForm() {
             uid: newUser.uid,
             grade: details.grade,
             stream: details.stream,
+            role: 'student'
         };
 
         // This is a create operation, so we use 'create'
-        await setDoc(userDocRef, userData).then(() => {
+        setDoc(userDocRef, userData).then(() => {
           toast({
               title: 'Profile Complete!',
               description: `Welcome, ${details.name}! Your learning path is set.`,
