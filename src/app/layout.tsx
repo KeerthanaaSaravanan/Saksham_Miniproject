@@ -6,6 +6,7 @@ import { ThemeProvider } from '@/components/theme-provider';
 import { AccessibilityWrapper } from '@/components/accessibility/accessibility-wrapper';
 import { AccessibilityPanelProvider } from '@/components/accessibility/accessibility-panel-provider';
 import { VoiceControlProvider } from '@/components/voice-control-provider';
+import { ExamModeProvider } from '@/hooks/use-exam-mode';
 
 export const metadata: Metadata = {
   title: 'Saksham - Accessible Learning Platform',
@@ -30,13 +31,15 @@ export default function RootLayout({
       <body className="font-body antialiased" suppressHydrationWarning>
         <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
           <FirebaseClientProvider>
-            <VoiceControlProvider>
-              <AccessibilityPanelProvider>
-                <AccessibilityWrapper>
-                  {children}
-                </AccessibilityWrapper>
-              </AccessibilityPanelProvider>
-            </VoiceControlProvider>
+            <ExamModeProvider>
+              <VoiceControlProvider>
+                <AccessibilityPanelProvider>
+                  <AccessibilityWrapper>
+                    {children}
+                  </AccessibilityWrapper>
+                </AccessibilityPanelProvider>
+              </VoiceControlProvider>
+            </ExamModeProvider>
           </FirebaseClientProvider>
           <Toaster />
         </ThemeProvider>

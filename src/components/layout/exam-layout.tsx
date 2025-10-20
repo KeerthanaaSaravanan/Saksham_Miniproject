@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useMemo, useEffect, useRef, useCallback }from 'react';
@@ -9,7 +10,7 @@ import { Timer } from '@/components/Timer';
 import { useProctoring } from '@/hooks/use-proctoring';
 import { useToast } from '@/hooks/use-toast';
 import type { SelectedExamDetails, AssessmentQuestion } from '@/app/(app)/assessment/[examId]/page';
-import { Flag, Loader2, Volume2, Mic, MicOff, ChevronRight, ChevronLeft } from 'lucide-react';
+import { Flag, Loader2, Volume2, Mic, MicOff, ChevronRight, ChevronLeft, Repeat, HelpCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { RightSidebar } from './right-sidebar';
 import { useExamMode } from '@/hooks/use-exam-mode';
@@ -33,7 +34,7 @@ export function ExamLayout({ exam, onTimeUp, isSubmitting }: ExamLayoutProps) {
     const [reviewFlags, setReviewFlags] = useState<Record<string, boolean>>({});
     const { toast } = useToast();
     const { setIsExamMode } = useExamMode();
-    const { userProfile } = useAccessibilityPanel();
+    const { userProfile, isLoading: isProfileLoading } = useAccessibilityPanel();
     const [isTTSSpeaking, setIsTTSSpeaking] = useState(false);
     const [isSTTRecording, setIsSTTRecording] = useState(false);
     const recognitionRef = useRef<any>(null);
@@ -45,15 +46,54 @@ export function ExamLayout({ exam, onTimeUp, isSubmitting }: ExamLayoutProps) {
     const isTextToSpeechEnabled = accessibility.textToSpeech || accessibility.readAloud;
     const isSpeechToTextEnabled = accessibility.speechToText;
     const isVoiceNavigationEnabled = accessibility.voiceNavigation || accessibility.voiceCommandNavigation;
+    const textSizeClass = accessibility.largeText === 'large' ? 'text-lg' : accessibility.largeText === 'xlarge' ? 'text-xl' : '';
 
     useEffect(() => {
         setIsExamMode(true);
-        // This ensures the audio element is created on the client
         if (!audioRef.current) {
             audioRef.current = new Audio();
         }
         return () => setIsExamMode(false);
     }, [setIsExamMode]);
+
+     const activeQuestion: AssessmentQuestion = exam.questions[activeQuestionIndex];
+
+     const playTTS = useCallback(async (text: string, onEnd?: () => void) => {
+        if (isTTSSpeaking || !audioRef.current || !isTextToSpeechEnabled) return;
+        setIsTTSSpeaking(true);
+        try {
+            const result = await getTTS(text);
+            if ('media' in result && audioRef.current) {
+                audioRef.current.src = result.media;
+                audioRef.current.play();
+                audioRef.current.onended = () => {
+                    setIsTTSSpeaking(false);
+                    onEnd?.();
+                };
+            } else {
+                setIsTTSSpeaking(false);
+                onEnd?.();
+            }
+        } catch (error) {
+            console.error("TTS Error:", error);
+            setIsTTSSpeaking(false);
+            onEnd?.();
+        }
+    }, [isTTSSpeaking, isTextToSpeechEnabled]);
+
+
+    const readQuestionAndOptions = useCallback(() => {
+        const questionText = `Question ${activeQuestionIndex + 1}. ${activeQuestion.question}`;
+        const optionsText = activeQuestion.options?.map((opt, i) => `Option ${String.fromCharCode(65 + i)}: ${opt}`).join('. ');
+        
+        playTTS(`${questionText}. ${optionsText || ''}`);
+    }, [activeQuestion, activeQuestionIndex, playTTS]);
+
+    useEffect(() => {
+        if (isTextToSpeechEnabled && activeQuestion) {
+            readQuestionAndOptions();
+        }
+    }, [activeQuestion, isTextToSpeechEnabled, readQuestionAndOptions]);
 
     const proctoringCallbacks = useMemo(() => ({
         onLeave: () => {
@@ -80,32 +120,18 @@ export function ExamLayout({ exam, onTimeUp, isSubmitting }: ExamLayoutProps) {
 
     const handleAnswerChange = (questionId: string, value: string) => {
         setAnswers(prev => ({ ...prev, [questionId]: value }));
+        if(isTextToSpeechEnabled) {
+            const selectedOption = exam.questions.find(q => q.id === questionId)?.options.find(o => o === value);
+            if(selectedOption) {
+                playTTS(`You selected: ${value}`);
+            }
+        }
     };
     
     const toggleReviewFlag = (questionId: string) => {
         setReviewFlags(prev => ({...prev, [questionId]: !prev[questionId]}));
     }
 
-    const activeQuestion: AssessmentQuestion = exam.questions[activeQuestionIndex];
-
-     const playTTS = async (text: string) => {
-        if (isTTSSpeaking || !audioRef.current) return;
-        setIsTTSSpeaking(true);
-        try {
-            const result = await getTTS(text);
-            if ('media' in result && audioRef.current) {
-                audioRef.current.src = result.media;
-                audioRef.current.play();
-                audioRef.current.onended = () => setIsTTSSpeaking(false);
-            } else {
-                setIsTTSSpeaking(false);
-            }
-        } catch (error) {
-            console.error("TTS Error:", error);
-            setIsTTSSpeaking(false);
-        }
-    };
-    
     const toggleSTT = (questionId: string) => {
         if (isSTTRecording) {
             recognitionRef.current?.stop();
@@ -157,6 +183,7 @@ export function ExamLayout({ exam, onTimeUp, isSubmitting }: ExamLayoutProps) {
               variant={isSTTRecording ? 'destructive' : 'outline'}
               onClick={() => toggleSTT(questionId)}
               className="ml-2"
+              aria-label="Speak Answer"
             >
               {isSTTRecording ? <MicOff /> : <Mic />}
             </Button>
@@ -169,18 +196,14 @@ export function ExamLayout({ exam, onTimeUp, isSubmitting }: ExamLayoutProps) {
                         className="mt-4 space-y-3"
                         value={value}
                         onValueChange={(val) => handleAnswerChange(questionId, val)}
+                        aria-label='Multiple choice options'
                     >
                         {question.options.filter(opt => opt).map((option, i) => (
                             <div key={i} className="flex items-center space-x-3 space-y-0 p-4 border rounded-lg hover:bg-muted/50 has-[:checked]:bg-primary/10 has-[:checked]:border-primary transition-colors">
                                 <RadioGroupItem value={option} id={`q${activeQuestionIndex}-o${i}`} />
-                                <Label htmlFor={`q${activeQuestionIndex}-o${i}`} className="font-normal text-base flex-1 cursor-pointer">
-                                    {option}
+                                <Label htmlFor={`q${activeQuestionIndex}-o${i}`} className={cn("font-normal text-base flex-1 cursor-pointer", textSizeClass)}>
+                                   <span className="font-bold mr-2">{String.fromCharCode(65 + i)}:</span> {option}
                                 </Label>
-                                {isTextToSpeechEnabled && (
-                                    <Button size="icon" variant="ghost" onClick={() => playTTS(option)} disabled={isTTSSpeaking}>
-                                        <Volume2 className={isTTSSpeaking ? "animate-pulse" : ""} />
-                                    </Button>
-                                )}
                             </div>
                         ))}
                     </RadioGroup>
@@ -193,6 +216,7 @@ export function ExamLayout({ exam, onTimeUp, isSubmitting }: ExamLayoutProps) {
                             placeholder="Your answer"
                             value={value}
                             onChange={(e) => handleAnswerChange(questionId, e.target.value)}
+                             className={cn("h-12", textSizeClass)}
                         />
                         {sttButton}
                     </div>
@@ -201,7 +225,7 @@ export function ExamLayout({ exam, onTimeUp, isSubmitting }: ExamLayoutProps) {
                  return (
                     <div className="flex items-start mt-4">
                         <Textarea
-                            className="min-h-[150px]"
+                            className={cn("min-h-[150px]", textSizeClass)}
                             placeholder="Your detailed answer"
                             value={value}
                             onChange={(e) => handleAnswerChange(questionId, e.target.value)}
@@ -220,14 +244,9 @@ export function ExamLayout({ exam, onTimeUp, isSubmitting }: ExamLayoutProps) {
                         {question.options.filter(opt => opt).map((option, i) => (
                             <div key={i} className="flex items-center space-x-3 space-y-0 p-4 border rounded-lg hover:bg-muted/50 has-[:checked]:bg-primary/10 has-[:checked]:border-primary transition-colors">
                                 <RadioGroupItem value={option} id={`q${activeQuestionIndex}-o${i}`} />
-                                <Label htmlFor={`q${activeQuestionIndex}-o${i}`} className="font-normal text-base flex-1 cursor-pointer">
-                                    {option}
+                                <Label htmlFor={`q${activeQuestionIndex}-o${i}`} className={cn("font-normal text-base flex-1 cursor-pointer", textSizeClass)}>
+                                   <span className="font-bold mr-2">{String.fromCharCode(65 + i)}:</span> {option}
                                 </Label>
-                                 {isTextToSpeechEnabled && (
-                                    <Button size="icon" variant="ghost" onClick={() => playTTS(option)} disabled={isTTSSpeaking}>
-                                        <Volume2 className={isTTSSpeaking ? "animate-pulse" : ""} />
-                                    </Button>
-                                )}
                             </div>
                         ))}
                     </RadioGroup>
@@ -239,7 +258,7 @@ export function ExamLayout({ exam, onTimeUp, isSubmitting }: ExamLayoutProps) {
         if (!isVoiceNavigationEnabled) return;
 
         const lower = command.toLowerCase();
-        if (lower.startsWith("select") || lower.startsWith("choose")) {
+        if (lower.startsWith("select option") || lower.startsWith("choose option")) {
             const optionLetter = lower.split(' ').pop();
             if (optionLetter && activeQuestion.type === 'mcq') {
                 const optionIndex = optionLetter.charCodeAt(0) - 'a'.charCodeAt(0);
@@ -247,9 +266,9 @@ export function ExamLayout({ exam, onTimeUp, isSubmitting }: ExamLayoutProps) {
                     handleAnswerChange(activeQuestion.id, activeQuestion.options[optionIndex]);
                 }
             }
-        } else if (lower.includes("next question")) {
+        } else if (lower.includes("next question") || lower.includes("next")) {
             setActiveQuestionIndex(p => Math.min(exam.questions.length - 1, p + 1));
-        } else if (lower.includes("previous question")) {
+        } else if (lower.includes("previous question") || lower.includes("previous")) {
             setActiveQuestionIndex(p => Math.max(0, p - 1));
         } else if (lower.startsWith("go to question")) {
             const num = parseInt(lower.replace('go to question', '').trim());
@@ -258,27 +277,28 @@ export function ExamLayout({ exam, onTimeUp, isSubmitting }: ExamLayoutProps) {
             }
         } else if(lower.includes('flag this question') || lower.includes('mark for review')) {
             toggleReviewFlag(activeQuestion.id);
-        } else if (lower.includes('submit exam')) {
+        } else if (lower.includes('submit exam') || lower.includes('finish exam')) {
             onTimeUp(answers);
+        } else if (lower.includes('repeat question')) {
+            playTTS(activeQuestion.question);
+        } else if (lower.includes('repeat options')) {
+            const optionsText = activeQuestion.options?.map((opt, i) => `Option ${String.fromCharCode(65 + i)}: ${opt}`).join('. ');
+            playTTS(optionsText || 'There are no options for this question.');
+        } else if(isSpeechToTextEnabled && (lower.startsWith('answer') || lower.startsWith('my answer is'))) {
+            const spokenAnswer = command.substring(command.indexOf(' ') + 1);
+            handleAnswerChange(activeQuestion.id, spokenAnswer);
         }
-    }, [activeQuestion, exam.questions.length, onTimeUp, answers, isVoiceNavigationEnabled]);
+    }, [activeQuestion, exam.questions.length, onTimeUp, answers, isVoiceNavigationEnabled, playTTS, isSpeechToTextEnabled]);
 
     useEffect(() => {
-        if(isListening && isVoiceNavigationEnabled) {
-            // This is a simplified way to hook into the voice control.
-            // A more robust solution might use an event emitter from the provider.
-            const processCommand = (event: any) => {
-                const transcript = event.results[event.results.length-1][0].transcript;
-                handleVoiceCommand(transcript);
-            };
-            
-            // This assumes recognition is exposed or can be accessed, which is a simplification.
-            // In a real scenario, the provider would expose a way to add command listeners.
-            // For now, we'll just log that it's ready.
-            console.log("Exam layout is ready to receive voice commands.");
-        }
-    }, [isListening, isVoiceNavigationEnabled, handleVoiceCommand]);
-
+        // This is a simplified listener for global voice commands during an exam.
+        const handleGlobalCommand = (event: CustomEvent) => {
+            handleVoiceCommand(event.detail);
+        };
+        
+        window.addEventListener('voiceCommand', handleGlobalCommand as EventListener);
+        return () => window.removeEventListener('voiceCommand', handleGlobalCommand as EventListener);
+    }, [handleVoiceCommand]);
     
     const answeredCount = Object.keys(answers).filter(key => answers[key] && answers[key].trim() !== '').length;
     const reviewedCount = Object.keys(reviewFlags).filter(k => reviewFlags[k]).length;
@@ -288,7 +308,7 @@ export function ExamLayout({ exam, onTimeUp, isSubmitting }: ExamLayoutProps) {
             "fixed inset-0 bg-background flex noselect",
             accessibility.dyslexiaFriendlyFont && "font-dyslexic",
             accessibility.highContrast && "dark",
-            accessibility.largeText && "text-lg"
+            textSizeClass
         )} onContextMenu={(e) => e.preventDefault()}>
             <audio ref={audioRef} className="hidden" />
             {/* Left Panel: Question Palette */}
@@ -309,6 +329,7 @@ export function ExamLayout({ exam, onTimeUp, isSubmitting }: ExamLayoutProps) {
                                         'bg-green-500/20 border-green-500 text-green-700 hover:bg-green-500/30': status === 'answered' && activeQuestionIndex !== index,
                                         'bg-yellow-500/20 border-yellow-500 text-yellow-700 hover:bg-yellow-500/30': status === 'review' && activeQuestionIndex !== index,
                                     })}
+                                    aria-label={`Go to question ${index + 1}`}
                                 >
                                     {index + 1}
                                      {status === 'review' && <Flag className="absolute -top-1 -right-1 h-3 w-3 text-yellow-600 fill-yellow-500" />}
@@ -320,7 +341,7 @@ export function ExamLayout({ exam, onTimeUp, isSubmitting }: ExamLayoutProps) {
                 <div className="mt-4 text-xs space-y-2 text-muted-foreground">
                    <div className="flex justify-between items-center"><div className="flex items-center gap-2"><div className="w-3 h-3 rounded-full bg-green-500/20 border border-green-500"/> Answered</div> <span>{answeredCount}</span></div>
                    <div className="flex justify-between items-center"><div className="flex items-center gap-2"><div className="w-3 h-3 rounded-full bg-border"/> Unanswered</div> <span>{exam.questions.length - answeredCount}</span></div>
-                   <div className="flex justify-between items-center"><div className="flex items-center gap-2"><div className="w-3 h-3 rounded-full bg-yellow-500/20 border border-yellow-500"/> Review</div> <span>{reviewedCount}</span></div>
+                   <div className="flex justify-between items-center"><div className="flex items-center gap-2"><div className="w-3 h-3 rounded-full bg-yellow-500/20 border-yellow-500"/> Review</div> <span>{reviewedCount}</span></div>
                 </div>
             </div>
 
@@ -328,9 +349,21 @@ export function ExamLayout({ exam, onTimeUp, isSubmitting }: ExamLayoutProps) {
             <main className="flex-1 flex flex-col md:mr-20">
                 <header className="flex justify-between items-center border-b p-4">
                     <div>
-                        <h1 className="text-xl font-bold">{exam.title}</h1>
-                        <p className="text-sm text-muted-foreground">{exam.subject}</p>
+                        <h1 className={cn("text-xl font-bold", textSizeClass)}>{exam.title}</h1>
+                        <p className={cn("text-sm text-muted-foreground", textSizeClass)}>{exam.subject}</p>
                     </div>
+                     {isTextToSpeechEnabled && (
+                        <div className="flex gap-2">
+                             <Button size="sm" variant="outline" onClick={() => playTTS(activeQuestion.question)} disabled={isTTSSpeaking} aria-label="Repeat Question">
+                                <Repeat className="mr-2" /> Repeat Question
+                            </Button>
+                             {activeQuestion.options && activeQuestion.options.length > 0 && (
+                                 <Button size="sm" variant="outline" onClick={() => playTTS(activeQuestion.options.map((opt, i) => `Option ${String.fromCharCode(65 + i)}: ${opt}`).join('. '))} disabled={isTTSSpeaking} aria-label="Repeat Options">
+                                    <Repeat className="mr-2" /> Repeat Options
+                                </Button>
+                             )}
+                        </div>
+                    )}
                     {exam.durationMinutes && (
                         <Timer
                             durationInMinutes={exam.durationMinutes}
@@ -343,16 +376,9 @@ export function ExamLayout({ exam, onTimeUp, isSubmitting }: ExamLayoutProps) {
                         {activeQuestion && (
                             <div>
                                 <div className="flex items-center justify-between mb-6">
-                                    <div className="flex items-center gap-4">
-                                        <h2 className="text-lg font-semibold">Question {activeQuestionIndex + 1} of {exam.questions.length}</h2>
-                                        {isTextToSpeechEnabled && (
-                                            <Button size="icon" variant="outline" onClick={() => playTTS(activeQuestion.question)} disabled={isTTSSpeaking}>
-                                                <Volume2 className={isTTSSpeaking ? "animate-pulse" : ""} />
-                                            </Button>
-                                        )}
-                                    </div>
+                                    <h2 className={cn("text-lg font-semibold", textSizeClass)}>Question {activeQuestionIndex + 1} of {exam.questions.length}</h2>
                                 </div>
-                                <p className="text-xl mb-6">{activeQuestion.question}</p>
+                                <p className={cn("text-xl mb-6", textSizeClass)}>{activeQuestion.question}</p>
                                 {renderQuestionInput(activeQuestion)}
                             </div>
                         )}
@@ -383,5 +409,3 @@ export function ExamLayout({ exam, onTimeUp, isSubmitting }: ExamLayoutProps) {
         </div>
     );
 }
-
-    

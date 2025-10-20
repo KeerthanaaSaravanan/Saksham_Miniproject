@@ -1,3 +1,4 @@
+
 'use client';
 
 import React, { createContext, useState, useContext, ReactNode, useEffect, useRef, useCallback } from 'react';
@@ -5,6 +6,7 @@ import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
 import { getChatbotResponse, getTTS } from '@/lib/actions/chatbot';
 import { usePathname } from 'next/navigation';
+import { useExamMode } from '@/hooks/use-exam-mode';
 
 interface VoiceControlContextType {
   isListening: boolean;
@@ -58,31 +60,45 @@ export function VoiceControlProvider({ children }: { children: ReactNode }) {
   const [loginStep, setLoginStep] = useState<'idle' | 'ask-email' | 'confirm-email' | 'ask-password' | 'confirm-password' | 'submitting'>('idle');
   const [loginCredentials, setLoginCredentials] = useState({ email: '', password: '' });
   const [initialWelcomeDone, setInitialWelcomeDone] = useState(false);
+  const isSpeakingRef = useRef(false);
+  const { isExamMode } = useExamMode();
 
 
-  const speak = useCallback(async (text: string) => {
+  const speak = useCallback(async (text: string, onEnd?: () => void) => {
+    if (isSpeakingRef.current) return;
     setIsLoading(true);
+    isSpeakingRef.current = true;
     try {
       const result = await getTTS(text);
       if ('media' in result && audioRef.current) {
         audioRef.current.src = result.media;
-        return new Promise<void>((resolve) => {
-          audioRef.current!.onended = () => {
-            setIsLoading(false);
-            resolve();
-          };
-          audioRef.current!.play().catch(e => {
-            console.error("Audio play failed:", e);
-            setIsLoading(false);
-            resolve();
-          });
-        });
+        
+        const playPromise = audioRef.current.play();
+        if(playPromise !== undefined) {
+            playPromise.catch(e => {
+                console.error("Audio play failed:", e);
+                isSpeakingRef.current = false;
+                setIsLoading(false);
+                onEnd?.();
+            });
+        }
+        
+        audioRef.current.onended = () => {
+          isSpeakingRef.current = false;
+          setIsLoading(false);
+          onEnd?.();
+        };
+
       } else {
+        isSpeakingRef.current = false;
         setIsLoading(false);
+        onEnd?.();
       }
     } catch (error) {
       console.error("TTS Error:", error);
+      isSpeakingRef.current = false;
       setIsLoading(false);
+      onEnd?.();
     }
   }, []);
 
@@ -131,7 +147,6 @@ export function VoiceControlProvider({ children }: { children: ReactNode }) {
   
 
   const processCommand = useCallback(async (command: string) => {
-    const lowerCaseCommand = command.toLowerCase();
     
     // Give login process priority
     if(loginStep !== 'idle' && loginStep !== 'submitting') {
@@ -139,23 +154,21 @@ export function VoiceControlProvider({ children }: { children: ReactNode }) {
         if(loginHandled) return;
     }
 
-    if (lowerCaseCommand.includes('yes')) {
-        if(pathname === '/') { // Only on login page
-            await speak("Voice control is enabled. Let's start with your email address. Please say your email.");
-            setLoginStep('ask-email');
-        }
-        setIsListening(true);
-        return;
+    if(isExamMode) {
+      // In exam mode, dispatch events for the exam layout to handle.
+      const event = new CustomEvent('voiceCommand', { detail: command });
+      window.dispatchEvent(event);
+      return;
     }
-    if (lowerCaseCommand.includes('no')) {
+
+
+    if (command.toLowerCase().includes('stop listening')) {
         setIsListening(false);
-        if (recognitionRef.current) {
-          recognitionRef.current.stop();
-        }
+        speak('Voice control disabled.');
         return;
     }
 
-    if (!isListening) return;
+    const lowerCaseCommand = command.toLowerCase();
 
     if (lowerCaseCommand.includes('navigate to') || lowerCaseCommand.includes('go to') || lowerCaseCommand.includes('open')) {
       let path = '';
@@ -187,7 +200,7 @@ export function VoiceControlProvider({ children }: { children: ReactNode }) {
           await speak(res.response);
         }
     }
-  }, [handleNavigation, toast, speak, isListening, processLoginCommand, loginStep, pathname]);
+  }, [handleNavigation, toast, speak, processLoginCommand, loginStep, isExamMode]);
 
   const startListener = useCallback(() => {
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
@@ -208,6 +221,7 @@ export function VoiceControlProvider({ children }: { children: ReactNode }) {
     recognition.lang = 'en-US';
 
     recognition.onresult = (event: any) => {
+      if(isSpeakingRef.current) return;
       const lastResult = event.results[event.results.length - 1];
       if (lastResult.isFinal) {
         const command = lastResult[0].transcript.trim();
@@ -253,20 +267,16 @@ export function VoiceControlProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (isListening) {
       startListener();
-      if (pathname !== '/') {
-        toast({ title: 'Voice Control Enabled', description: 'Listening for commands...' });
-        const prompt = getPagePrompt(pathname);
-        speak(`Voice control is enabled. ${prompt}`);
-      }
     } else {
       if (recognitionRef.current) {
         recognitionRef.current.onend = null; // Prevent automatic restart
         recognitionRef.current.stop();
         recognitionRef.current = null;
-        if (pathname !== '/') { // Don't show toast on login page for initial 'no'
-          toast({ title: 'Voice Control Disabled' });
-        }
       }
+       if (audioRef.current) {
+            audioRef.current.pause();
+            isSpeakingRef.current = false;
+       }
     }
 
     return () => {
@@ -277,28 +287,63 @@ export function VoiceControlProvider({ children }: { children: ReactNode }) {
       }
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isListening, pathname, startListener, toast]);
+  }, [isListening, startListener]);
 
-  useEffect(() => {
-    // This effect handles the one-time welcome message on the login page.
+
+  const initialPrompt = useCallback(async () => {
     if (pathname === '/' && !initialWelcomeDone) {
       setInitialWelcomeDone(true);
       const WELCOME_KEY = 'saksham_welcome_spoken';
       const hasBeenWelcomed = sessionStorage.getItem(WELCOME_KEY);
-
+      
       if (!hasBeenWelcomed) {
-        // Use setTimeout to decouple from the initial render cycle.
-        const timer = setTimeout(() => {
-          speak("Welcome to Saksham! Would you like me to guide you through login using voice commands? Please say 'yes' to begin or 'no' to continue manually.")
-            .then(() => {
-              setIsListening(true); // Start listening after the prompt.
-            });
-        }, 500); // Small delay to ensure everything is ready
+        await speak("Welcome to Saksham! Would you like me to guide you through login using voice commands? Please say 'yes' to begin or 'no' to continue manually.", () => {
+            setIsListening(true);
+        });
         sessionStorage.setItem(WELCOME_KEY, 'true');
-        return () => clearTimeout(timer);
       }
     }
-  }, [pathname, speak, initialWelcomeDone]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pathname, initialWelcomeDone, speak]);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+        initialPrompt();
+    }, 1000);
+    return () => clearTimeout(timer);
+  }, [initialPrompt]);
+
+   const handleInitialYesNo = useCallback(async (command: string) => {
+        if(pathname === '/' && loginStep === 'idle') {
+            const lower = command.toLowerCase();
+            if (lower.includes('yes')) {
+                await speak("Voice control is enabled. Let's start with your email address. Please say your email.", () => {
+                    setLoginStep('ask-email');
+                });
+            } else if (lower.includes('no')) {
+                setIsListening(false);
+            }
+        }
+    }, [pathname, loginStep, speak]);
+
+    useEffect(() => {
+        const handleCommand = (event: any) => {
+             if (pathname === '/' && loginStep === 'idle') {
+                const transcript = event.results[event.results.length - 1][0].transcript.trim();
+                handleInitialYesNo(transcript);
+             }
+        };
+
+        if(recognitionRef.current && pathname === '/' && loginStep === 'idle') {
+            recognitionRef.current.addEventListener('result', handleCommand);
+        }
+
+        return () => {
+            if(recognitionRef.current) {
+                recognitionRef.current.removeEventListener('result', handleCommand);
+            }
+        }
+    }, [pathname, loginStep, handleInitialYesNo]);
 
 
   return (

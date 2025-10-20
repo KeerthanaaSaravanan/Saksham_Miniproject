@@ -1,3 +1,4 @@
+
 'use client';
 
 import {
@@ -13,8 +14,12 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from '@/components/ui/accordion';
-import { Check, X, ClipboardList } from 'lucide-react';
+import { Check, X, ClipboardList, Volume2, Repeat } from 'lucide-react';
 import { Progress } from '@/components/ui/progress';
+import { useAccessibilityPanel } from './accessibility/accessibility-panel-provider';
+import { Button } from './ui/button';
+import { getTTS } from '@/lib/actions/chatbot';
+import { useCallback, useRef, useState } from 'react';
 
 type ResultItem = {
   question: string;
@@ -38,7 +43,44 @@ interface PracticeResultsProps {
 }
 
 export function PracticeResults({ history, isClient }: PracticeResultsProps) {
-  
+  const { userProfile } = useAccessibilityPanel();
+  const accessibility = userProfile?.accessibility_profile || {};
+  const isTextToSpeechEnabled = accessibility.textToSpeech || accessibility.readAloud;
+  const [isTTSSpeaking, setIsTTSSpeaking] = useState(false);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+
+  const playTTS = useCallback(async (text: string) => {
+    if (isTTSSpeaking || !isTextToSpeechEnabled) return;
+    if (!audioRef.current) {
+        audioRef.current = new Audio();
+    }
+    setIsTTSSpeaking(true);
+    try {
+        const result = await getTTS(text);
+        if ('media' in result && audioRef.current) {
+            audioRef.current.src = result.media;
+            audioRef.current.play();
+            audioRef.current.onended = () => setIsTTSSpeaking(false);
+        } else {
+            setIsTTSSpeaking(false);
+        }
+    } catch (error) {
+        console.error("TTS Error:", error);
+        setIsTTSSpeaking(false);
+    }
+  }, [isTTSSpeaking, isTextToSpeechEnabled]);
+
+
+  const readEntryAloud = (entry: PracticeHistoryEntry) => {
+    const summary = `Results for ${entry.title}, taken on ${new Date(entry.date).toLocaleDateString()}. Your score was ${entry.score.toFixed(0)} percent.`;
+    const details = entry.results.map((result, index) => {
+        const correctness = result.isCorrect ? 'Correct' : 'Incorrect';
+        const answerDetail = result.isCorrect ? `Your answer was ${result.userAnswer}.` : `Your answer was ${result.userAnswer}. The correct answer was ${result.correctAnswer}.`;
+        return `Question ${index + 1}: ${result.question}. ${correctness}. ${answerDetail}`;
+    }).join(' ');
+    playTTS(`${summary} ${details}`);
+  }
+
   if (!isClient) {
     return (
         <Card className="flex flex-col items-center justify-center p-12 text-center border-dashed">
@@ -73,6 +115,11 @@ export function PracticeResults({ history, isClient }: PracticeResultsProps) {
                                 </CardDescription>
                             </div>
                             <div className="flex items-center gap-4">
+                                {isTextToSpeechEnabled && (
+                                  <Button size="icon" variant="ghost" onClick={(e) => { e.stopPropagation(); readEntryAloud(entry); }} disabled={isTTSSpeaking} aria-label="Read results aloud">
+                                      <Volume2 className={isTTSSpeaking ? "animate-pulse" : ""} />
+                                  </Button>
+                                )}
                                 <div className="text-right">
                                     <p className="text-2xl font-bold" style={{ color: `hsl(var(--${entry.score >= 75 ? 'primary' : entry.score >= 50 ? 'accent' : 'destructive'}))` }}>
                                         {entry.score.toFixed(0)}%
@@ -112,6 +159,7 @@ export function PracticeResults({ history, isClient }: PracticeResultsProps) {
           </p>
         </Card>
       )}
+      <audio ref={audioRef} className="hidden" />
     </div>
   );
 }

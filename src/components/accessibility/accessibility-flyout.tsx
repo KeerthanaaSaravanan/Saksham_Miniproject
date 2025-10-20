@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -9,6 +10,7 @@ import { Label } from '../ui/label';
 import { Save, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { AccessibilityModule } from './modules';
+import { RadioGroup, RadioGroupItem } from '../ui/radio-group';
 
 interface AccessibilityFlyoutProps {
     module: AccessibilityModule;
@@ -19,26 +21,17 @@ interface AccessibilityFlyoutProps {
 }
 
 export function AccessibilityFlyout({ module, isOpen, onClose, userProfile, onSettingsUpdate }: AccessibilityFlyoutProps) {
-  const [moduleSettings, setModuleSettings] = useState<{[key: string]: boolean}>({});
+  const [moduleSettings, setModuleSettings] = useState<{[key: string]: any}>({});
   const [isSaving, setIsSaving] = useState(false);
   const IconComponent = module.icon;
 
   useEffect(() => {
-    if (userProfile?.accessibility_profile) {
-      const profile = userProfile.accessibility_profile;
-      const newSettings: { [key: string]: boolean } = {};
+    const profile = userProfile?.accessibility_profile || {};
+    const newSettings: { [key: string]: any } = {};
       module.features.forEach(feature => {
-        newSettings[feature.key] = !!profile[feature.key];
+        newSettings[feature.key] = profile[feature.key] ?? feature.defaultValue;
       });
       setModuleSettings(newSettings);
-    } else {
-       // Initialize with all false if no profile
-       const newSettings: { [key: string]: boolean } = {};
-       module.features.forEach(feature => {
-        newSettings[feature.key] = false;
-       });
-       setModuleSettings(newSettings);
-    }
   }, [userProfile, module.features]);
 
   const handleSaveSettings = async () => {
@@ -50,10 +43,10 @@ export function AccessibilityFlyout({ module, isOpen, onClose, userProfile, onSe
     onClose();
   };
 
-  const toggleFeature = (featureKey: string) => {
+  const updateSetting = (key: string, value: any) => {
     setModuleSettings(prev => ({
       ...prev,
-      [featureKey]: !prev[featureKey]
+      [key]: value
     }));
   };
 
@@ -79,24 +72,42 @@ export function AccessibilityFlyout({ module, isOpen, onClose, userProfile, onSe
         <CardContent className="flex-1 p-6 space-y-6 overflow-y-auto">
           {module.features.map((feature) => {
               const FeatureIcon = feature.icon;
-              const isChecked = moduleSettings[feature.key] || false;
+              const currentValue = moduleSettings[feature.key];
               const isDisabled = feature.label.includes('(Coming Soon)');
 
               return (
-              <div key={feature.key} className="flex items-center space-x-4 p-3 rounded-lg hover:bg-muted/50 transition-colors">
-                  <Checkbox 
-                      id={feature.key}
-                      checked={isChecked && !isDisabled}
-                      onCheckedChange={() => toggleFeature(feature.key)}
-                      disabled={isDisabled}
-                  />
-                  <Label htmlFor={feature.key} className={`flex-1 flex items-center gap-3 ${isDisabled ? 'cursor-not-allowed text-muted-foreground' : 'cursor-pointer'}`}>
-                      <FeatureIcon className="h-5 w-5" />
-                      <div>
+              <div key={feature.key} className="flex items-start space-x-4 p-3 rounded-lg hover:bg-muted/50 transition-colors">
+                  <div className="flex-1 flex items-start gap-3">
+                      <FeatureIcon className="h-5 w-5 mt-1" />
+                      <div className='flex-1'>
                         <p className="font-semibold">{feature.label}</p>
                         {feature.description && <p className="text-xs text-muted-foreground font-normal">{feature.description}</p>}
+                         {feature.type === 'radio' && feature.options && (
+                             <RadioGroup
+                                value={currentValue}
+                                onValueChange={(val) => updateSetting(feature.key, val)}
+                                className="mt-2"
+                                disabled={isDisabled}
+                            >
+                                {feature.options.map(opt => (
+                                    <div key={opt.value} className="flex items-center space-x-2">
+                                        <RadioGroupItem value={opt.value} id={`${feature.key}-${opt.value}`} />
+                                        <Label htmlFor={`${feature.key}-${opt.value}`}>{opt.label}</Label>
+                                    </div>
+                                ))}
+                            </RadioGroup>
+                        )}
                       </div>
-                  </Label>
+                  </div>
+                   {feature.type === 'boolean' && (
+                     <Checkbox 
+                        id={feature.key}
+                        checked={currentValue && !isDisabled}
+                        onCheckedChange={(checked) => updateSetting(feature.key, checked)}
+                        disabled={isDisabled}
+                        className="mt-1"
+                    />
+                  )}
               </div>
               );
           })}

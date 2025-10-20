@@ -8,11 +8,22 @@ import { useUser, useFirestore, errorEmitter, FirestorePermissionError } from '@
 import { doc, setDoc, onSnapshot } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 
+export interface AccessibilitySettings {
+  textToSpeech?: boolean;
+  speechToText?: boolean;
+  voiceNavigation?: boolean;
+  highContrast?: boolean;
+  largeText?: 'normal' | 'large' | 'xlarge';
+  dyslexiaFriendlyFont?: boolean;
+  [key: string]: any;
+}
+
 interface AccessibilityPanelContextType {
   openModule: string | null;
   setOpenModule: (module: string | null) => void;
-  userProfile: any;
+  userProfile: { accessibility_profile: AccessibilitySettings } | null;
   handleSettingsUpdate: (settings: any) => Promise<void>;
+  isLoading: boolean;
 }
 
 const AccessibilityPanelContext = createContext<AccessibilityPanelContextType | undefined>(undefined);
@@ -27,28 +38,35 @@ export function useAccessibilityPanel() {
 
 export function AccessibilityPanelProvider({ children }: { children: ReactNode }) {
   const [openModule, setOpenModule] = useState<string | null>(null);
-  const [userProfile, setUserProfile] = useState<any>(null);
+  const [userProfile, setUserProfile] = useState<{ accessibility_profile: AccessibilitySettings } | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
   const { user } = useUser();
   const firestore = useFirestore();
   const { toast } = useToast();
 
    React.useEffect(() => {
     if (user && firestore) {
+      setIsLoading(true);
       const profileRef = doc(firestore, 'users', user.uid, 'accessibility_profile', 'settings');
       const unsubscribe = onSnapshot(profileRef, (docSnap) => {
         if (docSnap.exists()) {
-          setUserProfile({ accessibility_profile: docSnap.data() });
+          setUserProfile({ accessibility_profile: docSnap.data() as AccessibilitySettings });
         } else {
-          setUserProfile({ accessibility_profile: {} }); // Default empty profile
+          setUserProfile({ accessibility_profile: { largeText: 'normal' } }); // Default empty profile
         }
+        setIsLoading(false);
       }, (error) => {
         const permissionError = new FirestorePermissionError({
             path: profileRef.path,
             operation: 'get',
         });
         errorEmitter.emit('permission-error', permissionError);
+        setIsLoading(false);
       });
       return () => unsubscribe();
+    } else if (!user) {
+        setIsLoading(false);
+        setUserProfile({ accessibility_profile: { largeText: 'normal' } });
     }
   }, [user, firestore]);
 
@@ -78,7 +96,7 @@ export function AccessibilityPanelProvider({ children }: { children: ReactNode }
   const moduleData = openModule ? accessibilityModules.find(m => m.id === openModule) : null;
 
   return (
-    <AccessibilityPanelContext.Provider value={{ openModule, setOpenModule, userProfile, handleSettingsUpdate }}>
+    <AccessibilityPanelContext.Provider value={{ openModule, setOpenModule, userProfile, handleSettingsUpdate, isLoading }}>
       {children}
       {moduleData && (
         <AccessibilityFlyout 
