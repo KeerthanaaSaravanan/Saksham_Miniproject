@@ -1,9 +1,9 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useFirestore, useCollection, useMemoFirebase } from '@/firebase';
 import { collection, query, Timestamp } from 'firebase/firestore';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import {
   Accordion,
   AccordionContent,
@@ -14,7 +14,9 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { MoreHorizontal, Download, Edit, Send } from 'lucide-react';
+import { MoreHorizontal, Edit, Send } from 'lucide-react';
+import { useRouter } from 'next/navigation';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 
 type Exam = {
     id: string;
@@ -50,6 +52,7 @@ const getExamStatus = (startTime: Timestamp, endTime: Timestamp): { text: string
 
 export default function ExaminationsPage() {
     const firestore = useFirestore();
+    const router = useRouter();
 
     const examsQuery = useMemoFirebase(() => {
         if (!firestore) return null;
@@ -105,7 +108,9 @@ export default function ExaminationsPage() {
                                             <div className="flex justify-between items-center">
                                                  <h3 className="text-lg font-semibold">Student Submissions</h3>
                                                  <div className="flex gap-2">
-                                                    <Button variant="outline" size="sm"><Edit className="mr-2 h-4 w-4" /> Edit Exam</Button>
+                                                    <Button variant="outline" size="sm" onClick={() => router.push(`/admin/upload?examId=${exam.id}`)}>
+                                                        <Edit className="mr-2 h-4 w-4" /> Edit Exam
+                                                    </Button>
                                                     <Button variant="default" size="sm"><Send className="mr-2 h-4 w-4" /> Publish Results</Button>
                                                  </div>
                                             </div>
@@ -127,9 +132,17 @@ export default function ExaminationsPage() {
                                                                     <TableCell>{sub.submittedAt.toLocaleString()}</TableCell>
                                                                     <TableCell><Badge variant={sub.status === 'Graded' ? 'secondary' : 'default'}>{sub.status}</Badge></TableCell>
                                                                     <TableCell className="text-right">
-                                                                        <Button variant="ghost" size="icon">
-                                                                            <MoreHorizontal className="h-4 w-4" />
-                                                                        </Button>
+                                                                       <DropdownMenu>
+                                                                            <DropdownMenuTrigger asChild>
+                                                                                <Button variant="ghost" size="icon">
+                                                                                    <MoreHorizontal className="h-4 w-4" />
+                                                                                </Button>
+                                                                            </DropdownMenuTrigger>
+                                                                            <DropdownMenuContent align="end">
+                                                                                <DropdownMenuItem>View Answer Sheet</DropdownMenuItem>
+                                                                                <DropdownMenuItem>Grade Submission</DropdownMenuItem>
+                                                                            </DropdownMenuContent>
+                                                                        </DropdownMenu>
                                                                     </TableCell>
                                                                 </TableRow>
                                                             ))}

@@ -11,10 +11,6 @@ import {
   Settings,
   LogOut,
   Brain,
-  ChevronDown,
-  CheckSquare,
-  Clock,
-  Info,
   HelpCircle
 } from "lucide-react";
 
@@ -37,11 +33,6 @@ export default function FacultySidebar({ faculty }: { faculty?: any }) {
       href: "/admin/examinations"
     },
     {
-      icon: Users,
-      label: "Students",
-      href: "#"
-    },
-    {
       icon: BarChart3,
       label: "Analytics",
       href: "#"
@@ -56,8 +47,8 @@ export default function FacultySidebar({ faculty }: { faculty?: any }) {
     },
     {
       icon: Settings,
-      label: "Platform Settings",
-      href: "#"
+      label: "Profile Settings",
+      href: "/settings/profile"
     }
   ];
 

@@ -18,10 +18,11 @@ import {
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
-import { MoreHorizontal, Users, FilePlus, Clock, CheckSquare, TrendingUp, BookOpen, Activity } from 'lucide-react';
+import { MoreHorizontal, Users, FilePlus, Clock, TrendingUp, BookOpen, Activity } from 'lucide-react';
 import { Progress } from '@/components/ui/progress';
 import { ChartConfig, ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart';
 import { Bar, BarChart, ResponsiveContainer, XAxis, YAxis } from "recharts";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 
 
 const students = [
@@ -173,9 +174,7 @@ export default function AdminDashboardPage() {
                 <TableHead>Student</TableHead>
                 <TableHead>Accessibility Need</TableHead>
                 <TableHead>Overall Progress</TableHead>
-                <TableHead>
-                  <span className="sr-only">Actions</span>
-                </TableHead>
+                <TableHead className='text-right'>Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -202,11 +201,20 @@ export default function AdminDashboardPage() {
                         <span className="text-xs text-muted-foreground">{student.progress}%</span>
                     </div>
                   </TableCell>
-                  <TableCell>
-                    <Button aria-haspopup="true" size="icon" variant="ghost">
-                      <MoreHorizontal className="h-4 w-4" />
-                      <span className="sr-only">Toggle menu</span>
-                    </Button>
+                  <TableCell className='text-right'>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                         <Button aria-haspopup="true" size="icon" variant="ghost">
+                          <MoreHorizontal className="h-4 w-4" />
+                          <span className="sr-only">Toggle menu</span>
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuItem>View Profile</DropdownMenuItem>
+                        <DropdownMenuItem>Check Submissions</DropdownMenuItem>
+                        <DropdownMenuItem>Send Message</DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
                   </TableCell>
                 </TableRow>
               ))}
