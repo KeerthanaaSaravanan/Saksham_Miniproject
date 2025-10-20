@@ -52,7 +52,7 @@ export function FacultyRightSidebar() {
       .join('') || 'F';
 
   return (
-    <aside className="fixed right-0 top-0 h-full w-16 bg-card/80 border-l border-border/80 flex flex-col items-center justify-between py-6 z-40">
+    <aside className="fixed right-0 top-0 h-full w-20 bg-card/80 border-l border-border/80 flex flex-col items-center justify-between py-6 z-40">
       {/* Top Section: Profile */}
       <div className="flex flex-col items-center">
         <DropdownMenu>
