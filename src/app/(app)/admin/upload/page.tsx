@@ -148,8 +148,9 @@ function UploadPageComponent() {
     if (isEditMode) {
       fetchExamData();
     } else {
+        // When not in edit mode, ensure the form is clean.
         form.reset(defaultValues);
-        setUploadedFile(null); // Ensure file is cleared when not in edit mode
+        setUploadedFile(null);
         setIsDataLoading(false);
     }
   }, [examId, firestore, form, replace, router, toast, isEditMode]);
@@ -206,7 +207,7 @@ function UploadPageComponent() {
   };
   
   const handleCreateNew = () => {
-    // Navigate to the clean upload page URL, which will trigger the useEffect
+    // Navigate to the clean upload page URL, which will trigger the component to re-mount with a new key.
     router.push('/admin/upload');
   }
 
@@ -255,8 +256,7 @@ function UploadPageComponent() {
           title: `Exam ${isEditMode ? 'Updated' : 'Uploaded'} Successfully`,
           description: `The exam "${values.title}" has been saved.`,
         });
-        form.reset();
-        setUploadedFile(null);
+        // We don't need to manually reset the form, navigation will handle it.
         router.push('/admin/examinations');
       })
       .catch((error: any) => {
@@ -462,9 +462,15 @@ function UploadPageComponent() {
 export default function UploadPage() {
     return (
         <Suspense fallback={<div>Loading...</div>}>
-            <UploadPageComponent />
+            <UploadPageWithKey />
         </Suspense>
     )
 }
 
+function UploadPageWithKey() {
+    const searchParams = useSearchParams();
+    const examId = searchParams.get('examId');
     
+    // The key forces a re-mount when we navigate between editing an exam and creating a new one.
+    return <UploadPageComponent key={examId || 'new'} />;
+}
