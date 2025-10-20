@@ -197,7 +197,7 @@ export default function AdminDashboardPage() {
                   </TableCell>
                   <TableCell>
                     <div className="flex items-center gap-2">
-                        <Progress value={student.progress} className="w-24 bg-muted" />
+                        <Progress value={student.progress} className="w-24 bg-muted h-2" />
                         <span className="text-xs text-muted-foreground">{student.progress}%</span>
                     </div>
                   </TableCell>
