@@ -28,6 +28,7 @@ import { useUser, useFirestore, useMemoFirebase } from '@/firebase';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useState, useEffect } from 'react';
 import { collection, query, where, getDocs, Timestamp } from 'firebase/firestore';
+import { useCollection } from '@/firebase/firestore/use-collection';
 
 type Student = {
     id: string;
@@ -42,6 +43,7 @@ type Exam = {
     id: string;
     title: string;
     subject: string;
+    gradeLevel: string;
     startTime: Timestamp;
     endTime: Timestamp;
 };
@@ -68,7 +70,7 @@ export default function AdminDashboardPage() {
         return query(collection(firestore, 'exams'));
     }, [firestore]);
 
-    const { data: fetchedExams, isLoading: areExamsLoading } = useCollection(examsQuery);
+    const { data: fetchedExams, isLoading: areExamsLoading } = useCollection<Exam>(examsQuery);
 
     useEffect(() => {
         if (!firestore) return;
@@ -76,28 +78,18 @@ export default function AdminDashboardPage() {
         const fetchData = async () => {
             setIsLoading(true);
 
-            if (!fetchedExams) {
-                setIsLoading(false);
-                return;
-            }
-            const now = new Date();
-            
-            const examDetails: {[key: string]: {subject: string, startTime: Timestamp, endTime: Timestamp}} = {};
-            fetchedExams.forEach(exam => {
-                examDetails[exam.id] = { subject: exam.subject, startTime: exam.startTime, endTime: exam.endTime };
-            });
-
-            const upcomingExams = fetchedExams
-                .filter(exam => exam.startTime.toDate() > now && exam.startTime.toDate() < new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000))
-                .sort((a, b) => a.startTime.toDate().getTime() - b.startTime.toDate().getTime());
-            
-            setExams(upcomingExams);
-
-            // Fetch Students and their progress
             const usersQuery = query(collection(firestore, 'users'), where('role', '==', 'student'));
             const usersSnap = await getDocs(usersQuery);
             const studentList: Student[] = [];
             const subjectScores: { [key: string]: { total: number, count: number } } = {};
+            const examDetails: {[key: string]: {subject: string, startTime: Timestamp, endTime: Timestamp}} = {};
+            
+            if (fetchedExams) {
+                fetchedExams.forEach(exam => {
+                    examDetails[exam.id] = { subject: exam.subject, startTime: exam.startTime, endTime: exam.endTime };
+                });
+            }
+
 
             for (const userDoc of usersSnap.docs) {
                 const userData = userDoc.data();
@@ -138,16 +130,23 @@ export default function AdminDashboardPage() {
                 score: data.total / data.count,
             }));
             setSubjectPerformance(performanceData);
+            
+            const now = new Date();
+            if(fetchedExams) {
+                const upcomingExams = fetchedExams
+                    .filter(exam => exam.startTime.toDate() > now && exam.startTime.toDate() < new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000))
+                    .sort((a, b) => a.startTime.toDate().getTime() - b.startTime.toDate().getTime());
+                setExams(upcomingExams);
 
-            // Set Stats
-            setStats(prev => ({
-                ...prev,
-                totalStudents: usersSnap.size,
-                assessmentsCreated: fetchedExams.length,
-                activeExams: Object.values(examDetails).filter(exam => {
-                    return exam.startTime.toDate() < now && exam.endTime.toDate() > now;
-                }).length,
-            }));
+                setStats(prev => ({
+                    ...prev,
+                    totalStudents: usersSnap.size,
+                    assessmentsCreated: fetchedExams.length,
+                    activeExams: Object.values(examDetails).filter(exam => {
+                        return exam.startTime.toDate() < now && exam.endTime.toDate() > now;
+                    }).length,
+                }));
+            }
             
             setIsLoading(false);
         };
@@ -226,61 +225,57 @@ export default function AdminDashboardPage() {
             </Card>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            <div className="lg:col-span-2 space-y-6">
-                 <Card>
-                    <CardHeader>
-                        <CardTitle>Average Performance by Subject</CardTitle>
-                        <CardDescription>An overview of student scores across different subjects.</CardDescription>
-                    </CardHeader>
-                    <CardContent className="pl-2">
-                        {isLoading ? <Skeleton className="h-[300px] w-full" /> : (
-                            subjectPerformance.length > 0 ? (
-                                <ChartContainer config={chartConfig} className="h-[300px] w-full">
-                                    <BarChart accessibilityLayer data={subjectPerformance}>
-                                        <XAxis dataKey="subject" tickLine={false} tickMargin={10} axisLine={false} tickFormatter={(value) => value.slice(0, 8)} />
-                                        <YAxis stroke="#888888" fontSize={12} tickLine={false} axisLine={false} />
-                                        <ChartTooltip cursor={false} content={<ChartTooltipContent />} />
-                                        <Bar dataKey="score" fill="var(--color-score)" radius={4} />
-                                    </BarChart>
-                                </ChartContainer>
-                            ) : (
-                                <div className="h-[300px] flex items-center justify-center text-muted-foreground">No performance data available yet.</div>
-                            )
-                        )}
-                    </CardContent>
-                </Card>
-            </div>
-            <div className="space-y-6">
-                 <Card>
-                    <CardHeader>
-                        <CardTitle>Upcoming Deadlines</CardTitle>
-                        <CardDescription>Exams starting within the next week.</CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                        {isLoading ? <Skeleton className="h-[300px] w-full" /> : (
-                             exams.length > 0 ? (
-                                <div className="space-y-4">
-                                {exams.slice(0, 4).map(exam => (
-                                    <div key={exam.id} className="flex items-center">
-                                        <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center mr-4">
-                                            <BookOpen className="h-4 w-4 text-primary" />
-                                        </div>
-                                        <div className="flex-1">
-                                            <p className="font-semibold text-sm">{exam.title}</p>
-                                            <p className="text-xs text-muted-foreground">{exam.subject} - {exam.gradeLevel}</p>
-                                        </div>
-                                        <p className="text-xs text-muted-foreground font-medium">{exam.startTime.toDate().toLocaleDateString()}</p>
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+             <Card>
+                <CardHeader>
+                    <CardTitle>Average Performance by Subject</CardTitle>
+                    <CardDescription>An overview of student scores across different subjects.</CardDescription>
+                </CardHeader>
+                <CardContent className="pl-2">
+                    {isLoading ? <Skeleton className="h-[300px] w-full" /> : (
+                        subjectPerformance.length > 0 ? (
+                            <ChartContainer config={chartConfig} className="h-[300px] w-full">
+                                <BarChart accessibilityLayer data={subjectPerformance}>
+                                    <XAxis dataKey="subject" tickLine={false} tickMargin={10} axisLine={false} tickFormatter={(value) => value.slice(0, 8)} />
+                                    <YAxis stroke="#888888" fontSize={12} tickLine={false} axisLine={false} />
+                                    <ChartTooltip cursor={false} content={<ChartTooltipContent />} />
+                                    <Bar dataKey="score" fill="var(--color-score)" radius={4} />
+                                </BarChart>
+                            </ChartContainer>
+                        ) : (
+                            <div className="h-[300px] flex items-center justify-center text-muted-foreground">No performance data available yet.</div>
+                        )
+                    )}
+                </CardContent>
+            </Card>
+             <Card>
+                <CardHeader>
+                    <CardTitle>Upcoming Deadlines</CardTitle>
+                    <CardDescription>Exams starting within the next week.</CardDescription>
+                </CardHeader>
+                <CardContent>
+                    {isLoading ? <Skeleton className="h-[300px] w-full" /> : (
+                         exams.length > 0 ? (
+                            <div className="space-y-4">
+                            {exams.slice(0, 4).map(exam => (
+                                <div key={exam.id} className="flex items-center">
+                                    <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center mr-4">
+                                        <BookOpen className="h-4 w-4 text-primary" />
                                     </div>
-                                ))}
+                                    <div className="flex-1">
+                                        <p className="font-semibold text-sm">{exam.title}</p>
+                                        <p className="text-xs text-muted-foreground">{exam.subject} - {exam.gradeLevel}</p>
+                                    </div>
+                                    <p className="text-xs text-muted-foreground font-medium">{exam.startTime.toDate().toLocaleDateString()}</p>
                                 </div>
-                             ) : (
-                                 <div className="h-[300px] flex items-center justify-center text-muted-foreground">No upcoming exams.</div>
-                             )
-                        )}
-                    </CardContent>
-                </Card>
-            </div>
+                            ))}
+                            </div>
+                         ) : (
+                             <div className="h-[300px] flex items-center justify-center text-muted-foreground">No upcoming exams.</div>
+                         )
+                    )}
+                </CardContent>
+            </Card>
         </div>
 
         <Card>
