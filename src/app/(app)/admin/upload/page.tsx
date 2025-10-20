@@ -1,6 +1,7 @@
+
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useForm, useFieldArray, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -52,6 +53,7 @@ const formSchema = z.object({
   title: z.string().min(5, 'Title must be at least 5 characters.'),
   subject: z.string().min(1, 'Subject is required.'),
   gradeLevel: z.string().min(1, 'Grade level is required.'),
+  examType: z.string().min(1, 'Exam type is required.'),
   startTime: z.string().min(1, 'Start time is required.'),
   endTime: z.string().min(1, 'End time is required.'),
   durationMinutes: z.coerce.number().min(1, 'Duration must be at least 1 minute.'),
@@ -71,6 +73,7 @@ export default function UploadPage() {
       title: '',
       subject: '',
       gradeLevel: '',
+      examType: 'Final Term',
       startTime: '',
       endTime: '',
       durationMinutes: 180,
@@ -82,6 +85,16 @@ export default function UploadPage() {
     control: form.control,
     name: "questions"
   });
+
+  const examType = form.watch('examType');
+
+  useEffect(() => {
+    if (examType === 'Final Term') {
+      form.setValue('durationMinutes', 180);
+    } else if (examType === 'Mid-Term' || examType === 'Quarterly') {
+      form.setValue('durationMinutes', 90);
+    }
+  }, [examType, form]);
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -95,8 +108,9 @@ export default function UploadPage() {
         toast({ variant: 'destructive', title: 'No File Selected', description: 'Please select a document to parse.'});
         return;
     }
-    if (!form.getValues('subject') || !form.getValues('gradeLevel')) {
-      toast({ variant: 'destructive', title: 'Missing Details', description: 'Please select a subject and grade level before parsing.' });
+    const formValues = form.getValues();
+    if (!formValues.subject || !formValues.gradeLevel || !formValues.examType) {
+      toast({ variant: 'destructive', title: 'Missing Details', description: 'Please select a subject, grade level, and exam type before parsing.' });
       return;
     }
 
@@ -109,8 +123,9 @@ export default function UploadPage() {
         try {
             const result = await extractQuestionsFromDocument({
                 documentDataUri: dataUri,
-                subject: form.getValues('subject'),
-                gradeLevel: form.getValues('gradeLevel'),
+                subject: formValues.subject,
+                gradeLevel: formValues.gradeLevel,
+                examType: formValues.examType,
             });
 
             if ('error' in result) {
@@ -150,6 +165,7 @@ export default function UploadPage() {
         title: values.title,
         subject: values.subject,
         gradeLevel: values.gradeLevel,
+        examType: values.examType,
         startTime: new Date(values.startTime),
         endTime: new Date(values.endTime),
         durationMinutes: values.durationMinutes,
@@ -209,13 +225,22 @@ export default function UploadPage() {
               <FormField control={form.control} name="title" render={({ field }) => (
                   <FormItem><FormLabel>Exam Title</FormLabel><FormControl><Input placeholder="e.g., Mid-Term Social Studies" {...field} /></FormControl><FormMessage /></FormItem>
               )} />
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <FormField control={form.control} name="subject" render={({ field }) => (
                     <FormItem><FormLabel>Subject</FormLabel><FormControl><Input placeholder="e.g., Social Studies" {...field} /></FormControl><FormMessage /></FormItem>
                 )} />
                 <FormField control={form.control} name="gradeLevel" render={({ field }) => (
                   <FormItem><FormLabel>Grade Level</FormLabel><Select onValueChange={field.onChange} defaultValue={field.value}><FormControl><SelectTrigger><SelectValue placeholder="Select a grade" /></SelectTrigger></FormControl><SelectContent>
                           {[...Array(5)].map((_, i) => <SelectItem key={i+8} value={`Class ${i + 8}`}>{`Class ${i + 8}`}</SelectItem>)}
+                  </SelectContent></Select><FormMessage /></FormItem>
+                )} />
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                 <FormField control={form.control} name="examType" render={({ field }) => (
+                  <FormItem><FormLabel>Exam Type</FormLabel><Select onValueChange={field.onChange} defaultValue={field.value}><FormControl><SelectTrigger><SelectValue placeholder="Select an exam type" /></SelectTrigger></FormControl><SelectContent>
+                          <SelectItem value="Final Term">Final Term</SelectItem>
+                          <SelectItem value="Mid-Term">Mid-Term</SelectItem>
+                          <SelectItem value="Quarterly">Quarterly</SelectItem>
                   </SelectContent></Select><FormMessage /></FormItem>
                 )} />
                  <FormField control={form.control} name="durationMinutes" render={({ field }) => (
@@ -350,5 +375,3 @@ export default function UploadPage() {
     </div>
   );
 }
-
-    

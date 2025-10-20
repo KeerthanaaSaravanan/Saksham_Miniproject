@@ -19,6 +19,7 @@ const ExtractQuestionsInputSchema = z.object({
     ),
   subject: z.string().describe('The subject of the exam.'),
   gradeLevel: z.string().describe('The grade level for the exam.'),
+  examType: z.string().optional().describe('The type of exam (e.g., Mid-Term, Final).'),
 });
 export type ExtractQuestionsInput = z.infer<typeof ExtractQuestionsInputSchema>;
 
@@ -48,7 +49,17 @@ const prompt = ai.definePrompt({
   prompt: `You are an expert AI assistant that extracts and structures examination questions from an uploaded document.
 
   Your task is to parse the provided document for a {{subject}} exam for {{gradeLevel}}.
-  The exam should be for a total of 100 marks and a duration of 3 hours. Distribute the marks among the questions logically if they are not specified in the document.
+  {{#if examType}}
+  This is a {{examType}} exam.
+  {{/if}}
+
+  {{#ifCond examType '==' 'Final Term'}}
+  The exam should be for a total of 100 marks and a duration of 3 hours.
+  {{else}}
+  The exam should be for a total of 50 marks and a duration of 1.5 hours.
+  {{/ifCond}}
+  
+  Distribute the marks among the questions logically if they are not specified in the document.
 
   Identify all questions and classify them into one of the following types:
   - 'mcq': Multiple Choice Question
