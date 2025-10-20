@@ -34,7 +34,7 @@ import {
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2, Upload, PlusCircle, XCircle, FileText, Wand2, FilePlus as FilePlusIcon } from 'lucide-react';
-import { useFirestore, errorEmitter, FirestorePermissionError, useMemoFirebase } from '@/firebase';
+import { useFirestore, useUser, errorEmitter, FirestorePermissionError, useMemoFirebase } from '@/firebase';
 import { collection, serverTimestamp, doc, writeBatch, getDoc, getDocs } from 'firebase/firestore';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { extractQuestionsFromDocument } from '@/lib/actions/document-parser';
@@ -64,6 +64,15 @@ const formSchema = z.object({
   questions: z.array(questionSchema).min(1, "You must add at least one question.")
 });
 
+const examTypes = [
+    "Final Exams",
+    "Annual Exams",
+    "Half-Yearly/Mid-Term Exams",
+    "Quarterly Exams",
+    "Periodic Assessments/Tests",
+    "Formative Assessments"
+];
+
 function UploadPageComponent() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -72,15 +81,19 @@ function UploadPageComponent() {
 
   const [isLoading, setIsLoading] = useState(false);
   const [isParsing, setIsParsing] = useState(false);
-  const [isDataLoading, setIsDataLoading] = useState(isEditMode);
+  const [isDataLoading, setIsDataLoading] = useState(true);
   const [uploadedFile, setUploadedFile] = useState<File | null>(null);
-  const { toast } = useToast();
+  
+  const { user } = useUser();
   const firestore = useFirestore();
+  const [facultyProfile, setFacultyProfile] = useState<{ handledGrades: string[], handledSubjects: string[] } | null>(null);
+
+  const { toast } = useToast();
   const defaultValues = {
       title: '',
       subject: '',
       gradeLevel: '',
-      examType: 'Final Term',
+      examType: 'Final Exams',
       startTime: '',
       endTime: '',
       durationMinutes: 180,
@@ -102,58 +115,80 @@ function UploadPageComponent() {
   useEffect(() => {
     if(isEditMode) return; // Don't auto-change duration in edit mode
 
-    if (examType === 'Final Term') {
+    if (examType === 'Final Exams' || examType === 'Annual Exams') {
       form.setValue('durationMinutes', 180);
-    } else if (examType === 'Mid-Term' || examType === 'Quarterly') {
+    } else if (examType === 'Half-Yearly/Mid-Term Exams' || examType === 'Quarterly Exams') {
       form.setValue('durationMinutes', 90);
+    } else {
+        form.setValue('durationMinutes', 45);
     }
   }, [examType, form, isEditMode]);
 
   useEffect(() => {
-    async function fetchExamData() {
-        if (!examId || !firestore) return;
+    async function fetchFacultyAndExamData() {
+        if (!user || !firestore) return;
 
-        const examRef = doc(firestore, 'exams', examId);
-        const questionsRef = collection(examRef, 'questions');
-
+        setIsDataLoading(true);
+        // Fetch faculty profile
+        const userDocRef = doc(firestore, 'users', user.uid);
         try {
-            const [examSnap, questionsSnap] = await Promise.all([
-                getDoc(examRef),
-                getDocs(questionsRef)
-            ]);
-
-            if (examSnap.exists()) {
-                const examData = examSnap.data();
-                form.reset({
-                    ...examData,
-                    startTime: examData.startTime ? format(examData.startTime.toDate(), "yyyy-MM-dd'T'HH:mm") : '',
-                    endTime: examData.endTime ? format(examData.endTime.toDate(), "yyyy-MM-dd'T'HH:mm") : '',
-                    questions: [], // Reset questions initially
+            const userDocSnap = await getDoc(userDocRef);
+            if (userDocSnap.exists() && userDocSnap.data().role === 'faculty') {
+                const userData = userDocSnap.data();
+                setFacultyProfile({
+                    handledGrades: userData.handledGrades || [],
+                    handledSubjects: userData.handledSubjects || [],
                 });
-
-                const questions = questionsSnap.docs.map(doc => ({ id: doc.id, ...doc.data() })) as z.infer<typeof questionSchema>[];
-                replace(questions);
             } else {
-                 toast({ variant: 'destructive', title: 'Error', description: 'Exam not found.' });
-                 router.push('/admin/examinations');
+                 toast({ variant: 'destructive', title: 'Error', description: 'Faculty profile not found.' });
             }
-        } catch (error: any) {
-            console.error("Error fetching exam:", error);
-            const permissionError = new FirestorePermissionError({ path: examRef.path, operation: 'get' });
-            errorEmitter.emit('permission-error', permissionError);
-        } finally {
-            setIsDataLoading(false);
+        } catch (error) {
+            console.error("Error fetching faculty profile:", error);
+            toast({ variant: 'destructive', title: 'Error', description: 'Could not load faculty profile.' });
         }
-    }
-    if (isEditMode) {
-      fetchExamData();
-    } else {
-        // When not in edit mode, ensure the form is clean.
-        form.reset(defaultValues);
-        setUploadedFile(null);
+
+        // Fetch exam data if in edit mode
+        if (examId) {
+            const examRef = doc(firestore, 'exams', examId);
+            const questionsRef = collection(examRef, 'questions');
+
+            try {
+                const [examSnap, questionsSnap] = await Promise.all([
+                    getDoc(examRef),
+                    getDocs(questionsRef)
+                ]);
+
+                if (examSnap.exists()) {
+                    const examData = examSnap.data();
+                    form.reset({
+                        ...examData,
+                        startTime: examData.startTime ? format(examData.startTime.toDate(), "yyyy-MM-dd'T'HH:mm") : '',
+                        endTime: examData.endTime ? format(examData.endTime.toDate(), "yyyy-MM-dd'T'HH:mm") : '',
+                        questions: [], // Reset questions initially
+                    });
+
+                    const questions = questionsSnap.docs.map(doc => ({ id: doc.id, ...doc.data() })) as z.infer<typeof questionSchema>[];
+                    replace(questions);
+                } else {
+                     toast({ variant: 'destructive', title: 'Error', description: 'Exam not found.' });
+                     router.push('/admin/examinations');
+                }
+            } catch (error: any) {
+                console.error("Error fetching exam:", error);
+                const permissionError = new FirestorePermissionError({ path: examRef.path, operation: 'get' });
+                errorEmitter.emit('permission-error', permissionError);
+            }
+        }
         setIsDataLoading(false);
     }
-  }, [examId, firestore, form, replace, router, toast, isEditMode]);
+    
+    fetchFacultyAndExamData();
+
+    if (!isEditMode) {
+      form.reset(defaultValues);
+      setUploadedFile(null);
+    }
+  }, [examId, firestore, user, form, replace, router, toast, isEditMode]);
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -207,7 +242,6 @@ function UploadPageComponent() {
   };
   
   const handleCreateNew = () => {
-    // Navigate to the clean upload page URL, which will trigger the component to re-mount with a new key.
     router.push('/admin/upload');
   }
 
@@ -256,7 +290,6 @@ function UploadPageComponent() {
           title: `Exam ${isEditMode ? 'Updated' : 'Uploaded'} Successfully`,
           description: `The exam "${values.title}" has been saved.`,
         });
-        // We don't need to manually reset the form, navigation will handle it.
         router.push('/admin/examinations');
       })
       .catch((error: any) => {
@@ -309,21 +342,21 @@ function UploadPageComponent() {
                   <FormItem><FormLabel>Exam Title</FormLabel><FormControl><Input placeholder="e.g., Mid-Term Social Studies" {...field} /></FormControl><FormMessage /></FormItem>
               )} />
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <FormField control={form.control} name="subject" render={({ field }) => (
-                    <FormItem><FormLabel>Subject</FormLabel><FormControl><Input placeholder="e.g., Social Studies" {...field} /></FormControl><FormMessage /></FormItem>
+                 <FormField control={form.control} name="subject" render={({ field }) => (
+                    <FormItem><FormLabel>Subject</FormLabel><Select onValueChange={field.onChange} value={field.value}><FormControl><SelectTrigger><SelectValue placeholder="Select a subject" /></SelectTrigger></FormControl><SelectContent>
+                            {facultyProfile?.handledSubjects.map((subject) => <SelectItem key={subject} value={subject}>{subject}</SelectItem>)}
+                    </SelectContent></Select><FormMessage /></FormItem>
                 )} />
                 <FormField control={form.control} name="gradeLevel" render={({ field }) => (
                   <FormItem><FormLabel>Grade Level</FormLabel><Select onValueChange={field.onChange} value={field.value}><FormControl><SelectTrigger><SelectValue placeholder="Select a grade" /></SelectTrigger></FormControl><SelectContent>
-                          {[...Array(7)].map((_, i) => <SelectItem key={i+6} value={`Class ${i + 6}`}>{`Class ${i + 6}`}</SelectItem>)}
+                          {facultyProfile?.handledGrades.map((grade) => <SelectItem key={grade} value={grade}>{grade}</SelectItem>)}
                   </SelectContent></Select><FormMessage /></FormItem>
                 )} />
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                  <FormField control={form.control} name="examType" render={({ field }) => (
                   <FormItem><FormLabel>Exam Type</FormLabel><Select onValueChange={field.onChange} value={field.value}><FormControl><SelectTrigger><SelectValue placeholder="Select an exam type" /></SelectTrigger></FormControl><SelectContent>
-                          <SelectItem value="Final Term">Final Term</SelectItem>
-                          <SelectItem value="Mid-Term">Mid-Term</SelectItem>
-                          <SelectItem value="Quarterly">Quarterly</SelectItem>
+                          {examTypes.map(type => <SelectItem key={type} value={type}>{type}</SelectItem>)}
                   </SelectContent></Select><FormMessage /></FormItem>
                 )} />
                  <FormField control={form.control} name="durationMinutes" render={({ field }) => (
@@ -474,3 +507,5 @@ function UploadPageWithKey() {
     // The key forces a re-mount when we navigate between editing an exam and creating a new one.
     return <UploadPageComponent key={examId || 'new'} />;
 }
+
+    
