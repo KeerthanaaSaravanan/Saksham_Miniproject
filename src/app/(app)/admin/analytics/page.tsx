@@ -19,11 +19,9 @@ import {
     SelectValue,
 } from '@/components/ui/select';
 import { ChartConfig, ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart';
-import { Bar, BarChart, CartesianGrid, Pie, PieChart, Cell, Line, LineChart, ResponsiveContainer, XAxis, YAxis } from "recharts";
-import { TrendingUp, Users, CheckCircle, Award, Star } from 'lucide-react';
+import { Bar, BarChart, CartesianGrid, Pie, PieChart, Cell, ResponsiveContainer, XAxis, YAxis } from "recharts";
+import { TrendingUp, Users, CheckCircle, Award } from 'lucide-react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Progress } from '@/components/ui/progress';
-import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 
@@ -40,11 +38,11 @@ type ExamAttempt = {
     userId: string;
     examId: string;
     score: number;
-    userName?: string; // Will be added later
-    userAvatar?: string; // Will be added later
+    userName?: string; 
+    userAvatar?: string; 
 };
 
-const PASS_THRESHOLD = 50; // 50%
+const PASS_THRESHOLD = 50; 
 
 export default function AnalyticsPage() {
     const firestore = useFirestore();
@@ -73,11 +71,9 @@ export default function AnalyticsPage() {
             setAnalytics(null);
 
             try {
-                // Fetch all user documents
                 const usersSnap = await getDocs(collection(firestore, 'users'));
                 const usersData = usersSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
 
-                // Fetch all attempts for the selected exam across all users
                 let attempts: ExamAttempt[] = [];
                 for (const user of usersData) {
                     const attemptsQuery = query(
@@ -117,7 +113,7 @@ export default function AnalyticsPage() {
                     { range: "81-100", count: scores.filter(s => s > 80 && s <= 100).length },
                 ];
                 
-                attempts.sort((a, b) => b.score - a.score); // For leaderboard
+                attempts.sort((a, b) => b.score - a.score);
 
                 setAnalytics({
                     attempts,
@@ -142,9 +138,11 @@ export default function AnalyticsPage() {
 
     const passFailData = useMemo(() => {
         if (!analytics) return [];
+        const passColor = 'hsl(var(--primary))';
+        const failColor = 'hsl(var(--destructive))';
         return [
-            { name: 'Pass', value: analytics.passCount, fill: 'hsl(var(--primary))' },
-            { name: 'Fail', value: analytics.failCount, fill: 'hsl(var(--destructive))' }
+            { name: 'Pass', value: analytics.passCount, fill: passColor },
+            { name: 'Fail', value: analytics.failCount, fill: failColor }
         ];
     }, [analytics]);
 
@@ -188,8 +186,8 @@ export default function AnalyticsPage() {
                         {[...Array(4)].map((_, i) => <Skeleton key={i} className="h-28 w-full" />)}
                     </div>
                     <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
-                        <Skeleton className="h-64 lg:col-span-3" />
                         <Skeleton className="h-64 lg:col-span-2" />
+                        <Skeleton className="h-64 lg:col-span-3" />
                     </div>
                      <Skeleton className="h-96 w-full" />
                 </div>
@@ -252,15 +250,16 @@ export default function AnalyticsPage() {
                                 <CardDescription>Percentage of students passing vs. failing.</CardDescription>
                             </CardHeader>
                             <CardContent>
-                                <ChartContainer config={{}} className="h-[250px] w-full">
+                                <ResponsiveContainer width="100%" height={250}>
                                     <PieChart>
                                         <ChartTooltip cursor={false} content={<ChartTooltipContent hideLabel />} />
                                         <Pie data={passFailData} dataKey="value" nameKey="name" innerRadius={60} outerRadius={80} strokeWidth={5}>
-                                            <Cell key="pass" fill="var(--color-pass)" />
-                                            <Cell key="fail" fill="var(--color-fail)" />
+                                            {passFailData.map((entry) => (
+                                                <Cell key={entry.name} fill={entry.fill} />
+                                            ))}
                                         </Pie>
                                     </PieChart>
-                                </ChartContainer>
+                                </ResponsiveContainer>
                             </CardContent>
                         </Card>
                          <Card className="lg:col-span-3">
@@ -321,6 +320,3 @@ export default function AnalyticsPage() {
         </div>
       );
 }
-
-
-    
