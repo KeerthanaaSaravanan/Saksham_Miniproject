@@ -1,3 +1,4 @@
+
 'use client';
 
 import { usePathname, useRouter } from 'next/navigation';
@@ -9,10 +10,18 @@ const Breadcrumb = () => {
     const pathname = usePathname();
     const router = useRouter();
 
-    const pathSegments = pathname.split('/').filter(segment => segment);
+    const pathSegments = pathname.split('/').filter(segment => segment && segment !== 'app');
     
-    // Capitalize the first letter of a string
     const capitalize = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
+
+    // Don't render breadcrumbs on the main dashboard page
+    if (pathSegments.length <= 1 && pathSegments[0] === 'dashboard') {
+        return null;
+    }
+     if (pathSegments.length <= 1 && pathSegments[0] === 'admin') {
+        return null;
+    }
+
 
     return (
         <nav className="flex items-center text-sm text-muted-foreground">
@@ -26,9 +35,6 @@ const Breadcrumb = () => {
                 {pathSegments.map((segment, index) => {
                     const href = '/' + pathSegments.slice(0, index + 1).join('/');
                     const isLast = index === pathSegments.length - 1;
-
-                    // Don't show 'app' or 'admin' in breadcrumbs for cleaner look
-                    if (segment === 'app' || segment === 'admin') return null;
 
                     return (
                         <div key={href} className="flex items-center gap-1.5">
@@ -50,7 +56,7 @@ const Breadcrumb = () => {
 
 export default function Header() {
     return (
-        <header className="sticky top-0 z-30 flex h-14 items-center gap-4 border-b bg-background/80 px-4 backdrop-blur-md sm:static sm:h-auto sm:border-0 sm:bg-transparent sm:px-6 pt-4">
+        <header className="sticky top-0 z-30 flex h-14 items-center gap-4 border-b bg-background/80 px-4 backdrop-blur-md sm:h-auto sm:border-0 sm:bg-transparent sm:px-6 pt-4">
              <Breadcrumb />
         </header>
     );
