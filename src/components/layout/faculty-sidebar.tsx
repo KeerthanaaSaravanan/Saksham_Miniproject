@@ -12,7 +12,8 @@ import {
   Brain,
   ChevronDown,
   CheckSquare,
-  Clock
+  Clock,
+  Info
 } from "lucide-react";
 
 export default function FacultySidebar({ faculty }: { faculty?: any }) {
@@ -46,6 +47,11 @@ export default function FacultySidebar({ faculty }: { faculty?: any }) {
   ];
 
   const bottomItems = [
+    {
+      icon: Info,
+      label: "Application Flow",
+      href: "/flow"
+    },
     {
       icon: Settings,
       label: "Platform Settings",
@@ -173,18 +179,25 @@ export default function FacultySidebar({ faculty }: { faculty?: any }) {
         <div className="space-y-2">
           {bottomItems.map((item) => {
             const IconComponent = item.icon;
+             const isActive = pathname === item.href;
             return (
               <Link
                 href={item.href}
                 key={item.label}
-                className="flex items-center cursor-pointer hover:bg-white/5 active:bg-white/10 transition-colors duration-150 focus:outline-none focus:ring-2 focus:ring-primary rounded px-2 py-2 group"
+                className={`flex items-center cursor-pointer hover:bg-white/5 active:bg-white/10 transition-colors duration-150 focus:outline-none focus:ring-2 focus:ring-primary rounded px-2 py-2 group ${
+                  isActive ? 'bg-primary/20' : ''
+                }`}
                 tabIndex={0}
               >
                 <IconComponent
                   size={18}
-                  className="text-white/60 mr-3 group-hover:text-white/80 transition-opacity"
+                  className={`text-white/60 mr-3 group-hover:text-white/80 transition-opacity  ${
+                    isActive ? 'text-white' : ''
+                  }`}
                 />
-                <span className="font-inter font-normal text-[12px] text-white/60 group-hover:text-white/80 transition-opacity">
+                <span className={`font-inter font-normal text-[12px] text-white/60 group-hover:text-white/80 transition-opacity  ${
+                    isActive ? 'text-white' : ''
+                  }`}>
                   {item.label}
                 </span>
               </Link>

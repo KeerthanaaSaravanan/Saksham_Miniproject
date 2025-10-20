@@ -10,6 +10,7 @@ import {
   Brain,
   Zap,
   HelpCircle,
+  Info,
 } from 'lucide-react';
 import { useExamMode } from '@/hooks/use-exam-mode';
 import { cn } from '@/lib/utils';
@@ -54,6 +55,11 @@ export default function StudentSidebar({ student }: { student?: any }) {
       icon: Brain,
       label: 'Accessibility Settings',
       href: '/settings/accessibility',
+    },
+    {
+      icon: Info,
+      label: 'Application Flow',
+      href: '/flow',
     },
     {
       icon: HelpCircle,
