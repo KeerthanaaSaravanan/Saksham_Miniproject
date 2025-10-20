@@ -30,17 +30,34 @@ export default function LoginForm() {
   const auth = useAuth();
   const firestore = useFirestore();
   const { toast } = useToast();
-  const { isListening, processLoginCommand } = useVoiceControl();
-  const [voiceLoginState, setVoiceLoginState] = useState<'idle' | 'email' | 'password' | 'submit'>('idle');
-
 
   useEffect(() => {
-    if (isListening && voiceLoginState === 'idle') {
-        setVoiceLoginState('email');
-        processLoginCommand('start login');
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isListening, voiceLoginState]);
+    const handleVoiceInput = (event: Event) => {
+        const customEvent = event as CustomEvent;
+        const { field, value } = customEvent.detail;
+        if (field === 'email') {
+            setEmail(value);
+        } else if (field === 'password') {
+            setPassword(value);
+        }
+    };
+
+    const handleVoiceSubmit = () => {
+        // Find the form and submit it programmatically
+        const form = document.getElementById('login-form');
+        if (form) {
+            form.dispatchEvent(new Event('submit', { cancelable: true, bubbles: true }));
+        }
+    };
+    
+    window.addEventListener('voice-input', handleVoiceInput);
+    window.addEventListener('voice-submit', handleVoiceSubmit);
+
+    return () => {
+        window.removeEventListener('voice-input', handleVoiceInput);
+        window.removeEventListener('voice-submit', handleVoiceSubmit);
+    };
+  }, []);
 
   const handleAuthError = (error: any) => {
     let description = 'An unknown error occurred. Please try again.';
@@ -181,7 +198,7 @@ export default function LoginForm() {
         </p>
       </div>
 
-      <form onSubmit={handleSignUp} className="space-y-4 w-full">
+      <form id="login-form" onSubmit={handleSignUp} className="space-y-4 w-full">
         <div className="space-y-2">
           <Label htmlFor="email">Email Address</Label>
           <Input
@@ -227,5 +244,3 @@ export default function LoginForm() {
     </div>
   );
 }
-
-    
