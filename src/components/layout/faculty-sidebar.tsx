@@ -48,7 +48,7 @@ export default function FacultySidebar({ faculty }: { faculty?: any }) {
     {
       icon: Settings,
       label: "Profile Settings",
-      href: "/settings/profile"
+      href: "/admin/settings/profile"
     }
   ];
 
@@ -126,7 +126,7 @@ export default function FacultySidebar({ faculty }: { faculty?: any }) {
         <div className="space-y-2">
           {bottomItems.map((item) => {
             const IconComponent = item.icon;
-             const isActive = pathname === item.href;
+             const isActive = pathname.startsWith(item.href);
             return (
               <Link
                 href={item.href}
