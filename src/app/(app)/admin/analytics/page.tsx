@@ -1,5 +1,9 @@
+
 'use client';
 
+import { useState, useEffect, useMemo } from 'react';
+import { useFirestore, useCollection, useMemoFirebase } from '@/firebase';
+import { collection, query, where, getDocs, Timestamp } from 'firebase/firestore';
 import {
   Card,
   CardContent,
@@ -7,186 +11,316 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card';
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from '@/components/ui/select';
 import { ChartConfig, ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart';
-import { Bar, BarChart, CartesianGrid, Line, LineChart, ResponsiveContainer, XAxis, YAxis } from "recharts";
-import { TrendingUp, Percent, CheckCircle, Award } from 'lucide-react';
+import { Bar, BarChart, CartesianGrid, Pie, PieChart, Cell, Line, LineChart, ResponsiveContainer, XAxis, YAxis } from "recharts";
+import { TrendingUp, Users, CheckCircle, Award, Star } from 'lucide-react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
+import { Skeleton } from '@/components/ui/skeleton';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 
 
-const performanceData = [
-  { month: 'Jan', "Avg Score": 65 },
-  { month: 'Feb', "Avg Score": 68 },
-  { month: 'Mar', "Avg Score": 72 },
-  { month: 'Apr', "Avg Score": 78 },
-  { month: 'May', "Avg Score": 82 },
-  { month: 'Jun', "Avg Score": 85 },
-];
+type Exam = {
+    id: string;
+    title: string;
+    subject: string;
+    gradeLevel: string;
+};
 
-const performanceConfig = {
-  "Avg Score": {
-    label: "Avg. Score",
-    color: "hsl(var(--primary))",
-  },
-} satisfies ChartConfig;
+type ExamAttempt = {
+    id: string;
+    userId: string;
+    examId: string;
+    score: number;
+    userName?: string; // Will be added later
+    userAvatar?: string; // Will be added later
+};
 
-const scoreDistributionData = [
-    { range: "0-20", count: 5 },
-    { range: "21-40", count: 12 },
-    { range: "41-60", count: 28 },
-    { range: "61-80", count: 45 },
-    { range: "81-100", count: 32 },
-]
-
-const distributionConfig = {
-    count: {
-        label: "Students",
-        color: "hsl(var(--accent))",
-    }
-} satisfies ChartConfig
-
-const subjectPerformance = [
-    { subject: "Algebra", avgScore: 88, passRate: 95, topScorer: "Kenji Tanaka" },
-    { subject: "Physics", avgScore: 76, passRate: 82, topScorer: "Maria Garcia" },
-    { subject: "History", avgScore: 81, passRate: 91, topScorer: "Alex Johnson" },
-    { subject: "English", avgScore: 84, passRate: 98, topScorer: "Fatima Ahmed" },
-    { subject: "Chemistry", avgScore: 79, passRate: 85, topScorer: "Sam Chen" },
-]
+const PASS_THRESHOLD = 50; // 50%
 
 export default function AnalyticsPage() {
-  return (
-    <div className="space-y-6">
-        <div>
-            <h1 className="text-3xl font-bold font-headline">Exam Analytics</h1>
-            <p className="text-muted-foreground">
-                Insights into student performance and examination data.
-            </p>
-        </div>
+    const firestore = useFirestore();
+    const [selectedExamId, setSelectedExamId] = useState<string | null>(null);
+    const [analytics, setAnalytics] = useState<any>(null);
+    const [isLoading, setIsLoading] = useState(false);
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-            <Card>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                    <CardTitle className="text-sm font-medium">Average Score</CardTitle>
-                    <Award className="h-4 w-4 text-muted-foreground" />
-                </CardHeader>
-                <CardContent>
-                    <div className="text-2xl font-bold">81.5%</div>
-                    <p className="text-xs text-muted-foreground">+3.2% from last month</p>
-                </CardContent>
-            </Card>
-            <Card>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                    <CardTitle className="text-sm font-medium">Overall Pass Rate</CardTitle>
-                    <CheckCircle className="h-4 w-4 text-muted-foreground" />
-                </CardHeader>
-                <CardContent>
-                    <div className="text-2xl font-bold">92.1%</div>
-                    <p className="text-xs text-muted-foreground">+1.5% from last month</p>
-                </CardContent>
-            </Card>
-            <Card>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                    <CardTitle className="text-sm font-medium">Total Submissions</CardTitle>
-                    <Percent className="h-4 w-4 text-muted-foreground" />
-                </CardHeader>
-                <CardContent>
-                    <div className="text-2xl font-bold">1,204</div>
-                    <p className="text-xs text-muted-foreground">Across 12 exams this semester</p>
-                </CardContent>
-            </Card>
-            <Card>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                    <CardTitle className="text-sm font-medium">Performance Trend</CardTitle>
-                    <TrendingUp className="h-4 w-4 text-muted-foreground" />
-                </CardHeader>
-                <CardContent>
-                    <div className="text-2xl font-bold text-primary">Upward</div>
-                    <p className="text-xs text-muted-foreground">Consistent improvement over 6 months</p>
-                </CardContent>
-            </Card>
-        </div>
+    const examsQuery = useMemoFirebase(() => {
+        if (!firestore) return null;
+        return query(collection(firestore, 'exams'));
+    }, [firestore]);
 
-        <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
-            <Card className="lg:col-span-3">
-                <CardHeader>
-                    <CardTitle>Performance Over Time</CardTitle>
-                    <CardDescription>Average student scores over the last 6 months.</CardDescription>
-                </CardHeader>
-                <CardContent>
-                    <ChartContainer config={performanceConfig} className="h-[250px] w-full">
-                         <LineChart accessibilityLayer data={performanceData} margin={{ top: 5, right: 20, left: -10, bottom: 5 }}>
-                            <CartesianGrid vertical={false} />
-                            <XAxis dataKey="month" tickLine={false} axisLine={false} tickMargin={8} />
-                            <YAxis tickLine={false} axisLine={false} tickMargin={8} />
-                            <ChartTooltip cursor={false} content={<ChartTooltipContent />} />
-                            <Line dataKey="Avg Score" type="monotone" stroke="var(--color-Avg Score)" strokeWidth={2} dot={false} />
-                        </LineChart>
-                    </ChartContainer>
-                </CardContent>
-            </Card>
-             <Card className="lg:col-span-2">
-                <CardHeader>
-                    <CardTitle>Score Distribution</CardTitle>
-                    <CardDescription>Distribution of student scores in the last major exam.</CardDescription>
-                </CardHeader>
-                <CardContent>
-                     <ChartContainer config={distributionConfig} className="h-[250px] w-full">
-                        <BarChart accessibilityLayer data={scoreDistributionData}>
-                            <XAxis
-                                dataKey="range"
-                                tickLine={false}
-                                tickMargin={10}
-                                axisLine={false}
-                            />
-                            <YAxis hide />
-                            <ChartTooltip cursor={false} content={<ChartTooltipContent />} />
-                            <Bar dataKey="count" fill="var(--color-count)" radius={4} />
-                        </BarChart>
-                    </ChartContainer>
-                </CardContent>
-            </Card>
+    const { data: exams, isLoading: areExamsLoading } = useCollection<Exam>(examsQuery);
+
+    useEffect(() => {
+        if (exams && exams.length > 0 && !selectedExamId) {
+            setSelectedExamId(exams[0].id);
+        }
+    }, [exams, selectedExamId]);
+    
+    useEffect(() => {
+        const calculateAnalytics = async () => {
+            if (!selectedExamId || !firestore) return;
+
+            setIsLoading(true);
+            setAnalytics(null);
+
+            try {
+                // Fetch all user documents
+                const usersSnap = await getDocs(collection(firestore, 'users'));
+                const usersData = usersSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+
+                // Fetch all attempts for the selected exam across all users
+                let attempts: ExamAttempt[] = [];
+                for (const user of usersData) {
+                    const attemptsQuery = query(
+                        collection(firestore, 'users', user.id, 'exam_attempts'),
+                        where('examId', '==', selectedExamId)
+                    );
+                    const attemptsSnap = await getDocs(attemptsQuery);
+                    attemptsSnap.forEach(doc => {
+                        attempts.push({ 
+                            id: doc.id,
+                            userName: user.displayName || 'Anonymous',
+                            userAvatar: user.photoURL || '',
+                            ...doc.data() 
+                        } as ExamAttempt);
+                    });
+                }
+                
+                if (attempts.length === 0) {
+                    setAnalytics({ attempts: [], avgScore: 0, highestScore: 0, lowestScore: 0, passCount: 0, failCount: 0, scoreDistribution: [] });
+                    setIsLoading(false);
+                    return;
+                }
+
+                const scores = attempts.map(a => a.score);
+                const avgScore = scores.reduce((a, b) => a + b, 0) / scores.length;
+                const highestScore = Math.max(...scores);
+                const lowestScore = Math.min(...scores);
+                
+                const passCount = scores.filter(s => s >= PASS_THRESHOLD).length;
+                const failCount = scores.length - passCount;
+
+                const scoreDistribution = [
+                    { range: "0-20", count: scores.filter(s => s >= 0 && s <= 20).length },
+                    { range: "21-40", count: scores.filter(s => s > 20 && s <= 40).length },
+                    { range: "41-60", count: scores.filter(s => s > 40 && s <= 60).length },
+                    { range: "61-80", count: scores.filter(s => s > 60 && s <= 80).length },
+                    { range: "81-100", count: scores.filter(s => s > 80 && s <= 100).length },
+                ];
+                
+                attempts.sort((a, b) => b.score - a.score); // For leaderboard
+
+                setAnalytics({
+                    attempts,
+                    avgScore,
+                    highestScore,
+                    lowestScore,
+                    passCount,
+                    failCount,
+                    scoreDistribution
+                });
+
+            } catch (error) {
+                console.error("Error calculating analytics:", error);
+            } finally {
+                setIsLoading(false);
+            }
+        };
+
+        calculateAnalytics();
+
+    }, [selectedExamId, firestore]);
+
+    const passFailData = useMemo(() => {
+        if (!analytics) return [];
+        return [
+            { name: 'Pass', value: analytics.passCount, fill: 'hsl(var(--primary))' },
+            { name: 'Fail', value: analytics.failCount, fill: 'hsl(var(--destructive))' }
+        ];
+    }, [analytics]);
+
+    const distributionConfig = {
+        count: {
+            label: "Students",
+            color: "hsl(var(--accent))",
+        }
+    } satisfies ChartConfig
+
+    return (
+        <div className="space-y-6">
+            <div className="flex justify-between items-center">
+                <div>
+                    <h1 className="text-3xl font-bold font-headline">Exam Analytics</h1>
+                    <p className="text-muted-foreground">
+                        Insights into student performance and examination data.
+                    </p>
+                </div>
+                <div className="w-full max-w-sm">
+                   {areExamsLoading ? (
+                        <Skeleton className="h-10 w-full" />
+                   ) : (
+                     <Select value={selectedExamId || ''} onValueChange={setSelectedExamId}>
+                        <SelectTrigger id="exam-selector">
+                            <SelectValue placeholder="Select an exam..." />
+                        </SelectTrigger>
+                        <SelectContent>
+                            {exams?.map(exam => (
+                                <SelectItem key={exam.id} value={exam.id}>{exam.title}</SelectItem>
+                            ))}
+                        </SelectContent>
+                    </Select>
+                   )}
+                </div>
+            </div>
+
+            {isLoading ? (
+                <div className="space-y-6">
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                        {[...Array(4)].map((_, i) => <Skeleton key={i} className="h-28 w-full" />)}
+                    </div>
+                    <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
+                        <Skeleton className="h-64 lg:col-span-3" />
+                        <Skeleton className="h-64 lg:col-span-2" />
+                    </div>
+                     <Skeleton className="h-96 w-full" />
+                </div>
+            ) : !analytics || analytics.attempts.length === 0 ? (
+                 <Card className="flex flex-col items-center justify-center p-12 text-center border-dashed">
+                    <h2 className="mt-6 text-xl font-semibold">No Data Available</h2>
+                    <p className="mt-2 text-muted-foreground">
+                        No student submissions found for the selected exam.
+                    </p>
+                </Card>
+            ) : (
+                <>
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                        <Card>
+                            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                                <CardTitle className="text-sm font-medium">Average Score</CardTitle>
+                                <TrendingUp className="h-4 w-4 text-muted-foreground" />
+                            </CardHeader>
+                            <CardContent>
+                                <div className="text-2xl font-bold">{analytics.avgScore.toFixed(1)}%</div>
+                                <p className="text-xs text-muted-foreground">Across {analytics.attempts.length} submissions</p>
+                            </CardContent>
+                        </Card>
+                         <Card>
+                            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                                <CardTitle className="text-sm font-medium">Highest Score</CardTitle>
+                                <Award className="h-4 w-4 text-muted-foreground" />
+                            </CardHeader>
+                            <CardContent>
+                                <div className="text-2xl font-bold">{analytics.highestScore.toFixed(1)}%</div>
+                                <p className="text-xs text-muted-foreground">Top performance</p>
+                            </CardContent>
+                        </Card>
+                        <Card>
+                            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                                <CardTitle className="text-sm font-medium">Lowest Score</CardTitle>
+                                <Users className="h-4 w-4 text-muted-foreground" />
+                            </CardHeader>
+                            <CardContent>
+                                <div className="text-2xl font-bold text-destructive">{analytics.lowestScore.toFixed(1)}%</div>
+                                <p className="text-xs text-muted-foreground">Needs improvement</p>
+                            </CardContent>
+                        </Card>
+                        <Card>
+                            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                                <CardTitle className="text-sm font-medium">Total Submissions</CardTitle>
+                                <CheckCircle className="h-4 w-4 text-muted-foreground" />
+                            </CardHeader>
+                            <CardContent>
+                                <div className="text-2xl font-bold">{analytics.attempts.length}</div>
+                                <p className="text-xs text-muted-foreground">Students submitted</p>
+                            </CardContent>
+                        </Card>
+                    </div>
+
+                    <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
+                        <Card className="lg:col-span-2">
+                            <CardHeader>
+                                <CardTitle>Pass / Fail Ratio</CardTitle>
+                                <CardDescription>Percentage of students passing vs. failing.</CardDescription>
+                            </CardHeader>
+                            <CardContent>
+                                <ChartContainer config={{}} className="h-[250px] w-full">
+                                    <PieChart>
+                                        <ChartTooltip cursor={false} content={<ChartTooltipContent hideLabel />} />
+                                        <Pie data={passFailData} dataKey="value" nameKey="name" innerRadius={60} outerRadius={80} strokeWidth={5}>
+                                            <Cell key="pass" fill="var(--color-pass)" />
+                                            <Cell key="fail" fill="var(--color-fail)" />
+                                        </Pie>
+                                    </PieChart>
+                                </ChartContainer>
+                            </CardContent>
+                        </Card>
+                         <Card className="lg:col-span-3">
+                            <CardHeader>
+                                <CardTitle>Score Distribution</CardTitle>
+                                <CardDescription>How student scores are distributed.</CardDescription>
+                            </CardHeader>
+                            <CardContent>
+                                 <ChartContainer config={distributionConfig} className="h-[250px] w-full">
+                                    <BarChart accessibilityLayer data={analytics.scoreDistribution}>
+                                        <CartesianGrid vertical={false} />
+                                        <XAxis dataKey="range" tickLine={false} axisLine={false} tickMargin={8} />
+                                        <YAxis />
+                                        <ChartTooltip cursor={false} content={<ChartTooltipContent />} />
+                                        <Bar dataKey="count" fill="var(--color-count)" radius={4} />
+                                    </BarChart>
+                                </ChartContainer>
+                            </CardContent>
+                        </Card>
+                    </div>
+                    
+                    <Card>
+                        <CardHeader>
+                            <CardTitle>Student Leaderboard</CardTitle>
+                            <CardDescription>Top performers for the selected exam.</CardDescription>
+                        </CardHeader>
+                        <CardContent>
+                            <Table>
+                                <TableHeader>
+                                    <TableRow>
+                                        <TableHead className="w-16">Rank</TableHead>
+                                        <TableHead>Student</TableHead>
+                                        <TableHead className="text-right">Score</TableHead>
+                                    </TableRow>
+                                </TableHeader>
+                                <TableBody>
+                                    {analytics.attempts.slice(0, 10).map((attempt: ExamAttempt, index: number) => (
+                                         <TableRow key={attempt.id}>
+                                            <TableCell className="font-bold text-lg text-muted-foreground">{index + 1}</TableCell>
+                                            <TableCell>
+                                                <div className="flex items-center gap-4">
+                                                    <Avatar className="h-9 w-9">
+                                                        <AvatarImage src={attempt.userAvatar} alt="Avatar" />
+                                                        <AvatarFallback>{attempt.userName?.charAt(0)}</AvatarFallback>
+                                                    </Avatar>
+                                                    <span className="font-medium">{attempt.userName}</span>
+                                                </div>
+                                            </TableCell>
+                                            <TableCell className="text-right font-semibold text-lg">{attempt.score.toFixed(1)}%</TableCell>
+                                        </TableRow>
+                                    ))}
+                                </TableBody>
+                            </Table>
+                        </CardContent>
+                    </Card>
+                </>
+            )}
         </div>
-        
-        <Card>
-            <CardHeader>
-                <CardTitle>Subject-wise Performance</CardTitle>
-                <CardDescription>A breakdown of performance metrics for each subject.</CardDescription>
-            </CardHeader>
-            <CardContent>
-                <Table>
-                    <TableHeader>
-                        <TableRow>
-                            <TableHead className="w-[200px]">Subject</TableHead>
-                            <TableHead>Average Score</TableHead>
-                            <TableHead>Pass Rate</TableHead>
-                            <TableHead>Top Scorer</TableHead>
-                            <TableHead className="text-right">Status</TableHead>
-                        </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                        {subjectPerformance.map(sub => (
-                             <TableRow key={sub.subject}>
-                                <TableCell className="font-medium">{sub.subject}</TableCell>
-                                <TableCell>
-                                     <div className="flex items-center gap-2">
-                                        <Progress value={sub.avgScore} className="w-24 bg-muted h-2" />
-                                        <span className="text-xs text-muted-foreground">{sub.avgScore}%</span>
-                                    </div>
-                                </TableCell>
-                                <TableCell>{sub.passRate}%</TableCell>
-                                <TableCell>{sub.topScorer}</TableCell>
-                                <TableCell className="text-right">
-                                    <Badge variant={sub.avgScore > 80 ? 'default' : 'secondary'}>
-                                        {sub.avgScore > 80 ? 'Excellent' : 'Good'}
-                                    </Badge>
-                                </TableCell>
-                            </TableRow>
-                        ))}
-                    </TableBody>
-                </Table>
-            </CardContent>
-        </Card>
-    </div>
-  );
+      );
 }
+
+
+    
