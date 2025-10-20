@@ -7,8 +7,9 @@ import { Label } from '@/components/ui/label';
 import { useRouter } from 'next/navigation';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2, KeyRound, AtSign, Eye, EyeOff } from 'lucide-react';
-import { useAuth } from '@/firebase';
+import { useAuth, useFirestore, errorEmitter, FirestorePermissionError } from '@/firebase';
 import { signInWithEmailAndPassword } from 'firebase/auth';
+import { doc, getDoc } from 'firebase/firestore';
 
 export function AdminLoginForm() {
   const [email, setEmail] = useState('');
@@ -18,12 +19,13 @@ export function AdminLoginForm() {
   const router = useRouter();
   const { toast } = useToast();
   const auth = useAuth();
+  const firestore = useFirestore();
 
   const handleAdminLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
 
-    if (!auth) {
+    if (!auth || !firestore) {
       toast({
         variant: 'destructive',
         title: 'Error',
@@ -34,19 +36,41 @@ export function AdminLoginForm() {
     }
 
     try {
-      await signInWithEmailAndPassword(auth, email, password);
-      toast({
-        title: 'Admin Login Successful',
-        description: 'Welcome back, Admin!',
-      });
-      router.push('/admin/dashboard');
+      const userCredential = await signInWithEmailAndPassword(auth, email, password);
+      const user = userCredential.user;
+
+      // After successful auth, check Firestore for faculty role
+      const userDocRef = doc(firestore, 'users', user.uid);
+      const userDocSnap = await getDoc(userDocRef);
+
+      if (userDocSnap.exists() && userDocSnap.data().role === 'faculty') {
+        toast({
+          title: 'Login Successful',
+          description: 'Welcome back to the Faculty Portal!',
+        });
+        router.push('/admin/dashboard');
+      } else {
+        // Not a faculty member, sign them out and show error
+        await auth.signOut();
+        toast({
+          variant: 'destructive',
+          title: 'Access Denied',
+          description: 'This account does not have faculty privileges.',
+        });
+      }
+
     } catch (error: any) {
       let description = 'An unexpected error occurred.';
       if (error.code === 'auth/user-not-found' || error.code === 'auth/wrong-password' || error.code === 'auth/invalid-credential') {
-        description = 'Invalid email or password for admin account.';
+        description = 'Invalid email or password for faculty account.';
       } else if (error.code === 'auth/invalid-email') {
         description = 'The email address is not valid.';
+      } else if (error.name === 'FirebaseError') { // Catch Firestore permission errors
+        description = 'Could not verify faculty status. Please check permissions.';
+        const permissionError = new FirestorePermissionError({ path: `users/${auth.currentUser?.uid}`, operation: 'get' });
+        errorEmitter.emit('permission-error', permissionError);
       }
+      
       toast({
         variant: 'destructive',
         title: 'Login Failed',
