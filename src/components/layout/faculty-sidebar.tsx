@@ -25,9 +25,14 @@ export default function FacultySidebar({ faculty }: { faculty?: any }) {
       href: "/admin/dashboard",
     },
     {
+      icon: Upload,
+      label: "Upload Papers",
+      href: "/admin/upload"
+    },
+    {
       icon: FileText,
       label: "Examinations",
-      href: "/assessment"
+      href: "#"
     },
     {
       icon: Users,
@@ -39,11 +44,6 @@ export default function FacultySidebar({ faculty }: { faculty?: any }) {
       label: "Analytics",
       href: "#"
     },
-    {
-      icon: Upload,
-      label: "Upload Papers",
-      href: "/admin/upload"
-    }
   ];
 
   const bottomItems = [
@@ -69,7 +69,7 @@ export default function FacultySidebar({ faculty }: { faculty?: any }) {
       }}
     >
       {/* Brand Section */}
-      <div className="mb-6">
+      <div className="mb-8">
         <div className="flex items-center space-x-3">
           <div className="w-10 h-10 bg-gradient-to-r from-primary to-accent rounded-xl flex items-center justify-center">
             <Brain className="w-6 h-6 text-white" />
@@ -85,31 +85,9 @@ export default function FacultySidebar({ faculty }: { faculty?: any }) {
         </div>
       </div>
 
-      {/* Profile Section */}
-      {faculty && (
-        <div className="flex items-center mb-7 cursor-pointer hover:bg-white/5 rounded-lg p-2 -m-2 transition-colors duration-200">
-          <div className="w-10 h-10 bg-primary rounded-full flex items-center justify-center mr-3">
-            <span className="text-white text-sm font-semibold">
-              {faculty.name.split(' ').map((n: string) => n[0]).join('').slice(0, 2)}
-            </span>
-          </div>
-          <div className="flex-1">
-            <div className="font-inter font-semibold text-[13px] text-white">
-              {faculty.name}
-            </div>
-            <div className="font-inter font-normal text-[11px] text-white opacity-50">
-              {faculty.department} • {faculty.role}
-            </div>
-          </div>
-          <ChevronDown
-            size={18}
-            className="text-white opacity-60 hover:opacity-80 transition-opacity"
-          />
-        </div>
-      )}
 
       {/* Main Menu Section */}
-      <div className="mb-9 flex-1">
+      <div className="flex-1">
         <h2 className="font-inter font-semibold text-[11px] text-white mb-3 opacity-60">
           MAIN MENU
         </h2>
@@ -149,30 +127,6 @@ export default function FacultySidebar({ faculty }: { faculty?: any }) {
         </div>
       </div>
 
-      {/* Quick Status */}
-      <div className="mb-6">
-        <h2 className="font-inter font-semibold text-[11px] text-white mb-3 opacity-60">
-          QUICK STATUS
-        </h2>
-        <div className="space-y-2">
-          <div className="flex items-center px-3 py-2 bg-amber-500/20 rounded-lg cursor-pointer hover:bg-amber-500/30 transition-colors">
-            <Clock size={16} className="text-amber-400 mr-3" />
-            <div className="flex-1">
-              <div className="font-inter text-[12px] text-white font-medium">Pending Reviews</div>
-              <div className="font-inter text-[10px] text-white opacity-70">8 submissions awaiting</div>
-            </div>
-          </div>
-
-          <div className="flex items-center px-3 py-2 bg-primary/20 rounded-lg cursor-pointer hover:bg-primary/30 transition-colors">
-            <CheckSquare size={16} className="text-primary mr-3" />
-            <div className="flex-1">
-              <div className="font-inter text-[12px] text-white font-medium">Active Exams</div>
-              <div className="font-inter text-[10px] text-white opacity-70">12 currently running</div>
-            </div>
-          </div>
-        </div>
-      </div>
-
       {/* Bottom Section */}
       <div className="mt-auto">
         <hr className="border-white/10 border-t mb-6" />
@@ -209,8 +163,8 @@ export default function FacultySidebar({ faculty }: { faculty?: any }) {
             className="flex items-center px-2 py-3 rounded-md cursor-pointer hover:bg-slate-800 active:bg-slate-700 transition-colors duration-150 focus:outline-none focus:ring-2 focus:ring-primary"
             tabIndex={0}
           >
-            <LogOut size={18} className="text-white mr-3" />
-            <span className="font-inter font-medium text-[12px] text-white">
+            <LogOut size={18} className="text-white/60" />
+            <span className="font-inter font-medium text-[12px] text-white/60 ml-3">
               Sign Out
             </span>
           </Link>
