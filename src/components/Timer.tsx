@@ -1,7 +1,10 @@
+
 'use client';
 
 import { useState, useEffect } from 'react';
 import { Timer as TimerIcon } from 'lucide-react';
+import { useAccessibilityPanel } from './accessibility/accessibility-panel-provider';
+import { cn } from '@/lib/utils';
 
 interface TimerProps {
   durationInMinutes: number;
@@ -10,6 +13,8 @@ interface TimerProps {
 
 export function Timer({ durationInMinutes, onTimeUp }: TimerProps) {
   const [secondsLeft, setSecondsLeft] = useState(durationInMinutes * 60);
+  const { userProfile } = useAccessibilityPanel();
+  const accessibility = userProfile?.accessibility_profile || {};
 
   useEffect(() => {
     if (secondsLeft <= 0) {
@@ -28,11 +33,13 @@ export function Timer({ durationInMinutes, onTimeUp }: TimerProps) {
   const seconds = secondsLeft % 60;
 
   const isLowTime = secondsLeft < 60;
+  const useVisualAlert = accessibility.visualAlerts;
 
   return (
-    <div className={`flex items-center gap-2 font-mono px-3 py-1.5 rounded-lg text-sm font-semibold border ${
-        isLowTime ? 'bg-destructive/10 text-destructive border-destructive/20 animate-pulse' : 'bg-muted text-muted-foreground'
-    }`}>
+    <div className={cn(`flex items-center gap-2 font-mono px-3 py-1.5 rounded-lg text-sm font-semibold border`, 
+        isLowTime ? 'bg-destructive/10 text-destructive border-destructive/20' : 'bg-muted text-muted-foreground',
+        isLowTime && useVisualAlert && 'animate-pulse'
+    )}>
       <TimerIcon className="h-4 w-4" />
       <span>
         {String(minutes).padStart(2, '0')}:{String(seconds).padStart(2, '0')}

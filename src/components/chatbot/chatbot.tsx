@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useRef, useEffect, useCallback } from 'react';
@@ -37,6 +38,7 @@ export function Chatbot() {
   const { userProfile } = useAccessibilityPanel();
   const accessibility = userProfile?.accessibility_profile || {};
   const isVoiceModality = accessibility.speechToText || accessibility.voiceCommandNavigation || accessibility.textToSpeech;
+  const isTextOnlyChat = accessibility.chatbotHelp;
 
 
   useEffect(() => {
@@ -77,7 +79,7 @@ export function Chatbot() {
     setIsLoading(true);
 
     const pastMessages = messages.slice(-5); // Send last 5 messages for context
-    const modality = voiceInput || isVoiceModality ? 'voice' : 'text';
+    const modality = (voiceInput || isVoiceModality) && !isTextOnlyChat ? 'voice' : 'text';
 
     const res = await getChatbotResponse({
         userMessage: messageContent,

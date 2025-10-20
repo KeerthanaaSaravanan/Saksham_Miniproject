@@ -50,7 +50,7 @@ export const accessibilityModules: AccessibilityModule[] = [
       iconColor: 'text-purple-500',
       features: [
         { key: 'realTimeCaptions', label: 'Real-time Captions', description: 'Provides captions for any audio content.', icon: Type, type: 'boolean', defaultValue: false },
-        { key: 'signLanguageAvatar', label: 'AI Sign Language Avatar', description: 'Shows an avatar interpreting questions.', icon: Presentation, type: 'boolean', defaultValue: false },
+        { key: 'signLanguageAvatar', label: 'AI Sign Language Avatar (Coming Soon)', description: 'Shows an avatar interpreting questions.', icon: Presentation, type: 'boolean', defaultValue: false },
         { key: 'visualAlerts', label: 'Visual Pop-up Alerts', description: 'Replaces sound alerts with on-screen pop-ups.', icon: Zap, type: 'boolean', defaultValue: false },
         { key: 'chatbotHelp', label: 'Text-based Chatbot Help', description: 'Get help via text instead of voice.', icon: Bot, type: 'boolean', defaultValue: false }
       ]
