@@ -1,3 +1,4 @@
+
 'use client';
 
 import {
@@ -35,13 +36,14 @@ import { useRouter } from 'next/navigation';
 import { useAuth, useUser, useFirestore, useMemoFirebase, errorEmitter, FirestorePermissionError } from '@/firebase';
 import { Skeleton } from '@/components/ui/skeleton';
 import { doc, getDoc, collection, query, where, Timestamp } from 'firebase/firestore';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { getSubjectsForGrade, SubjectCategory } from '@/lib/subjects';
 import { useCollection } from '@/firebase/firestore/use-collection';
 import Image from 'next/image';
 import { PlaceHolderImages } from '@/lib/placeholder-images';
 import { Bar, BarChart, ResponsiveContainer, XAxis, YAxis } from "recharts"
 import { ChartConfig, ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart';
+import type { PracticeHistoryEntry } from '@/components/PracticeResults';
 
 interface Exam {
   id: string;
@@ -49,6 +51,15 @@ interface Exam {
   subject: string;
   gradeLevel: string;
   startTime: Timestamp;
+}
+
+interface ExamAttempt {
+    id: string;
+    examId: string;
+    score: number;
+    endTime: Timestamp;
+    title?: string;
+    subject?: string;
 }
 
 interface AccessibilityProfile {
@@ -59,17 +70,14 @@ interface AccessibilityProfile {
   cognitive?: boolean;
 }
 
-const chartData = [
-  { month: "January", desktop: 186 },
-  { month: "February", desktop: 305 },
-  { month: "March", desktop: 237 },
-  { month: "April", desktop: 73 },
-  { month: "May", desktop: 209 },
-  { month: "June", desktop: 214 },
-]
+type PerformanceDataItem = {
+  name: string;
+  score: number;
+  subject: string;
+};
 
 const chartConfig = {
-  desktop: {
+  score: {
     label: "Score",
     color: "hsl(var(--primary))",
   },
@@ -110,7 +118,16 @@ export default function DashboardPage() {
   const [isProfileLoading, setIsProfileLoading] = useState(true);
   const [accessibilityProfile, setAccessibilityProfile] = useState<AccessibilityProfile | undefined>(undefined);
   const [welcomeMessage, setWelcomeMessage] = useState('');
-
+  const [performanceData, setPerformanceData] = useState<PerformanceDataItem[]>([]);
+  const [isPerformanceLoading, setIsPerformanceLoading] = useState(true);
+  
+  // Fetch official exam attempts
+  const attemptsQuery = useMemoFirebase(() => {
+    if (!firestore || !user) return null;
+    return query(collection(firestore, 'users', user.uid, 'exam_attempts'));
+  }, [firestore, user]);
+  const { data: officialAttempts, isLoading: areAttemptsLoading } = useCollection<ExamAttempt>(attemptsQuery);
+  
   useEffect(() => {
     if (user && firestore) {
       const fetchUserProfile = async () => {
@@ -160,6 +177,57 @@ export default function DashboardPage() {
       setWelcomeMessage(getPersonalizedGreeting('Student'));
     }
   }, [user, firestore, isUserLoading]);
+  
+  // This effect processes all performance data once it's loaded.
+  useEffect(() => {
+    const processPerformanceData = async () => {
+        if (areAttemptsLoading || !firestore) {
+            return;
+        }
+        setIsPerformanceLoading(true);
+
+        // Fetch exam details for official attempts
+        const officialPerformance: PerformanceDataItem[] = [];
+        if (officialAttempts) {
+            for (const attempt of officialAttempts) {
+                const examRef = doc(firestore, 'exams', attempt.examId);
+                const examSnap = await getDoc(examRef);
+                if (examSnap.exists()) {
+                    const examData = examSnap.data();
+                    officialPerformance.push({
+                        name: examData.title.slice(0, 15), // Shorten name for chart
+                        score: attempt.score,
+                        subject: examData.subject,
+                    });
+                }
+            }
+        }
+
+        // Fetch practice history from localStorage
+        let practicePerformance: PerformanceDataItem[] = [];
+        try {
+            const savedHistory = localStorage.getItem('practiceHistory');
+            if (savedHistory) {
+                const history: PracticeHistoryEntry[] = JSON.parse(savedHistory);
+                practicePerformance = history.map(h => ({
+                    name: h.title.slice(0, 15),
+                    score: h.score,
+                    subject: h.subject,
+                }));
+            }
+        } catch (error) {
+            console.error("Could not load practice history from localStorage", error);
+        }
+        
+        // Combine and sort by date (approximated for this example)
+        const combinedData = [...officialPerformance, ...practicePerformance];
+        
+        setPerformanceData(combinedData);
+        setIsPerformanceLoading(false);
+    };
+
+    processPerformanceData();
+  }, [officialAttempts, areAttemptsLoading, firestore]);
 
   const examsQuery = useMemoFirebase(() => {
     if (!firestore || !grade) return null;
@@ -172,11 +240,51 @@ export default function DashboardPage() {
   const { data: exams, isLoading: areExamsLoading } = useCollection<Exam>(examsQuery);
 
   const getSubjectImage = (subjectId: string) => {
-    return PlaceHolderImages.find(img => img.id === subjectId)?.imageUrl || 'https://picsum.photos/seed/placeholder/600/400';
+    const placeholder = PlaceHolderImages.find(img => img.id === subjectId.toLowerCase().replace(' ', '-'));
+    return placeholder?.imageUrl || `https://picsum.photos/seed/${subjectId}/600/400`;
   };
 
   const userName = user?.displayName || 'Student';
-  const isLoading = isUserLoading || isProfileLoading;
+  
+  const { avgScore, scoreTrend, improvementAreas, recentChartData } = useMemo(() => {
+    if (performanceData.length === 0) {
+        return { avgScore: 0, scoreTrend: 0, improvementAreas: [], recentChartData: [] };
+    }
+
+    const totalScore = performanceData.reduce((sum, item) => sum + item.score, 0);
+    const avgScore = totalScore / performanceData.length;
+    
+    // For trend, compare the average of the first half to the second half
+    const midpoint = Math.ceil(performanceData.length / 2);
+    const firstHalf = performanceData.slice(0, midpoint);
+    const secondHalf = performanceData.slice(midpoint);
+    const avgFirstHalf = firstHalf.reduce((sum, item) => sum + item.score, 0) / (firstHalf.length || 1);
+    const avgSecondHalf = secondHalf.reduce((sum, item) => sum + item.score, 0) / (secondHalf.length || 1);
+    const scoreTrend = avgSecondHalf - avgFirstHalf;
+
+    // For improvement areas, find subjects with the lowest average scores
+    const subjectScores: { [key: string]: { total: number; count: number } } = {};
+    performanceData.forEach(item => {
+        if (!subjectScores[item.subject]) {
+            subjectScores[item.subject] = { total: 0, count: 0 };
+        }
+        subjectScores[item.subject].total += item.score;
+        subjectScores[item.subject].count++;
+    });
+
+    const improvementAreas = Object.entries(subjectScores)
+        .map(([subject, data]) => ({ subject, avg: data.total / data.count }))
+        .sort((a, b) => a.avg - b.avg)
+        .slice(0, 3)
+        .map(item => item.subject);
+
+    const recentChartData = performanceData.slice(-6);
+
+    return { avgScore, scoreTrend, improvementAreas, recentChartData };
+  }, [performanceData]);
+  
+  const isLoading = isUserLoading || isProfileLoading || isPerformanceLoading;
+
 
   return (
     <div className="space-y-8 text-foreground">
@@ -184,7 +292,7 @@ export default function DashboardPage() {
         <div className="bg-gradient-to-r from-primary/80 to-accent/80 p-8 rounded-xl relative overflow-hidden text-primary-foreground shadow-lg">
           <div className="flex justify-between items-start">
             <div className="flex items-center gap-4">
-              {isLoading ? (
+              {isUserLoading || isProfileLoading ? (
                 <Skeleton className="h-12 w-48 rounded-md" />
               ) : (
                 <>
@@ -199,7 +307,7 @@ export default function DashboardPage() {
               )}
             </div>
           </div>
-          { !isLoading && grade &&
+          { !isUserLoading && !isProfileLoading && grade &&
             <div className="mt-6 flex gap-2">
                 <Badge variant="secondary" className="bg-white/20 text-white">
                     <GraduationCap className="w-4 h-4 mr-2" />
@@ -216,7 +324,7 @@ export default function DashboardPage() {
 
         <section className="mt-8">
           <h3 className="text-xl font-bold mb-4 text-foreground">My Subjects</h3>
-          {isLoading ? (
+          {isProfileLoading ? (
              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 <Skeleton className="h-48 w-full rounded-lg" />
                 <Skeleton className="h-48 w-full rounded-lg" />
@@ -272,33 +380,48 @@ export default function DashboardPage() {
               ))}
             </div>
           ) : (
-            <p className="text-muted-foreground">No subjects found for your grade. Please complete your profile.</p>
+            <Card className="flex flex-col items-center justify-center p-12 text-center border-dashed">
+                <GraduationCap className="h-16 w-16 text-muted-foreground/50" />
+                <h2 className="mt-6 text-xl font-semibold">Complete Your Profile</h2>
+                <p className="mt-2 text-muted-foreground">
+                   Go to settings to select your grade and subjects to see your dashboard.
+                </p>
+                <Button className="mt-4" onClick={() => router.push('/settings/profile')}>Go to Settings</Button>
+            </Card>
           )}
         </section>
 
         <section className="mt-8">
-          <h3 className="text-xl font-bold text-foreground mb-4">Progress & Improvement</h3>
+          <h3 className="text-xl font-bold text-foreground mb-4">Progress &amp; Improvement</h3>
            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 <Card className="lg:col-span-2 bg-card/80 border">
                     <CardHeader>
                         <CardTitle>Recent Performance</CardTitle>
-                        <CardDescription>Your scores from the last 6 assessments.</CardDescription>
+                        <CardDescription>Your scores from the last {recentChartData.length} assessments.</CardDescription>
                     </CardHeader>
                     <CardContent>
-                         <ChartContainer config={chartConfig} className="h-[250px] w-full">
-                            <BarChart accessibilityLayer data={chartData}>
-                                <XAxis
-                                    dataKey="month"
-                                    tickLine={false}
-                                    tickMargin={10}
-                                    axisLine={false}
-                                    tickFormatter={(value) => value.slice(0, 3)}
-                                />
-                                <YAxis />
-                                <ChartTooltip content={<ChartTooltipContent />} />
-                                <Bar dataKey="desktop" fill="var(--color-desktop)" radius={4} />
-                            </BarChart>
-                        </ChartContainer>
+                        {isLoading ? (
+                            <Skeleton className="h-[250px] w-full" />
+                        ) : recentChartData.length > 0 ? (
+                            <ChartContainer config={chartConfig} className="h-[250px] w-full">
+                                <BarChart accessibilityLayer data={recentChartData}>
+                                    <XAxis
+                                        dataKey="name"
+                                        tickLine={false}
+                                        tickMargin={10}
+                                        axisLine={false}
+                                        tickFormatter={(value) => value.slice(0, 10) + '...'}
+                                    />
+                                    <YAxis domain={[0, 100]} />
+                                    <ChartTooltip content={<ChartTooltipContent />} />
+                                    <Bar dataKey="score" fill="var(--color-score)" radius={4} />
+                                </BarChart>
+                            </ChartContainer>
+                         ) : (
+                            <div className="h-[250px] flex items-center justify-center text-muted-foreground">
+                                No performance data yet. Take a test!
+                            </div>
+                         )}
                     </CardContent>
                 </Card>
                  <div className="space-y-6">
@@ -308,8 +431,14 @@ export default function DashboardPage() {
                             <TrendingUp className="h-4 w-4 text-muted-foreground" />
                         </CardHeader>
                         <CardContent>
-                            <div className="text-2xl font-bold">82%</div>
-                            <p className="text-xs text-muted-foreground">+5% from last month</p>
+                            {isLoading ? <Skeleton className="h-8 w-24" /> : (
+                                <>
+                                    <div className="text-2xl font-bold">{avgScore.toFixed(0)}%</div>
+                                    <p className={`text-xs ${scoreTrend >= 0 ? 'text-green-500' : 'text-destructive'}`}>
+                                        {scoreTrend >= 0 ? '+' : ''}{scoreTrend.toFixed(1)}% from last period
+                                    </p>
+                                </>
+                            )}
                         </CardContent>
                     </Card>
                     <Card className="bg-card/80 border">
@@ -318,11 +447,15 @@ export default function DashboardPage() {
                             <Brain className="h-4 w-4 text-muted-foreground" />
                         </CardHeader>
                         <CardContent>
-                           <div className="flex flex-col space-y-1 mt-2">
-                             <p className="text-sm font-medium">∙ Algebra II</p>
-                             <p className="text-sm font-medium">∙ Organic Chemistry</p>
-                             <p className="text-sm font-medium">∙ Data Structures</p>
-                           </div>
+                          {isLoading ? <div className="space-y-2 mt-2"><Skeleton className="h-4 w-full" /><Skeleton className="h-4 w-2/3" /></div> : (
+                             <div className="flex flex-col space-y-1 mt-2">
+                                {improvementAreas.length > 0 ? (
+                                    improvementAreas.map(subj => <p key={subj} className="text-sm font-medium">∙ {subj}</p>)
+                                ) : (
+                                    <p className="text-sm text-muted-foreground">No specific areas identified yet.</p>
+                                )}
+                             </div>
+                          )}
                         </CardContent>
                     </Card>
                  </div>
@@ -332,3 +465,4 @@ export default function DashboardPage() {
     </div>
   );
 }
+
