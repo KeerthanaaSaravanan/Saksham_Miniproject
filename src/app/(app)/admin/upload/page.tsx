@@ -24,7 +24,6 @@ import {
   FormMessage,
 } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import {
   Select,
   SelectContent,
@@ -42,6 +41,7 @@ import { extractQuestionsFromDocument } from '@/lib/actions/document-parser';
 import { useState, useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { format } from 'date-fns';
+import { Label } from '@/components/ui/label';
 
 
 const questionSchema = z.object({
@@ -206,7 +206,7 @@ function UploadPageComponent() {
 
     setIsLoading(true);
 
-    const examRef = isEditMode ? doc(firestore, 'exams', examId) : doc(collection(firestore, 'exams'));
+    const examRef = isEditMode ? doc(firestore, 'exams', examId as string) : doc(collection(firestore, 'exams'));
     const questionsRef = collection(examRef, 'questions');
 
     const batch = writeBatch(firestore);
