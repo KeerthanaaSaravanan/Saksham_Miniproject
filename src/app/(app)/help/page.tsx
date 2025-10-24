@@ -147,10 +147,12 @@ export default function HelpPage() {
                                       </span>
                                     </div>
                                   </AccordionTrigger>
-                                  <AccordionContent
-                                    className="prose prose-sm dark:prose-invert max-w-none pl-10 text-muted-foreground"
-                                    dangerouslySetInnerHTML={{ __html: item.content }}
-                                  />
+                                  <AccordionContent>
+                                    <div
+                                        className="prose prose-sm dark:prose-invert max-w-none pl-10 text-muted-foreground"
+                                        dangerouslySetInnerHTML={{ __html: item.content }}
+                                    />
+                                  </AccordionContent>
                                 </AccordionItem>
                             )
                         })}
