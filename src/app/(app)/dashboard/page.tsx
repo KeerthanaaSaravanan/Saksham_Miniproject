@@ -306,9 +306,9 @@ export default function DashboardPage() {
         <div className="bg-gradient-to-r from-primary/80 to-accent/80 p-8 rounded-xl relative overflow-hidden text-primary-foreground shadow-lg">
            <div className="absolute -right-10 -top-10 w-48 h-48 bg-white/10 rounded-full opacity-50 blur-3xl"></div>
            <div className="absolute -left-20 bottom-0 w-64 h-64 bg-white/10 rounded-full opacity-50 blur-3xl"></div>
-          <div className="relative z-10 flex justify-between items-start">
+          <div className="relative z-10">
             <div className="flex items-center gap-4">
-              {isUserLoading || isProfileLoading ? (
+              {isLoading ? (
                 <Skeleton className="h-16 w-64 rounded-md" />
               ) : (
                 <>
@@ -322,33 +322,27 @@ export default function DashboardPage() {
                 </>
               )}
             </div>
-          </div>
-          { !isUserLoading && !isProfileLoading && grade &&
-            <div className="relative z-10 mt-6 flex gap-2">
-                <Badge variant="secondary" className="bg-white/20 text-white border-white/30">
-                    <GraduationCap className="w-4 h-4 mr-2" />
-                    {grade}
-                </Badge>
-                {stream && (
+            { !isUserLoading && !isProfileLoading && grade &&
+                <div className="mt-6 flex gap-2">
                     <Badge variant="secondary" className="bg-white/20 text-white border-white/30">
-                       {stream}
+                        <GraduationCap className="w-4 h-4 mr-2" />
+                        {grade}
                     </Badge>
-                )}
-            </div>
-          }
-        </div>
-
-        {quote && (
-          <Card className="mt-8 bg-card/80 border">
-            <CardContent className="p-6 flex items-center gap-6">
-                <Lightbulb className="h-10 w-10 text-amber-400 flex-shrink-0" />
-                <div>
-                    <p className="text-lg font-medium italic">"{quote.quote}"</p>
-                    <p className="text-right text-muted-foreground text-sm mt-2">- {quote.author}</p>
+                    {stream && (
+                        <Badge variant="secondary" className="bg-white/20 text-white border-white/30">
+                        {stream}
+                        </Badge>
+                    )}
                 </div>
-            </CardContent>
-          </Card>
-        )}
+            }
+          </div>
+           {quote && (
+            <div className="absolute bottom-6 right-8 max-w-xs text-right opacity-80 z-10">
+                <p className="text-sm font-medium italic">"{quote.quote}"</p>
+                <p className="text-xs mt-1">- {quote.author}</p>
+            </div>
+          )}
+        </div>
 
         <section className="mt-8">
           <h3 className="text-xl font-bold mb-4 text-foreground">My Subjects</h3>
