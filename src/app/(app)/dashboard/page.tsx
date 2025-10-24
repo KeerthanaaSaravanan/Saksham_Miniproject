@@ -12,6 +12,7 @@ import {
   ClipboardList,
   Target,
   TrendingUp,
+  Lightbulb,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
@@ -81,8 +82,15 @@ const chartConfig = {
     label: "Score",
     color: "hsl(var(--primary))",
   },
-} satisfies ChartConfig
+} satisfies ChartConfig;
 
+const quotes = [
+    { quote: "The only way to do great work is to love what you do.", author: "Steve Jobs" },
+    { quote: "Believe you can and you're halfway there.", author: "Theodore Roosevelt" },
+    { quote: "The future belongs to those who believe in the beauty of their dreams.", author: "Eleanor Roosevelt" },
+    { quote: "It does not matter how slowly you go as long as you do not stop.", author: "Confucius" },
+    { quote: "Success is not final, failure is not fatal: it is the courage to continue that counts.", author: "Winston Churchill" },
+];
 
 const getPersonalizedGreeting = (name: string, profile?: AccessibilityProfile): string => {
     if (!profile) {
@@ -120,6 +128,12 @@ export default function DashboardPage() {
   const [welcomeMessage, setWelcomeMessage] = useState('');
   const [performanceData, setPerformanceData] = useState<PerformanceDataItem[]>([]);
   const [isPerformanceLoading, setIsPerformanceLoading] = useState(true);
+  const [quote, setQuote] = useState<{ quote: string; author: string } | null>(null);
+
+   useEffect(() => {
+    // This will only run on the client, after initial hydration
+    setQuote(quotes[Math.floor(Math.random() * quotes.length)]);
+  }, []);
   
   // Fetch official exam attempts
   const attemptsQuery = useMemoFirebase(() => {
@@ -290,13 +304,15 @@ export default function DashboardPage() {
     <div className="space-y-8 text-foreground">
       <main>
         <div className="bg-gradient-to-r from-primary/80 to-accent/80 p-8 rounded-xl relative overflow-hidden text-primary-foreground shadow-lg">
-          <div className="flex justify-between items-start">
+           <div className="absolute -right-10 -top-10 w-48 h-48 bg-white/10 rounded-full opacity-50 blur-3xl"></div>
+           <div className="absolute -left-20 bottom-0 w-64 h-64 bg-white/10 rounded-full opacity-50 blur-3xl"></div>
+          <div className="relative z-10 flex justify-between items-start">
             <div className="flex items-center gap-4">
               {isUserLoading || isProfileLoading ? (
-                <Skeleton className="h-12 w-48 rounded-md" />
+                <Skeleton className="h-16 w-64 rounded-md" />
               ) : (
                 <>
-                  <div className="text-3xl">👋</div>
+                  <div className="text-5xl">👋</div>
                   <div>
                     <h2 className="text-3xl font-bold">Welcome back, {userName}!</h2>
                     <p className="opacity-80 max-w-lg">
@@ -308,19 +324,31 @@ export default function DashboardPage() {
             </div>
           </div>
           { !isUserLoading && !isProfileLoading && grade &&
-            <div className="mt-6 flex gap-2">
-                <Badge variant="secondary" className="bg-white/20 text-white">
+            <div className="relative z-10 mt-6 flex gap-2">
+                <Badge variant="secondary" className="bg-white/20 text-white border-white/30">
                     <GraduationCap className="w-4 h-4 mr-2" />
                     {grade}
                 </Badge>
                 {stream && (
-                    <Badge variant="secondary" className="bg-white/20 text-white">
+                    <Badge variant="secondary" className="bg-white/20 text-white border-white/30">
                        {stream}
                     </Badge>
                 )}
             </div>
           }
         </div>
+
+        {quote && (
+          <Card className="mt-8 bg-card/80 border">
+            <CardContent className="p-6 flex items-center gap-6">
+                <Lightbulb className="h-10 w-10 text-amber-400 flex-shrink-0" />
+                <div>
+                    <p className="text-lg font-medium italic">"{quote.quote}"</p>
+                    <p className="text-right text-muted-foreground text-sm mt-2">- {quote.author}</p>
+                </div>
+            </CardContent>
+          </Card>
+        )}
 
         <section className="mt-8">
           <h3 className="text-xl font-bold mb-4 text-foreground">My Subjects</h3>
@@ -337,7 +365,7 @@ export default function DashboardPage() {
                     <h4 className="text-lg font-semibold mb-3 text-muted-foreground">{category.category}</h4>
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                         {category.subjects.map((subject) => (
-                            <Card key={subject.id} className="bg-card/80 border flex flex-col">
+                            <Card key={subject.id} className="bg-card/80 border flex flex-col hover:border-primary transition-all duration-200 group">
                             <CardHeader className="relative h-28 p-0 overflow-hidden rounded-t-lg">
                                 <Image src={getSubjectImage(subject.id)} alt={subject.name} fill style={{ objectFit: 'cover' }} data-ai-hint={`${subject.id} abstract`} />
                                 <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
@@ -465,4 +493,3 @@ export default function DashboardPage() {
     </div>
   );
 }
-
