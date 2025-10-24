@@ -1,7 +1,7 @@
 
 import {
-  Eye, Ear, Hand, BookOpen, Brain, Volume2, Mic, Navigation, Headphones, Type, Presentation, Zap, Bot,
-  ScanEye, Save, SpellCheck, Focus, Palette, Layout, Clock, Heart, MousePointer, CaseUpper,
+  Eye, Ear, Hand, BookOpen, Brain, Volume2, Mic, Navigation, Type, Presentation, Zap, Bot,
+  ScanEye, Save, SpellCheck, Focus, Palette, Layout, Clock, Heart, MousePointer, CaseUpper, PenTool
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 
@@ -78,6 +78,7 @@ export const accessibilityModules: AccessibilityModule[] = [
       features: [
         { key: 'aiTextSimplifier', label: 'AI Text Simplifier (Coming Soon)', description: 'Rephrases complex questions simply.', icon: Brain, type: 'boolean', defaultValue: false },
         { key: 'dyslexiaFriendlyFont', label: 'Dyslexia-friendly Fonts', description: 'Switch to easier-to-read fonts.', icon: Type, type: 'boolean', defaultValue: false },
+        { key: 'handwritingMode', label: 'Handwriting Mode (Coming Soon)', description: 'Use a digital pen for written answers.', icon: PenTool, type: 'boolean', defaultValue: false },
         { key: 'wordHighlighting', label: 'Word Highlighting (Coming Soon)', description: 'Focus on one word at a time.', icon: Focus, type: 'boolean', defaultValue: false },
         { key: 'aiSpellCheck', label: 'AI Spell-check (Coming Soon)', description: 'Advanced spelling corrections.', icon: SpellCheck, type: 'boolean', defaultValue: true },
         { key: 'readAloud', label: 'Read-aloud Support', description: 'Have any text read to you.', icon: Volume2, type: 'boolean', defaultValue: false }

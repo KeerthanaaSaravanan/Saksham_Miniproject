@@ -75,6 +75,7 @@ const faqItems = [
         <ul class="list-disc list-inside space-y-2 mt-2">
           <li><strong>AI Text Simplifier:</strong> Rephrases complex questions into simpler language. (Coming Soon)</li>
           <li><strong>Dyslexia-friendly Fonts:</strong> Option to switch to fonts designed for easier reading, like OpenDyslexic.</li>
+          <li><strong>Handwriting Mode:</strong> Allows you to use a digital pen or stylus to write answers, which are then converted to text. (Coming Soon)</li>
           <li><strong>Word Highlighting:</strong> Focus on one word or line at a time as it's read aloud. (Coming Soon)</li>
           <li><strong>AI Spell-check:</strong> Advanced spell-checker that understands phonetic and dyslexic spelling patterns. (Coming Soon)</li>
         </ul>
