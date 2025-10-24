@@ -13,9 +13,13 @@ import {
   Brain,
   HelpCircle
 } from "lucide-react";
+import { useAuth } from '@/firebase';
+import { User } from 'firebase/auth';
 
-export default function FacultySidebar({ faculty }: { faculty?: any }) {
+export default function FacultySidebar({ faculty }: { faculty?: User | null }) {
   const pathname = usePathname();
+  const auth = useAuth();
+
   const menuItems = [
     {
       icon: Home,
@@ -51,6 +55,12 @@ export default function FacultySidebar({ faculty }: { faculty?: any }) {
       href: "/admin/settings/profile"
     }
   ];
+
+  const handleSignOut = () => {
+    if(auth) {
+      auth.signOut();
+    }
+  };
 
   return (
     <div className="w-64 bg-slate-900/80 backdrop-blur-md text-white flex-col fixed left-0 top-0 h-full font-inter md:flex hidden transition-colors duration-200 border-r border-slate-700/60"
@@ -153,6 +163,7 @@ export default function FacultySidebar({ faculty }: { faculty?: any }) {
 
           <Link
             href="/"
+            onClick={handleSignOut}
             className="flex items-center px-2 py-3 rounded-md cursor-pointer hover:bg-slate-800 active:bg-slate-700 transition-colors duration-150 focus:outline-none focus:ring-2 focus:ring-primary"
             tabIndex={0}
           >
@@ -162,6 +173,15 @@ export default function FacultySidebar({ faculty }: { faculty?: any }) {
             </span>
           </Link>
         </div>
+        
+        {faculty && (
+           <div className="mt-6 flex items-center">
+             <div className="flex-1">
+               <p className="text-sm font-semibold text-white">{faculty.displayName}</p>
+               <p className="text-xs text-white/60">{faculty.email}</p>
+             </div>
+           </div>
+        )}
       </div>
     </div>
   );
