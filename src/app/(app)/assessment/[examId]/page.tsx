@@ -1,3 +1,4 @@
+
 'use client';
 
 import {
@@ -27,6 +28,7 @@ export type AssessmentQuestion = {
   options: string[];
   correctAnswer: string;
   type?: 'mcq' | 'fillup' | 'short-answer' | 'long-answer';
+  explanation?: string;
 };
 
 export type SelectedExamDetails = Exam & {

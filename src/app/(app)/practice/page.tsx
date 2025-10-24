@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useCallback, useEffect, Suspense } from 'react';
@@ -22,13 +23,7 @@ import {
   FormMessage,
 } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
+import { Checkbox } from '@/components/ui/checkbox';
 import { createPracticeExam } from '@/lib/actions/practice-exam';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2, Sparkles } from 'lucide-react';
@@ -38,11 +33,20 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { PracticeResults } from '@/components/PracticeResults';
 import type { PracticeHistoryEntry } from '@/components/PracticeResults';
 
+const questionTypes = [
+  { id: 'mcq', label: 'Multiple Choice' },
+  { id: 'fillup', label: 'Fill in the Blanks' },
+  { id: 'short-answer', label: 'Short Answer' },
+  { id: 'long-answer', label: 'Long Answer' },
+] as const;
+
 
 const formSchema = z.object({
   subject: z.string().min(2, 'Subject must be at least 2 characters.'),
   lesson: z.string().min(2, 'Lesson must be at least 2 characters.'),
-  questionType: z.string().min(1, 'Question type is required.'),
+  questionTypes: z.array(z.string()).refine((value) => value.some((item) => item), {
+    message: "You have to select at least one question type.",
+  }),
   questionCount: z.coerce.number().min(1, 'Must have at least 1 question.').max(20, 'Cannot exceed 20 questions.'),
   duration: z.coerce.number().min(1, 'Duration must be at least 1 minute.').max(120, 'Duration cannot exceed 120 minutes.'),
 });
@@ -53,6 +57,7 @@ type Result = {
   userAnswer: string;
   correctAnswer: string;
   isCorrect: boolean;
+  explanation: string;
 };
 
 function PracticePageComponent() {
@@ -71,7 +76,7 @@ function PracticePageComponent() {
     defaultValues: {
       subject: '',
       lesson: '',
-      questionType: 'mcq',
+      questionTypes: ['mcq'],
       questionCount: 5,
       duration: 10,
     },
@@ -96,7 +101,7 @@ function PracticePageComponent() {
        form.reset({
           subject: 'Physics',
           lesson: 'Laws of Motion',
-          questionType: 'mcq',
+          questionTypes: ['mcq'],
           questionCount: 5,
           duration: 10,
         });
@@ -120,6 +125,7 @@ function PracticePageComponent() {
         options: q.options || [],
         correctAnswer: q.correctAnswer,
         type: q.type,
+        explanation: q.explanation,
       }));
 
       const examDetails: SelectedExamDetails = {
@@ -150,14 +156,15 @@ function PracticePageComponent() {
             question: q.question,
             userAnswer,
             correctAnswer: q.correctAnswer,
-            isCorrect
+            isCorrect,
+            explanation: q.explanation || "No explanation provided.",
         };
     });
 
     try {
         const existingHistoryJSON = localStorage.getItem('practiceHistory');
         const existingHistory = existingHistoryJSON ? JSON.parse(existingHistoryJSON) : [];
-        const newHistoryEntry = {
+        const newHistoryEntry: PracticeHistoryEntry = {
             id: exam.id,
             title: exam.title,
             subject: exam.subject,
@@ -213,7 +220,7 @@ function PracticePageComponent() {
                   Let AI build a tailored practice session for you.
                 </CardDescription>
               </CardHeader>
-              <CardContent className="space-y-4">
+              <CardContent className="space-y-6">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <FormField control={form.control} name="subject" render={({ field }) => (
                         <FormItem><FormLabel>Subject</FormLabel><FormControl><Input placeholder="e.g., Biology" {...field} /></FormControl><FormMessage /></FormItem>
@@ -222,15 +229,57 @@ function PracticePageComponent() {
                         <FormItem><FormLabel>Lesson / Topic</FormLabel><FormControl><Input placeholder="e.g., Cell Structure" {...field} /></FormControl><FormMessage /></FormItem>
                     )} />
                 </div>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <FormField control={form.control} name="questionType" render={({ field }) => (
-                        <FormItem><FormLabel>Question Type</FormLabel><Select onValueChange={field.onChange} defaultValue={field.value}><FormControl><SelectTrigger><SelectValue placeholder="Select a type" /></SelectTrigger></FormControl><SelectContent>
-                                    <SelectItem value="mcq">Multiple Choice</SelectItem>
-                                    <SelectItem value="fillup">Fill in the Blanks</SelectItem>
-                                    <SelectItem value="short-answer">Short Answer</SelectItem>
-                                    <SelectItem value="long-answer">Long Answer</SelectItem>
-                                </SelectContent></Select><FormMessage /></FormItem>
-                    )} />
+                 <FormField
+                  control={form.control}
+                  name="questionTypes"
+                  render={() => (
+                    <FormItem>
+                      <div className="mb-4">
+                        <FormLabel className="text-base">Question Types</FormLabel>
+                        <FormDescription>
+                          Select one or more types of questions to include in the exam.
+                        </FormDescription>
+                      </div>
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                      {questionTypes.map((item) => (
+                        <FormField
+                          key={item.id}
+                          control={form.control}
+                          name="questionTypes"
+                          render={({ field }) => {
+                            return (
+                              <FormItem
+                                key={item.id}
+                                className="flex flex-row items-start space-x-3 space-y-0"
+                              >
+                                <FormControl>
+                                  <Checkbox
+                                    checked={field.value?.includes(item.id)}
+                                    onCheckedChange={(checked) => {
+                                      return checked
+                                        ? field.onChange([...field.value, item.id])
+                                        : field.onChange(
+                                            field.value?.filter(
+                                              (value) => value !== item.id
+                                            )
+                                          )
+                                    }}
+                                  />
+                                </FormControl>
+                                <FormLabel className="font-normal">
+                                  {item.label}
+                                </FormLabel>
+                              </FormItem>
+                            )
+                          }}
+                        />
+                      ))}
+                      </div>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <FormField control={form.control} name="questionCount" render={({ field }) => (
                         <FormItem><FormLabel>Number of Questions</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>
                     )} />

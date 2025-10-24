@@ -14,7 +14,7 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from '@/components/ui/accordion';
-import { Check, X, ClipboardList, Volume2, Repeat } from 'lucide-react';
+import { Check, X, ClipboardList, Volume2, Repeat, BrainCircuit } from 'lucide-react';
 import { Progress } from '@/components/ui/progress';
 import { useAccessibilityPanel } from './accessibility/accessibility-panel-provider';
 import { Button } from './ui/button';
@@ -26,6 +26,7 @@ type ResultItem = {
   userAnswer: string;
   correctAnswer: string;
   isCorrect: boolean;
+  explanation: string;
 };
 
 export type PracticeHistoryEntry = {
@@ -75,7 +76,9 @@ export function PracticeResults({ history, isClient }: PracticeResultsProps) {
     const summary = `Results for ${entry.title}, taken on ${new Date(entry.date).toLocaleDateString()}. Your score was ${entry.score.toFixed(0)} percent.`;
     const details = entry.results.map((result, index) => {
         const correctness = result.isCorrect ? 'Correct' : 'Incorrect';
-        const answerDetail = result.isCorrect ? `Your answer was ${result.userAnswer}.` : `Your answer was ${result.userAnswer}. The correct answer was ${result.correctAnswer}.`;
+        const answerDetail = result.isCorrect 
+            ? `Your answer was ${result.userAnswer}. The explanation is: ${result.explanation}`
+            : `Your answer was ${result.userAnswer}. The correct answer was ${result.correctAnswer}. The explanation is: ${result.explanation}`;
         return `Question ${index + 1}: ${result.question}. ${correctness}. ${answerDetail}`;
     }).join(' ');
     playTTS(`${summary} ${details}`);
@@ -140,6 +143,13 @@ export function PracticeResults({ history, isClient }: PracticeResultsProps) {
                                         <div className="flex-1">
                                             <p className="text-sm">Your answer: <span className="font-medium">{result.userAnswer || "No answer provided"}</span></p>
                                             {!result.isCorrect && <p className="text-sm">Correct answer: <span className="font-medium text-green-700 dark:text-green-500">{result.correctAnswer}</span></p>}
+                                        </div>
+                                    </div>
+                                    <div className="mt-3 flex items-start gap-3 p-3 rounded-md bg-sky-500/10 border border-sky-500/20">
+                                        <BrainCircuit className="h-5 w-5 text-sky-600 mt-1 flex-shrink-0 dark:text-sky-400"/>
+                                        <div className="flex-1">
+                                             <p className="text-sm font-semibold text-sky-700 dark:text-sky-300">Explanation</p>
+                                             <p className="text-sm text-muted-foreground">{result.explanation}</p>
                                         </div>
                                     </div>
                                 </div>
