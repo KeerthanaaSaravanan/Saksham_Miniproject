@@ -48,8 +48,8 @@ const formSchema = z.object({
   questionTypes: z.array(z.string()).refine((value) => value.some((item) => item), {
     message: "You have to select at least one question type.",
   }),
-  questionCount: z.coerce.number().min(1, 'Must have at least 1 question.').max(20, 'Cannot exceed 20 questions.'),
-  duration: z.coerce.number().min(1, 'Duration must be at least 1 minute.').max(120, 'Duration cannot exceed 120 minutes.'),
+  totalMarks: z.coerce.number().min(5, 'Must be at least 5 marks.').max(100, 'Cannot exceed 100 marks.'),
+  duration: z.coerce.number().min(1, 'Duration must be at least 1 minute.').max(180, 'Duration cannot exceed 180 minutes.'),
 });
 
 
@@ -78,8 +78,8 @@ function PracticePageComponent() {
       subject: '',
       lesson: '',
       questionTypes: ['mcq'],
-      questionCount: 5,
-      duration: 10,
+      totalMarks: 20,
+      duration: 30,
     },
   });
 
@@ -103,8 +103,8 @@ function PracticePageComponent() {
           subject: 'Physics',
           lesson: 'Laws of Motion',
           questionTypes: ['mcq'],
-          questionCount: 5,
-          duration: 10,
+          totalMarks: 20,
+          duration: 30,
         });
     }
   }, [searchParams, form]);
@@ -281,8 +281,8 @@ function PracticePageComponent() {
                   )}
                 />
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <FormField control={form.control} name="questionCount" render={({ field }) => (
-                        <FormItem><FormLabel>Number of Questions</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>
+                    <FormField control={form.control} name="totalMarks" render={({ field }) => (
+                        <FormItem><FormLabel>Total Marks</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>
                     )} />
                     <FormField control={form.control} name="duration" render={({ field }) => (
                         <FormItem><FormLabel>Time (minutes)</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>
