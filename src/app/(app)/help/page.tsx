@@ -1,4 +1,5 @@
 
+
 import {
   Accordion,
   AccordionContent,
@@ -43,10 +44,10 @@ const faqItems = [
     content: `
         <p>Features for users who require textual and visual cues instead of sound.</p>
         <ul class="list-disc list-inside space-y-2 mt-2">
-          <li><strong>Real-time Captions:</strong> For any audio or video content, synchronized captions are displayed. (Coming Soon)</li>
-          <li><strong>Visual Alerts:</strong> Replaces sound notifications with on-screen color flashes, icons, or pop-ups.</li>
-          <li><strong>AI Sign Language Avatar:</strong> An optional video window where questions are interpreted in Indian Sign Language (ISL). (Coming Soon)</li>
-          <li><strong>Text-based Chatbot Help:</strong> Access help through a real-time text chat instead of audio calls.</li>
+          <li><strong>Real-time Captions (Coming Soon):</strong> For any audio or video content, synchronized captions are displayed.</li>
+          <li><strong>Visual Alerts (Coming Soon):</strong> Replaces sound notifications with on-screen color flashes, icons, or pop-ups.</li>
+          <li><strong>AI Sign Language Avatar (Coming Soon):</strong> An optional video window where questions are interpreted in Indian Sign Language (ISL).</li>
+          <li><strong>Text-based Chatbot Help (Coming Soon):</strong> Access help through a real-time text chat instead of audio calls.</li>
         </ul>
       `,
   },
@@ -58,10 +59,10 @@ const faqItems = [
     content: `
         <p>Hands-free interaction tools for users who cannot use a mouse or keyboard effectively.</p>
         <ul class="list-disc list-inside space-y-2 mt-2">
-          <li><strong>Voice Command Navigation:</strong> Use your voice to control all aspects of the exam interface.</li>
-          <li><strong>Eye-tracking Control:</strong> Use your gaze to select options and navigate. (Coming Soon)</li>
-          <li><strong>AI Gesture Recognition:</strong> Use simple head or hand gestures to control the interface. (Coming Soon)</li>
-          <li><strong>Auto-save Answers:</strong> Your progress is automatically saved as you go.</li>
+          <li><strong>Voice Command Navigation (Coming Soon):</strong> Use your voice to control all aspects of the exam interface.</li>
+          <li><strong>Eye-tracking Control (Coming Soon):</strong> Use your gaze to select options and navigate.</li>
+          <li><strong>AI Gesture Recognition (Coming Soon):</strong> Use simple head or hand gestures to control the interface.</li>
+          <li><strong>Auto-save Answers (Coming Soon):</strong> Your progress is automatically saved as you go.</li>
         </ul>
       `,
   },
@@ -73,11 +74,11 @@ const faqItems = [
     content: `
         <p>Tools for users who struggle with reading, writing, or number comprehension.</p>
         <ul class="list-disc list-inside space-y-2 mt-2">
-          <li><strong>AI Text Simplifier:</strong> Rephrases complex questions into simpler language. (Coming Soon)</li>
+          <li><strong>AI Text Simplifier (Coming Soon):</strong> Rephrases complex questions into simpler language.</li>
           <li><strong>Dyslexia-friendly Fonts:</strong> Option to switch to fonts designed for easier reading, like OpenDyslexic.</li>
-          <li><strong>Handwriting Mode:</strong> Allows you to use a digital pen or stylus to write answers, which are then converted to text. (Coming Soon)</li>
-          <li><strong>Word Highlighting:</strong> Focus on one word or line at a time as it's read aloud. (Coming Soon)</li>
-          <li><strong>AI Spell-check:</strong> Advanced spell-checker that understands phonetic and dyslexic spelling patterns. (Coming Soon)</li>
+          <li><strong>Handwriting Mode (Coming Soon):</strong> Allows you to use a digital pen or stylus to write answers, which are then converted to text.</li>
+          <li><strong>Word Highlighting (Coming Soon):</strong> Focus on one word or line at a time as it's read aloud.</li>
+          <li><strong>AI Spell-check (Coming Soon):</strong> Advanced spell-checker that understands phonetic and dyslexic spelling patterns.</li>
         </ul>
       `,
   },
@@ -89,10 +90,10 @@ const faqItems = [
     content: `
         <p>Features designed to create a simple, predictable, and distraction-free experience.</p>
         <ul class="list-disc list-inside space-y-2 mt-2">
-          <li><strong>Focus Mode (Calm Visuals):</strong> Removes all non-essential UI elements to help you focus on the current question.</li>
-          <li><strong>Step-by-step Guidance:</strong> Breaks the exam into a one-question-at-a-time flow.</li>
-          <li><strong>Gentle Time Reminders:</strong> Provides soft, non-intrusive reminders about the remaining time.</li>
-          <li><strong>Simplified Layout:</strong> A cleaner interface with larger icons and shorter instructions.</li>
+          <li><strong>Focus Mode (Calm Visuals) (Coming Soon):</strong> Removes all non-essential UI elements to help you focus on the current question.</li>
+          <li><strong>Step-by-step Guidance (Coming Soon):</strong> Breaks the exam into a one-question-at-a-time flow.</li>
+          <li><strong>Gentle Time Reminders (Coming Soon):</strong> Provides soft, non-intrusive reminders about the remaining time.</li>
+          <li><strong>Simplified Layout (Coming Soon):</strong> A cleaner interface with larger icons and shorter instructions.</li>
         </ul>
       `,
   },
@@ -148,10 +149,10 @@ export default function HelpPage() {
                                       </span>
                                     </div>
                                   </AccordionTrigger>
-                                  <AccordionContent>
+                                   <AccordionContent>
                                     <div
-                                        className="prose prose-sm dark:prose-invert max-w-none pl-10 text-muted-foreground"
-                                        dangerouslySetInnerHTML={{ __html: item.content }}
+                                      className="prose prose-sm dark:prose-invert max-w-none pl-8"
+                                      dangerouslySetInnerHTML={{ __html: item.content }}
                                     />
                                   </AccordionContent>
                                 </AccordionItem>
