@@ -313,6 +313,7 @@
           },
           "description": "Stores user profile information. Path-based ownership enforced for private user data. A user can only write to their own document.",
           "rules": {
+            "read": "request.auth.uid == userId",
             "write": "request.auth.uid == userId"
           },
           "params": [
