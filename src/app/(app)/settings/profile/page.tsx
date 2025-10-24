@@ -60,7 +60,7 @@ export default function ProfileSettingsPage() {
   const [currentAvatarUrl, setCurrentAvatarUrl] = useState(avatars[0].url);
   
   // Student State
-  const [grade, setGrade] = useState('');
+  const [gradeLevel, setGradeLevel] = useState('');
   const [stream, setStream] = useState('');
 
   // Faculty State
@@ -89,7 +89,7 @@ export default function ProfileSettingsPage() {
                 setHandledGrades(userData.handledGrades || []);
                 setHandledSubjects(userData.handledSubjects || []);
               } else {
-                setGrade(userData.grade || '');
+                setGradeLevel(userData.gradeLevel || '');
                 setStream(userData.stream || '');
               }
             }
@@ -111,7 +111,7 @@ export default function ProfileSettingsPage() {
   }, [user, firestore, isUserLoading, isFaculty]);
 
 
-  const selectedGradeConfig = gradeConfig[grade as keyof typeof gradeConfig];
+  const selectedGradeConfig = gradeConfig[gradeLevel as keyof typeof gradeConfig];
   
   const userInitial = name.split(' ').map((n) => n[0]).join('') || (isFaculty ? 'F' : 'U');
 
@@ -139,7 +139,7 @@ export default function ProfileSettingsPage() {
     if (isFaculty) {
         dataToSave = { ...dataToSave, handledGrades, handledSubjects, role: 'faculty' };
     } else {
-        dataToSave = { ...dataToSave, grade, stream, role: 'student' };
+        dataToSave = { ...dataToSave, gradeLevel, stream, role: 'student' };
     }
     
     setDoc(userDocRef, dataToSave, { merge: true })
@@ -311,18 +311,18 @@ export default function ProfileSettingsPage() {
                   ) : (
                     <>
                       <div className="space-y-2">
-                        <Label htmlFor="grade">
+                        <Label htmlFor="gradeLevel">
                           <GraduationCap className="inline-block mr-2" /> Grade / Level
                         </Label>
-                        <Select value={grade} onValueChange={(value) => { setGrade(value); setStream(''); }}>
-                          <SelectTrigger id="grade" className="h-12 text-base"><SelectValue placeholder="Select your grade or level" /></SelectTrigger>
+                        <Select value={gradeLevel} onValueChange={(value) => { setGradeLevel(value); setStream(''); }}>
+                          <SelectTrigger id="gradeLevel" className="h-12 text-base"><SelectValue placeholder="Select your grade or level" /></SelectTrigger>
                           <SelectContent>
                             {Object.keys(gradeConfig).map((g) => (<SelectItem key={g} value={g}>{g}</SelectItem>))}
                           </SelectContent>
                         </Select>
                       </div>
 
-                      {grade && selectedGradeConfig?.streams && (
+                      {gradeLevel && selectedGradeConfig?.streams && (
                         <div className="space-y-2 animate-fade-in">
                           <Label htmlFor="stream">Stream / Exam</Label>
                           <Select value={stream} onValueChange={setStream} required>

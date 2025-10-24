@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState } from 'react';
@@ -29,15 +30,15 @@ const gradeConfig = {
 
 export default function StudentDetailsForm({ onComplete, isLoading }: { onComplete: (details: any) => void, isLoading: boolean }) {
   const [name, setName] = useState('');
-  const [grade, setGrade] = useState('');
+  const [gradeLevel, setGradeLevel] = useState('');
   const [stream, setStream] = useState('');
 
-  const selectedGradeConfig = gradeConfig[grade as keyof typeof gradeConfig];
-  const subjectsForGrade = getSubjectsForGrade(grade);
+  const selectedGradeConfig = gradeConfig[gradeLevel as keyof typeof gradeConfig];
+  const subjectsForGrade = getSubjectsForGrade(gradeLevel);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    onComplete({ name, grade, stream });
+    onComplete({ name, gradeLevel, stream });
   };
 
   return (
@@ -64,9 +65,9 @@ export default function StudentDetailsForm({ onComplete, isLoading }: { onComple
             />
         </div>
         <div className="space-y-2">
-          <Label htmlFor="grade">Grade / Level</Label>
-          <Select value={grade} onValueChange={(value) => { setGrade(value); setStream(''); }}>
-            <SelectTrigger id="grade" className="h-12">
+          <Label htmlFor="gradeLevel">Grade / Level</Label>
+          <Select value={gradeLevel} onValueChange={(value) => { setGradeLevel(value); setStream(''); }}>
+            <SelectTrigger id="gradeLevel" className="h-12">
               <SelectValue placeholder="Select your grade or level" />
             </SelectTrigger>
             <SelectContent>
@@ -77,7 +78,7 @@ export default function StudentDetailsForm({ onComplete, isLoading }: { onComple
           </Select>
         </div>
 
-        {grade && selectedGradeConfig?.subjects && (
+        {gradeLevel && selectedGradeConfig?.subjects && (
              <div className="space-y-2 animate-fade-in">
                 <Label>Subjects</Label>
                 <div className="p-4 border rounded-lg bg-muted/50 max-h-40 overflow-y-auto">
@@ -93,7 +94,7 @@ export default function StudentDetailsForm({ onComplete, isLoading }: { onComple
             </div>
         )}
 
-        {grade && selectedGradeConfig?.streams && (
+        {gradeLevel && selectedGradeConfig?.streams && (
           <div className="space-y-2 animate-fade-in">
             <Label htmlFor="stream">Stream / Exam</Label>
             <Select value={stream} onValueChange={setStream} required>
@@ -112,7 +113,7 @@ export default function StudentDetailsForm({ onComplete, isLoading }: { onComple
         <Button
           type="submit"
           className="w-full h-12 bg-primary hover:bg-primary/90 text-white"
-          disabled={isLoading || !name || !grade || (selectedGradeConfig?.streams && !stream)}
+          disabled={isLoading || !name || !gradeLevel || (selectedGradeConfig?.streams && !stream)}
         >
           {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
           Complete Profile
@@ -121,5 +122,3 @@ export default function StudentDetailsForm({ onComplete, isLoading }: { onComple
     </div>
   );
 }
-
-    

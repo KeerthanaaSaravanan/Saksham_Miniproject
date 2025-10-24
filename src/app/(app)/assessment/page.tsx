@@ -1,3 +1,4 @@
+
 'use client';
 
 import {
@@ -45,7 +46,7 @@ export default function AssessmentListPage() {
   
   const { user, isUserLoading } = useUser();
   const firestore = useFirestore();
-  const [grade, setGrade] = useState('');
+  const [gradeLevel, setGradeLevel] = useState('');
   const [isProfileLoading, setIsProfileLoading] = useState(true);
 
   useEffect(() => {
@@ -56,7 +57,7 @@ export default function AssessmentListPage() {
         try {
             const userDocSnap = await getDoc(userDocRef);
             if (userDocSnap.exists()) {
-              setGrade(userDocSnap.data().gradeLevel || '');
+              setGradeLevel(userDocSnap.data().gradeLevel || '');
             } else {
               toast({ variant: 'destructive', title: 'Profile Not Found', description: 'Please complete your profile in settings.'})
             }
@@ -77,12 +78,12 @@ export default function AssessmentListPage() {
   }, [user, firestore, isUserLoading, toast]);
 
   const examsQuery = useMemoFirebase(() => {
-    if (!firestore || !grade) return null;
+    if (!firestore || !gradeLevel) return null;
     return query(
       collection(firestore, 'exams'),
-      where('gradeLevel', '==', grade)
+      where('gradeLevel', '==', gradeLevel)
     );
-  }, [firestore, grade]);
+  }, [firestore, gradeLevel]);
 
   const { data: availableExams, isLoading: areExamsLoading } = useCollection<Exam>(examsQuery);
 

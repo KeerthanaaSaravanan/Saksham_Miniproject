@@ -120,7 +120,7 @@ export default function DashboardPage() {
   const auth = useAuth();
   const { user, isUserLoading } = useUser();
   const firestore = useFirestore();
-  const [grade, setGrade] = useState('');
+  const [gradeLevel, setGradeLevel] = useState('');
   const [stream, setStream] = useState('');
   const [subjects, setSubjects] = useState<SubjectCategory[]>([]);
   const [isProfileLoading, setIsProfileLoading] = useState(true);
@@ -153,9 +153,9 @@ export default function DashboardPage() {
           const userDocSnap = await getDoc(userDocRef);
           if (userDocSnap.exists()) {
             const userData = userDocSnap.data();
-            const userGrade = userData.grade || '';
+            const userGrade = userData.gradeLevel || '';
             const userStream = userData.stream || '';
-            setGrade(userGrade);
+            setGradeLevel(userGrade);
             setStream(userStream);
             setSubjects(getSubjectsForGrade(userGrade, userStream));
             
@@ -244,12 +244,12 @@ export default function DashboardPage() {
   }, [officialAttempts, areAttemptsLoading, firestore]);
 
   const examsQuery = useMemoFirebase(() => {
-    if (!firestore || !grade) return null;
+    if (!firestore || !gradeLevel) return null;
     return query(
       collection(firestore, 'exams'),
-      where('gradeLevel', '==', grade)
+      where('gradeLevel', '==', gradeLevel)
     );
-  }, [firestore, grade]);
+  }, [firestore, gradeLevel]);
 
   const { data: exams, isLoading: areExamsLoading } = useCollection<Exam>(examsQuery);
 
@@ -322,11 +322,11 @@ export default function DashboardPage() {
                 </>
               )}
             </div>
-            { !isUserLoading && !isProfileLoading && grade &&
+            { !isUserLoading && !isProfileLoading && gradeLevel &&
                 <div className="mt-6 flex gap-2">
                     <Badge variant="secondary" className="bg-white/20 text-white border-white/30">
                         <GraduationCap className="w-4 h-4 mr-2" />
-                        {grade}
+                        {gradeLevel}
                     </Badge>
                     {stream && (
                         <Badge variant="secondary" className="bg-white/20 text-white border-white/30">

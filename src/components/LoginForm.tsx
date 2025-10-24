@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -140,7 +141,7 @@ export default function LoginForm() {
     }
   };
 
-  const onDetailsComplete = async (details: {name: string, grade: string, stream: string}) => {
+  const onDetailsComplete = async (details: {name: string, gradeLevel: string, stream: string}) => {
     if (!newUser || !firestore) {
         toast({ variant: 'destructive', title: 'Error', description: 'User or database not available.' });
         return;
@@ -156,7 +157,7 @@ export default function LoginForm() {
             displayName: details.name,
             email: newUser.email,
             uid: newUser.uid,
-            grade: details.grade,
+            gradeLevel: details.gradeLevel,
             stream: details.stream,
             role: 'student'
         };
