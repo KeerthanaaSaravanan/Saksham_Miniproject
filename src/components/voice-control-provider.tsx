@@ -59,7 +59,6 @@ export function VoiceControlProvider({ children }: { children: ReactNode }) {
   const { toast } = useToast();
   const [loginStep, setLoginStep] = useState<'idle' | 'ask-mode' | 'ask-email' | 'confirm-email' | 'ask-password' | 'confirm-password' | 'submitting'>('idle');
   const [loginCredentials, setLoginCredentials] = useState({ email: '', password: '' });
-  const [initialWelcomeDone, setInitialWelcomeDone] = useState(false);
   const isSpeakingRef = useRef(false);
   const { isExamMode } = useExamMode();
 
@@ -317,30 +316,6 @@ export function VoiceControlProvider({ children }: { children: ReactNode }) {
   }, [isListening, startListener]);
 
 
-  const initialPrompt = useCallback(async () => {
-    if (pathname === '/' && !initialWelcomeDone) {
-      setInitialWelcomeDone(true);
-      const WELCOME_KEY = 'saksham_voice_prompted';
-      const hasBeenPrompted = sessionStorage.getItem(WELCOME_KEY);
-      
-      if (!hasBeenPrompted) {
-        await speak("Welcome to SAKSHAM. Would you like to use voice guidance or manual on-screen control?", () => {
-            setIsListening(true);
-            setLoginStep('ask-mode');
-        });
-        sessionStorage.setItem(WELCOME_KEY, 'true');
-      }
-    }
-  }, [pathname, initialWelcomeDone, speak]);
-
-  useEffect(() => {
-    const timer = setTimeout(() => {
-        initialPrompt();
-    }, 2000); // Delay to allow welcome screen to finish
-    return () => clearTimeout(timer);
-  }, [initialPrompt]);
-
-
   return (
     <VoiceControlContext.Provider value={{ isListening, toggleListening, isLoading, processLoginCommand }}>
       {children}
@@ -348,3 +323,5 @@ export function VoiceControlProvider({ children }: { children: ReactNode }) {
     </VoiceControlContext.Provider>
   );
 }
+
+    
