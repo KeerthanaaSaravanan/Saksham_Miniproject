@@ -42,9 +42,9 @@ export function ExamLayout({ exam, onTimeUp, isSubmitting }: ExamLayoutProps) {
 
 
     const accessibility = userProfile?.accessibility_profile || {};
-    const isTextToSpeechEnabled = accessibility.textToSpeech || accessibility.readAloud;
+    const isTextToSpeechEnabled = accessibility.textToSpeech;
     const isSpeechToTextEnabled = accessibility.speechToText;
-    const isVoiceNavigationEnabled = accessibility.voiceNavigation || accessibility.voiceCommandNavigation;
+    const isVoiceNavigationEnabled = accessibility.voiceNavigation;
     const useFocusMode = accessibility.focusMode || accessibility.simplifiedLayout;
     const textSizeClass = accessibility.largeText === 'large' ? 'text-lg' : accessibility.largeText === 'xlarge' ? 'text-xl' : '';
 
@@ -421,3 +421,5 @@ export function ExamLayout({ exam, onTimeUp, isSubmitting }: ExamLayoutProps) {
         </div>
     );
 }
+
+    
