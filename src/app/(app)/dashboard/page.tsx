@@ -306,42 +306,44 @@ export default function DashboardPage() {
         <div className="bg-gradient-to-r from-primary/80 to-accent/80 p-8 rounded-xl relative overflow-hidden text-primary-foreground shadow-lg">
            <div className="absolute -right-10 -top-10 w-48 h-48 bg-white/10 rounded-full opacity-50 blur-3xl"></div>
            <div className="absolute -left-20 bottom-0 w-64 h-64 bg-white/10 rounded-full opacity-50 blur-3xl"></div>
-          <div className="relative z-10">
-            <div className="flex items-center gap-4">
-              {isLoading ? (
-                <Skeleton className="h-16 w-64 rounded-md" />
-              ) : (
-                <>
-                  <div className="text-5xl">👋</div>
-                  <div>
-                    <h2 className="text-3xl font-bold">Welcome back, {userName}!</h2>
-                    <p className="opacity-80 max-w-lg">
-                        {welcomeMessage}
-                    </p>
-                  </div>
-                </>
-              )}
-            </div>
-            { !isUserLoading && !isProfileLoading && gradeLevel &&
-                <div className="mt-6 flex gap-2">
-                    <Badge variant="secondary" className="bg-white/20 text-white border-white/30">
-                        <GraduationCap className="w-4 h-4 mr-2" />
-                        {gradeLevel}
-                    </Badge>
-                    {stream && (
-                        <Badge variant="secondary" className="bg-white/20 text-white border-white/30">
-                        {stream}
-                        </Badge>
-                    )}
+          <div className="relative z-10 flex justify-between items-center">
+            <div>
+                <div className="flex items-center gap-4">
+                {isLoading ? (
+                    <Skeleton className="h-16 w-64 rounded-md" />
+                ) : (
+                    <>
+                    <div className="text-5xl">👋</div>
+                    <div>
+                        <h2 className="text-3xl font-bold">Welcome back, {userName}!</h2>
+                        <p className="opacity-80 max-w-lg">
+                            {welcomeMessage}
+                        </p>
+                    </div>
+                    </>
+                )}
                 </div>
-            }
-          </div>
-           {quote && (
-            <div className="absolute bottom-6 right-8 max-w-xs text-right opacity-80 z-10">
+                { !isUserLoading && !isProfileLoading && gradeLevel &&
+                    <div className="mt-6 flex gap-2">
+                        <Badge variant="secondary" className="bg-white/20 text-white border-white/30">
+                            <GraduationCap className="w-4 h-4 mr-2" />
+                            {gradeLevel}
+                        </Badge>
+                        {stream && (
+                            <Badge variant="secondary" className="bg-white/20 text-white border-white/30">
+                            {stream}
+                            </Badge>
+                        )}
+                    </div>
+                }
+            </div>
+            {quote && (
+            <div className="hidden md:block max-w-xs text-right opacity-80 z-10">
                 <p className="text-sm font-medium italic">"{quote.quote}"</p>
                 <p className="text-xs mt-1">- {quote.author}</p>
             </div>
           )}
+          </div>
         </div>
 
         <section className="mt-8">
@@ -487,3 +489,5 @@ export default function DashboardPage() {
     </div>
   );
 }
+
+    
