@@ -9,8 +9,8 @@ import { useRouter } from 'next/navigation';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2, KeyRound, AtSign, Eye, EyeOff } from 'lucide-react';
 import { useAuth, useFirestore, errorEmitter, FirestorePermissionError } from '@/firebase';
-import { signInWithEmailAndPassword } from 'firebase/auth';
-import { doc, getDoc } from 'firebase/firestore';
+import { signInWithEmailAndPassword, createUserWithEmailAndPassword } from 'firebase/auth';
+import { doc, getDoc, setDoc } from 'firebase/firestore';
 
 export function AdminLoginForm() {
   const [email, setEmail] = useState('dakshata@gmail.com');
@@ -37,7 +37,7 @@ export function AdminLoginForm() {
     }
 
     try {
-      // Step 1: Authenticate the user with Firebase Auth
+      // Step 1: Authenticate the user with Firebase Auth. We try to sign in first.
       const userCredential = await signInWithEmailAndPassword(auth, email, password);
       const user = userCredential.user;
 
@@ -53,33 +53,73 @@ export function AdminLoginForm() {
         });
         router.push('/admin/dashboard');
       } else {
-        // Auth success, but not a faculty member. Deny access.
-        await auth.signOut();
-        toast({
-          variant: 'destructive',
-          title: 'Access Denied',
-          description: 'This account does not have faculty privileges.',
-        });
+         // If user exists but is not faculty, or has no role
+        if (!userDocSnap.exists() || userDocSnap.data().role !== 'faculty') {
+            await setDoc(userDocRef, {
+                uid: user.uid,
+                email: user.email,
+                displayName: user.email?.split('@')[0] || 'Faculty',
+                role: 'faculty',
+                handledGrades: ['Class 6', 'Class 7', 'Class 8', 'Class 9', 'Class 10', 'Class 11', 'Class 12'],
+                handledSubjects: ["Mathematics", "Physics", "Chemistry", "Biology", "Social Studies", "English", "Computer Science"],
+            }, { merge: true });
+             toast({
+                title: 'Login Successful',
+                description: 'Faculty profile created. Welcome!',
+            });
+            router.push('/admin/dashboard');
+        } else {
+             // Auth success, but not a faculty member. Deny access.
+            await auth.signOut();
+            toast({
+                variant: 'destructive',
+                title: 'Access Denied',
+                description: 'This account does not have faculty privileges.',
+            });
+        }
       }
     } catch (error: any) {
-      // Handle authentication errors (e.g., wrong password, user not found)
-      let description = 'An unexpected error occurred.';
-      if (error.code === 'auth/user-not-found' || error.code === 'auth/invalid-credential' || error.code === 'auth/wrong-password') {
-          description = 'Invalid email or password for faculty account.';
-      } else if (error.code === 'auth/invalid-email') {
-        description = 'The email address is not valid.';
-      } else if (error.name === 'FirebaseError') {
-        // Handle potential Firestore permission errors during role check
-        description = 'Could not verify faculty status. Please check permissions.';
-        const permissionError = new FirestorePermissionError({ path: `users/${auth.currentUser?.uid}`, operation: 'get' });
-        errorEmitter.emit('permission-error', permissionError);
+        if (error.code === 'auth/user-not-found') {
+            // If user does not exist, create them
+            try {
+                const newUserCredential = await createUserWithEmailAndPassword(auth, email, password);
+                const newUser = newUserCredential.user;
+                const userDocRef = doc(firestore, 'users', newUser.uid);
+                await setDoc(userDocRef, {
+                    uid: newUser.uid,
+                    email: newUser.email,
+                    displayName: 'Dakshata',
+                    role: 'faculty',
+                    handledGrades: ['Class 6', 'Class 7', 'Class 8', 'Class 9', 'Class 10', 'Class 11', 'Class 12'],
+                    handledSubjects: ["Mathematics", "Physics", "Chemistry", "Biology", "Social Studies", "English", "Computer Science"],
+                });
+                toast({
+                    title: 'Faculty Account Created',
+                    description: 'Welcome to the Faculty Portal!',
+                });
+                router.push('/admin/dashboard');
+            } catch (createError: any) {
+                 toast({
+                    variant: 'destructive',
+                    title: 'Setup Failed',
+                    description: `Could not create faculty account: ${createError.message}`,
+                });
+            }
+        } else {
+            // Handle other authentication errors (e.g., wrong password, user not found)
+            let description = 'An unexpected error occurred.';
+            if (error.code === 'auth/invalid-credential' || error.code === 'auth/wrong-password') {
+                description = 'Invalid email or password for faculty account.';
+            } else if (error.code === 'auth/invalid-email') {
+                description = 'The email address is not valid.';
+            }
+            
+            toast({
+                variant: 'destructive',
+                title: 'Login Failed',
+                description: description,
+            });
       }
-      
-      toast({
-        variant: 'destructive',
-        title: 'Login Failed',
-        description: description,
-      });
     } finally {
       setIsLoading(false);
     }
