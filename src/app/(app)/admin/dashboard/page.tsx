@@ -27,7 +27,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { useUser, useFirestore, useMemoFirebase } from '@/firebase';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useState, useEffect } from 'react';
-import { collection, query, where, getDocs, Timestamp } from 'firebase/firestore';
+import { collection, query, where, getDocs, Timestamp, collectionGroup } from 'firebase/firestore';
 import { useCollection } from '@/firebase/firestore/use-collection';
 
 type Student = {
@@ -47,6 +47,12 @@ type Exam = {
     startTime: Timestamp;
     endTime: Timestamp;
 };
+
+type ExamAttempt = {
+    examId: string;
+    userId: string;
+    score: number;
+}
 
 type SubjectPerformance = {
     subject: string;
@@ -78,52 +84,55 @@ export default function AdminDashboardPage() {
         const fetchData = async () => {
             setIsLoading(true);
 
+            // Fetch all users with the 'student' role
             const usersQuery = query(collection(firestore, 'users'), where('role', '==', 'student'));
             const usersSnap = await getDocs(usersQuery);
-            const studentList: Student[] = [];
-            const subjectScores: { [key: string]: { total: number, count: number } } = {};
-            const examDetails: {[key: string]: {subject: string, startTime: Timestamp, endTime: Timestamp}} = {};
+            const userMap = new Map(usersSnap.docs.map(doc => [doc.id, doc.data()]));
             
-            if (fetchedExams) {
-                fetchedExams.forEach(exam => {
-                    examDetails[exam.id] = { subject: exam.subject, startTime: exam.startTime, endTime: exam.endTime };
-                });
-            }
+            // Fetch all exam attempts across all users
+            const attemptsQuery = collectionGroup(firestore, 'exam_attempts');
+            const attemptsSnap = await getDocs(attemptsQuery);
+            const allAttempts: ExamAttempt[] = attemptsSnap.docs.map(doc => doc.data() as ExamAttempt);
 
-
-            for (const userDoc of usersSnap.docs) {
-                const userData = userDoc.data();
-                let studentProgress = 0;
-
-                const attemptsQuery = collection(firestore, 'users', userDoc.id, 'exam_attempts');
-                const attemptsSnap = await getDocs(attemptsQuery);
-                
-                if (!attemptsSnap.empty) {
-                    let totalScore = 0;
-                    attemptsSnap.forEach(attemptDoc => {
-                        const attemptData = attemptDoc.data();
-                        totalScore += attemptData.score;
-                        
-                        const subject = examDetails[attemptData.examId]?.subject;
-                        if(subject) {
-                            if(!subjectScores[subject]) subjectScores[subject] = { total: 0, count: 0 };
-                            subjectScores[subject].total += attemptData.score;
-                            subjectScores[subject].count++;
-                        }
-                    });
-                    studentProgress = totalScore / attemptsSnap.size;
+            const studentProgressMap = new Map<string, { totalScore: number, count: number }>();
+            allAttempts.forEach(attempt => {
+                if (!studentProgressMap.has(attempt.userId)) {
+                    studentProgressMap.set(attempt.userId, { totalScore: 0, count: 0 });
                 }
-
+                const current = studentProgressMap.get(attempt.userId)!;
+                current.totalScore += attempt.score;
+                current.count++;
+            });
+            
+            const studentList: Student[] = [];
+            userMap.forEach((userData, userId) => {
+                const progressData = studentProgressMap.get(userId);
+                const progress = progressData && progressData.count > 0 ? progressData.totalScore / progressData.count : 0;
+                
                 studentList.push({
-                    id: userDoc.id,
+                    id: userId,
                     name: userData.displayName || 'N/A',
                     email: userData.email,
-                    progress: studentProgress,
+                    progress: progress,
                     disability: 'N/A', // This would need to be fetched from their accessibility profile
-                    avatar: userData.photoURL || `https://i.pravatar.cc/40?u=${userDoc.id}`,
+                    avatar: userData.photoURL || `https://i.pravatar.cc/40?u=${userId}`,
                 });
-            }
+            });
+
             setStudents(studentList);
+            
+             const subjectScores: { [key: string]: { total: number, count: number } } = {};
+             if(fetchedExams) {
+                const examDetails = new Map(fetchedExams.map(exam => [exam.id, { subject: exam.subject }]));
+                 allAttempts.forEach(attempt => {
+                     const exam = examDetails.get(attempt.examId);
+                     if (exam) {
+                         if (!subjectScores[exam.subject]) subjectScores[exam.subject] = { total: 0, count: 0 };
+                         subjectScores[exam.subject].total += attempt.score;
+                         subjectScores[exam.subject].count++;
+                     }
+                 });
+             }
             
             const performanceData = Object.entries(subjectScores).map(([subject, data]) => ({
                 subject,
@@ -140,9 +149,9 @@ export default function AdminDashboardPage() {
 
                 setStats(prev => ({
                     ...prev,
-                    totalStudents: usersSnap.size,
+                    totalStudents: userMap.size,
                     assessmentsCreated: fetchedExams.length,
-                    activeExams: Object.values(examDetails).filter(exam => {
+                    activeExams: fetchedExams.filter(exam => {
                         return exam.startTime.toDate() < now && exam.endTime.toDate() > now;
                     }).length,
                 }));
@@ -234,14 +243,14 @@ export default function AdminDashboardPage() {
                 <CardContent className="pl-2">
                     {isLoading ? <Skeleton className="h-[300px] w-full" /> : (
                         subjectPerformance.length > 0 ? (
-                            <ChartContainer config={chartConfig} className="h-[300px] w-full">
-                                <BarChart accessibilityLayer data={subjectPerformance}>
+                            <ResponsiveContainer width="100%" height={300}>
+                                <BarChart data={subjectPerformance}>
                                     <XAxis dataKey="subject" tickLine={false} tickMargin={10} axisLine={false} tickFormatter={(value) => value.slice(0, 8)} />
                                     <YAxis stroke="#888888" fontSize={12} tickLine={false} axisLine={false} />
                                     <ChartTooltip cursor={false} content={<ChartTooltipContent />} />
                                     <Bar dataKey="score" fill="var(--color-score)" radius={4} />
                                 </BarChart>
-                            </ChartContainer>
+                            </ResponsiveContainer>
                         ) : (
                             <div className="h-[300px] flex items-center justify-center text-muted-foreground">No performance data available yet.</div>
                         )
@@ -347,3 +356,5 @@ export default function AdminDashboardPage() {
     </div>
   );
 }
+
+    
