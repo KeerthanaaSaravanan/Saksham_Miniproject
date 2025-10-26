@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -19,6 +20,7 @@ import StudentDetailsForm from './StudentDetailsForm';
 import { doc, setDoc } from 'firebase/firestore';
 import { useFirestore } from '@/firebase';
 import { useVoiceControl } from './voice-control-provider';
+import { avatars } from '@/lib/avatars';
 
 export default function LoginForm() {
   const [email, setEmail] = useState('');
@@ -146,19 +148,24 @@ export default function LoginForm() {
         return;
     }
     setIsLoading(true);
+    const defaultAvatar = avatars.find(a => a.tags.includes('abstract'))?.url || avatars[0].url;
+
     try {
         await updateProfile(newUser, {
             displayName: details.name,
+            photoURL: defaultAvatar,
         });
         
         const userDocRef = doc(firestore, "users", newUser.uid);
         const userData = {
             displayName: details.name,
             email: newUser.email,
-            uid: newUser.uid,
+            firebaseUid: newUser.uid,
             gradeLevel: details.gradeLevel,
-            stream: details.stream,
-            role: 'student'
+            stream: details.stream || '',
+            photoURL: defaultAvatar,
+            role: 'student',
+            uid: newUser.uid,
         };
 
         // This is a create operation, so we use 'create'
