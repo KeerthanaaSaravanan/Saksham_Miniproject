@@ -163,22 +163,29 @@ export default function LoginForm() {
         };
 
         // This is a create operation, so we use 'create'
-        setDoc(userDocRef, userData).then(() => {
-          toast({
-              title: 'Profile Complete!',
-              description: `Welcome, ${details.name}! Your learning path is set.`,
-          });
-          router.push('/dashboard');
-        }).catch((error: any) => {
-           const permissionError = new FirestorePermissionError({
-              path: userDocRef.path,
-              operation: 'create',
-              requestResourceData: userData,
-           });
-           errorEmitter.emit('permission-error', permissionError);
+        await setDoc(userDocRef, userData);
+        
+        toast({
+            title: 'Profile Complete!',
+            description: `Welcome, ${details.name}! Your learning path is set.`,
         });
+        router.push('/dashboard');
 
     } catch (error: any) {
+        const userDocRef = doc(firestore, "users", newUser.uid);
+        const permissionError = new FirestorePermissionError({
+            path: userDocRef.path,
+            operation: 'create',
+            requestResourceData: {
+                displayName: details.name,
+                email: newUser.email,
+                uid: newUser.uid,
+                gradeLevel: details.gradeLevel,
+                stream: details.stream,
+                role: 'student'
+            },
+        });
+        errorEmitter.emit('permission-error', permissionError);
         handleAuthError(error);
     } finally {
         setIsLoading(false);
