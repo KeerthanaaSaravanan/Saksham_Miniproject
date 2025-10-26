@@ -58,7 +58,7 @@ export function AdminLoginForm() {
             await setDoc(userDocRef, {
                 uid: user.uid,
                 email: user.email,
-                displayName: user.email?.split('@')[0] || 'Faculty',
+                displayName: "Dakshata G",
                 role: 'faculty',
                 handledGrades: ['Class 6', 'Class 7', 'Class 8', 'Class 9', 'Class 10', 'Class 11', 'Class 12'],
                 handledSubjects: ["Mathematics", "Physics", "Chemistry", "Biology", "Social Studies", "English", "Computer Science"],
@@ -79,7 +79,7 @@ export function AdminLoginForm() {
         }
       }
     } catch (error: any) {
-        if (error.code === 'auth/user-not-found') {
+        if (error.code === 'auth/user-not-found' || error.code === 'auth/invalid-credential') {
             // If user does not exist, create them
             try {
                 const newUserCredential = await createUserWithEmailAndPassword(auth, email, password);
@@ -88,7 +88,7 @@ export function AdminLoginForm() {
                 await setDoc(userDocRef, {
                     uid: newUser.uid,
                     email: newUser.email,
-                    displayName: 'Dakshata',
+                    displayName: 'Dakshata G',
                     role: 'faculty',
                     handledGrades: ['Class 6', 'Class 7', 'Class 8', 'Class 9', 'Class 10', 'Class 11', 'Class 12'],
                     handledSubjects: ["Mathematics", "Physics", "Chemistry", "Biology", "Social Studies", "English", "Computer Science"],
@@ -106,9 +106,9 @@ export function AdminLoginForm() {
                 });
             }
         } else {
-            // Handle other authentication errors (e.g., wrong password, user not found)
+            // Handle other authentication errors (e.g., wrong password)
             let description = 'An unexpected error occurred.';
-            if (error.code === 'auth/invalid-credential' || error.code === 'auth/wrong-password') {
+            if (error.code === 'auth/wrong-password') {
                 description = 'Invalid email or password for faculty account.';
             } else if (error.code === 'auth/invalid-email') {
                 description = 'The email address is not valid.';
