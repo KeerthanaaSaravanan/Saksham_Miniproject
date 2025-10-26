@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -6,6 +7,8 @@ import LoginForm from '@/components/LoginForm';
 import { AdminLoginForm } from '@/components/AdminLoginForm';
 import { Brain, GraduationCap, Mic, User, Briefcase, CheckSquare } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { useUser } from '@/firebase';
+import { useRouter } from 'next/navigation';
 
 type LoginMode = 'student' | 'faculty';
 
@@ -13,6 +16,8 @@ export default function HomePage() {
   const [showWelcome, setShowWelcome] = useState(true);
   const [isClient, setIsClient] = useState(false);
   const [loginMode, setLoginMode] = useState<LoginMode>('student');
+  const { user, isUserLoading } = useUser();
+  const router = useRouter();
 
   useEffect(() => {
     setIsClient(true);
@@ -22,17 +27,33 @@ export default function HomePage() {
 
     return () => clearTimeout(timer);
   }, []);
+  
+  useEffect(() => {
+    // If the user is logged in and we're done loading, redirect them.
+    if (!isUserLoading && user) {
+        if(user.email === 'dakshata@gmail.com') { // A simple way to distinguish faculty for this demo
+             router.replace('/admin/dashboard');
+        } else {
+            router.replace('/dashboard');
+        }
+    }
+  }, [user, isUserLoading, router]);
 
   const handleWelcomeComplete = () => {
     setShowWelcome(false);
   };
-
-  if (!isClient) {
-    return null; // Render nothing on the server
+  
+  if (isUserLoading || user) {
+    // Show a blank screen or a loading spinner while checking auth or redirecting
+    return <div className="min-h-screen bg-background" />;
   }
 
-  if (showWelcome) {
+  if (showWelcome && isClient) {
     return <WelcomeSection onComplete={handleWelcomeComplete} />;
+  }
+  
+  if (!isClient) {
+    return null; // Render nothing on the server
   }
 
   return (
