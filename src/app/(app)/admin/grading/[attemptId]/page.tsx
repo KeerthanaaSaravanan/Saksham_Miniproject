@@ -3,7 +3,7 @@
 
 import { useEffect, useState } from 'react';
 import { useFirestore, useUser, errorEmitter, FirestorePermissionError, useMemoFirebase } from '@/firebase';
-import { doc, getDoc, collection, getDocs, writeBatch, serverTimestamp } from 'firebase/firestore';
+import { doc, getDoc, collection, getDocs, writeBatch, serverTimestamp, query, where } from 'firebase/firestore';
 import { useParams, useRouter } from 'next/navigation';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -60,8 +60,6 @@ export default function GradingPage() {
             setIsLoading(true);
             try {
                 // Find the attempt document using a collectionGroup query
-                const attemptsQuery = query(collection(firestore, 'exam_attempts'), where('__name__', '==', `exam_attempts/${attemptId}`));
-
                 // This is a placeholder since collectionGroup queries can't be used directly like this.
                 // A real implementation would need a different structure or to know the user's ID.
                 // For this app, let's assume we can find the attempt by its ID across all users.
@@ -283,3 +281,4 @@ export default function GradingPage() {
     );
 }
 
+  
