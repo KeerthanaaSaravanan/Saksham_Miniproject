@@ -1,7 +1,7 @@
 
 'use client';
 
-import { Suspense } from 'react';
+import { Suspense, useState, useEffect } from 'react';
 import { useForm, useFieldArray, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -33,12 +33,11 @@ import {
 } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, Upload, PlusCircle, XCircle, FileText, Wand2, FilePlus as FilePlusIcon } from 'lucide-react';
+import { Loader2, Upload, PlusCircle, XCircle, Wand2, FilePlus as FilePlusIcon } from 'lucide-react';
 import { useFirestore, useUser, errorEmitter, FirestorePermissionError, useMemoFirebase, useDoc } from '@/firebase';
 import { collection, serverTimestamp, doc, writeBatch, getDoc, getDocs } from 'firebase/firestore';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { extractQuestionsFromDocument } from '@/lib/actions/document-parser';
-import { useState, useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { format } from 'date-fns';
 import { Label } from '@/components/ui/label';
@@ -167,6 +166,7 @@ function UploadPageComponent() {
     } else {
         form.reset(defaultValues);
         setUploadedFile(null);
+        replace([]);
     }
   }, [examId, firestore, form, replace, router, toast, isEditMode]);
 
@@ -276,6 +276,7 @@ function UploadPageComponent() {
         } else {
             form.reset(defaultValues);
             setUploadedFile(null);
+            replace([]);
         }
       })
       .catch((error: any) => {
@@ -474,18 +475,10 @@ function UploadPageComponent() {
 
 export default function UploadPage() {
     return (
-        <Suspense fallback={<div>Loading...</div>}>
-            <UploadPageWithKey />
+        <Suspense fallback={<div className="flex justify-center items-center h-96"><Loader2 className="h-8 w-8 animate-spin" /></div>}>
+            <UploadPageComponent />
         </Suspense>
     )
-}
-
-function UploadPageWithKey() {
-    const searchParams = useSearchParams();
-    const examId = searchParams.get('examId');
-    
-    // The key forces a re-mount when we navigate between editing an exam and creating a new one.
-    return <UploadPageComponent key={examId || 'new'} />;
 }
 
     
