@@ -27,6 +27,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
+import { useRouter } from 'next/navigation';
 
 
 // Matches the Firestore data structure
@@ -48,6 +49,7 @@ type ExamAttempt = {
 export default function AssessmentListPage() {
   const [examToConfirm, setExamToConfirm] = useState<Exam | null>(null);
   const { toast } = useToast();
+  const router = useRouter();
   
   const { user, isUserLoading } = useUser();
   const firestore = useFirestore();
@@ -110,19 +112,9 @@ export default function AssessmentListPage() {
       return allExams.filter(exam => attemptedExamIds.has(exam.id));
   }, [allExams, attempts]);
 
-  const handleStartExam = async (examId: string) => {
-    try {
-        await document.documentElement.requestFullscreen();
-        setExamToConfirm(null);
-        // Open the dedicated exam page in a new tab
-        window.open(`/assessment/${examId}`, '_blank', 'noopener,noreferrer');
-    } catch (err: any) {
-        toast({
-            variant: 'destructive',
-            title: 'Fullscreen Required',
-            description: `Could not enter fullscreen mode. Please allow fullscreen and try again. Error: ${err.message}`
-        });
-    }
+  const handleStartExam = (examId: string) => {
+    setExamToConfirm(null);
+    router.push(`/assessment/${examId}`);
   }
 
   const isLoading = areExamsLoading || isUserLoading || isProfileLoading || areAttemptsLoading;
@@ -210,9 +202,9 @@ export default function AssessmentListPage() {
                   <p className="font-semibold">Please read the following instructions carefully:</p>
                   <ul className="list-disc list-inside space-y-2 text-sm text-muted-foreground">
                     <li>The exam will have a time limit of <strong className="text-foreground">{examToConfirm.durationMinutes || 60} minutes</strong>.</li>
-                    <li>The timer will start immediately and cannot be paused.</li>
-                    <li>This exam will open in a new, fullscreen window.</li>
-                    <li><strong className="text-destructive">Leaving the exam tab or window is not permitted and will cause your exam to be submitted automatically.</strong></li>
+                    <li>The timer will start immediately after you enter fullscreen and cannot be paused.</li>
+                    <li>This exam must be taken in fullscreen mode.</li>
+                    <li><strong className="text-destructive">Leaving fullscreen or the exam tab is not permitted and will cause your exam to be submitted automatically after one warning.</strong></li>
                   </ul>
                    <p className="font-semibold pt-2">Are you sure you wish to start now?</p>
                 </div>
@@ -220,7 +212,7 @@ export default function AssessmentListPage() {
             </AlertDialogHeader>
             <AlertDialogFooter>
               <AlertDialogCancel>Cancel</AlertDialogCancel>
-              <AlertDialogAction onClick={() => handleStartExam(examToConfirm.id)}>Start Exam</AlertDialogAction>
+              <AlertDialogAction onClick={() => handleStartExam(examToConfirm.id)}>Proceed</AlertDialogAction>
             </AlertDialogFooter>
           </AlertDialogContent>
         </AlertDialog>

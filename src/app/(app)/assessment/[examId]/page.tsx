@@ -7,9 +7,10 @@ import {
 import { Loader2 } from 'lucide-react';
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useUser, useFirestore, errorEmitter, FirestorePermissionError, useMemoFirebase } from '@/firebase';
-import { collection, doc, Timestamp, getDocs, writeBatch, serverTimestamp, addDoc } from 'firebase/firestore';
+import { collection, doc, Timestamp, getDocs, writeBatch, serverTimestamp } from 'firebase/firestore';
 import { ExamLayout } from '@/components/layout/exam-layout';
 import { useDoc } from '@/firebase/firestore/use-doc';
+import { useParams } from 'next/navigation';
 
 // Matches the Firestore data structure
 type Exam = {
@@ -28,21 +29,26 @@ export type AssessmentQuestion = {
   options: string[];
   type?: 'mcq' | 'fillup' | 'short-answer' | 'long-answer';
   explanation?: string;
+  correctAnswer?: string;
 };
 
 export type SelectedExamDetails = Exam & {
     questions: AssessmentQuestion[];
 }
 
-export default function AssessmentPage({ params }: { params: { examId: string }}) {
+export default function AssessmentPage() {
   const [selectedExam, setSelectedExam] = useState<SelectedExamDetails | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isLoadingExam, setIsLoadingExam] = useState(true);
+  const [isFullScreen, setIsFullScreen] = useState(false);
+
   const { toast } = useToast();
+  const params = useParams();
+  const examId = params.examId as string;
   
   const { user } = useUser();
   const firestore = useFirestore();
-  const examId = params.examId;
+  
 
   const examRef = useMemoFirebase(() => {
     if (!firestore || !examId) return null;
@@ -52,9 +58,14 @@ export default function AssessmentPage({ params }: { params: { examId: string }}
   const { data: examData, isLoading: isExamDataLoading } = useDoc<Exam>(examRef);
 
   useEffect(() => {
-    // Note: Fullscreen is now initiated from the confirmation dialog before navigating here.
+    const handleFullscreenChange = () => {
+        setIsFullScreen(!!document.fullscreenElement);
+    };
+    document.addEventListener('fullscreenchange', handleFullscreenChange);
+    
     // Exit fullscreen when component unmounts
     return () => {
+        document.removeEventListener('fullscreenchange', handleFullscreenChange);
         if(document.fullscreenElement) {
             document.exitFullscreen();
         }
@@ -132,7 +143,7 @@ export default function AssessmentPage({ params }: { params: { examId: string }}
           });
           // We can't close the tab automatically due to browser security
           // So we can replace the UI to prevent re-submission.
-          setIsSubmitting(true); // Keep it in a 'submitted' state
+          setIsSubmitting(true);
       })
       .catch((error: any) => {
           const permissionError = new FirestorePermissionError({
@@ -148,6 +159,18 @@ export default function AssessmentPage({ params }: { params: { examId: string }}
       });
   }, [isSubmitting, selectedExam, user, firestore, toast]);
   
+  const handleEnterFullscreen = async () => {
+    try {
+      await document.documentElement.requestFullscreen();
+    } catch (err: any) {
+      toast({
+        variant: 'destructive',
+        title: 'Fullscreen Required',
+        description: `Could not enter fullscreen mode. Please allow fullscreen in your browser settings and try again.`
+      });
+    }
+  };
+
 
   if (isLoadingExam || isExamDataLoading) {
       return (
@@ -174,6 +197,20 @@ export default function AssessmentPage({ params }: { params: { examId: string }}
               <h1 className="text-2xl font-bold text-destructive">Error: Could not load the exam.</h1>
           </div>
       )
+  }
+
+  if (!isFullScreen) {
+      return (
+        <div className="fixed inset-0 bg-background flex flex-col justify-center items-center text-center p-4">
+            <h1 className="text-3xl font-bold font-headline">Ready to Begin?</h1>
+            <p className="text-muted-foreground mt-2 max-w-md">
+                This assessment requires fullscreen mode to ensure a focused environment. Please click below to start.
+            </p>
+            <Button size="lg" className="mt-6" onClick={handleEnterFullscreen}>
+                Start Exam
+            </Button>
+        </div>
+      );
   }
 
   return (
