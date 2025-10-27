@@ -52,11 +52,13 @@ const prompt = ai.definePrompt({
   This is a {{examType}} exam.
   {{/if}}
 
-  {{#ifCond examType '==' 'Final Term'}}
+  {{#if (includes examType 'Annual Exam')}}
+  The exam should be for a total of 100 marks and a duration of 3 hours.
+  {{else if (includes examType 'Half Yearly')}}
   The exam should be for a total of 100 marks and a duration of 3 hours.
   {{else}}
   The exam should be for a total of 50 marks and a duration of 1.5 hours.
-  {{/ifCond}}
+  {{/if}}
   
   Distribute the marks among the questions logically if they are not specified in the document.
 
@@ -88,9 +90,17 @@ const extractQuestionsFlow = ai.defineFlow(
     outputSchema: ExtractQuestionsOutputSchema,
   },
   async input => {
-    const {output} = await prompt(input);
+    // A simple helper to check for substrings in the template
+    const includes = (str: string | undefined, substr: string) => str?.includes(substr);
+    
+    const {output} = await prompt(
+        {...input},
+        {
+            helpers: {
+                includes
+            }
+        }
+    );
     return output!;
   }
 );
-
-    
