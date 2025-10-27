@@ -37,6 +37,7 @@ type Student = {
     progress: number;
     disability: string;
     avatar: string;
+    gradeLevel: string;
 };
 
 type Exam = {
@@ -116,6 +117,7 @@ export default function AdminDashboardPage() {
                     progress: progress,
                     disability: 'N/A', // This would need to be fetched from their accessibility profile
                     avatar: userData.photoURL || `https://i.pravatar.cc/40?u=${userId}`,
+                    gradeLevel: userData.gradeLevel || 'N/A',
                 });
             });
 
@@ -303,8 +305,8 @@ export default function AdminDashboardPage() {
                     <TableRow>
                         <TableHead>Student</TableHead>
                         <TableHead>Accessibility Need</TableHead>
-                        <TableHead className="w-48">Overall Progress</TableHead>
-                        <TableHead className='text-right'>Actions</TableHead>
+                        <TableHead>Grade</TableHead>
+                        <TableHead className="w-48 text-right">Overall Progress</TableHead>
                     </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -325,26 +327,14 @@ export default function AdminDashboardPage() {
                         <TableCell>
                             <Badge variant={student.disability === 'N/A' ? "secondary" : "outline"}>{student.disability}</Badge>
                         </TableCell>
-                        <TableCell>
-                            <div className="flex items-center gap-2">
-                                <Progress value={student.progress} className="w-full bg-muted h-2" />
-                                <span className="text-xs text-muted-foreground font-medium">{student.progress.toFixed(0)}%</span>
-                            </div>
+                         <TableCell>
+                            <Badge variant="outline">{student.gradeLevel}</Badge>
                         </TableCell>
                         <TableCell className='text-right'>
-                            <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                                <Button aria-haspopup="true" size="icon" variant="ghost">
-                                <MoreHorizontal className="h-4 w-4" />
-                                <span className="sr-only">Toggle menu</span>
-                                </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end">
-                                <DropdownMenuItem>View Profile</DropdownMenuItem>
-                                <DropdownMenuItem>Check Submissions</DropdownMenuItem>
-                                <DropdownMenuItem>Send Message</DropdownMenuItem>
-                            </DropdownMenuContent>
-                            </DropdownMenu>
+                            <div className="flex items-center justify-end gap-2">
+                                <span className="text-sm text-muted-foreground font-medium">{student.progress.toFixed(0)}%</span>
+                                <Progress value={student.progress} className="w-24 bg-muted h-2" />
+                            </div>
                         </TableCell>
                         </TableRow>
                     ))}
