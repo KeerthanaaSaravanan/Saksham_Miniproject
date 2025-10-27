@@ -245,14 +245,14 @@ export default function AdminDashboardPage() {
                 <CardContent className="pl-2">
                     {isLoading ? <Skeleton className="h-[300px] w-full" /> : (
                         subjectPerformance.length > 0 ? (
-                            <ResponsiveContainer width="100%" height={300}>
+                            <ChartContainer config={chartConfig} className="h-[300px] w-full">
                                 <BarChart data={subjectPerformance}>
                                     <XAxis dataKey="subject" tickLine={false} tickMargin={10} axisLine={false} tickFormatter={(value) => value.slice(0, 8)} />
                                     <YAxis stroke="#888888" fontSize={12} tickLine={false} axisLine={false} />
                                     <ChartTooltip cursor={false} content={<ChartTooltipContent />} />
                                     <Bar dataKey="score" fill="var(--color-score)" radius={4} />
                                 </BarChart>
-                            </ResponsiveContainer>
+                            </ChartContainer>
                         ) : (
                             <div className="h-[300px] flex items-center justify-center text-muted-foreground">No performance data available yet.</div>
                         )
