@@ -49,7 +49,6 @@ const questionSchema = z.object({
   question: z.string().min(5, "Question must be at least 5 characters."),
   type: z.enum(['mcq', 'fillup', 'short-answer', 'long-answer']),
   options: z.array(z.string()).optional(),
-  correctAnswer: z.string().min(1, "Correct answer is required."),
   marks: z.coerce.number().min(1, "Marks are required."),
 });
 
@@ -225,7 +224,7 @@ function UploadPageComponent() {
                 throw new Error(result.error);
             }
             
-            replace(result.questions); // Replace existing questions with parsed ones
+            replace(result.questions as any); // Replace existing questions with parsed ones
             toast({ title: 'Parsing Successful', description: `Extracted ${result.questions.length} questions from the document.` });
 
         } catch (error: any) {
@@ -407,7 +406,7 @@ function UploadPageComponent() {
                                 <CardTitle>Manual Questions</CardTitle>
                                 <CardDescription>Add questions for this exam one by one.</CardDescription>
                             </div>
-                            <Button type="button" variant="outline" size="sm" onClick={() => append({ question: '', type: 'mcq', options: ['', '', '', ''], correctAnswer: '', marks: 5 })}>
+                            <Button type="button" variant="outline" size="sm" onClick={() => append({ question: '', type: 'mcq', options: ['', '', '', ''], marks: 5 })}>
                                 <PlusCircle className="mr-2 h-4 w-4" />
                                 Add Question
                             </Button>
@@ -466,12 +465,6 @@ function UploadPageComponent() {
                                     </div>
                                 ) : null}
                             />
-
-                            <FormField control={form.control} name={`questions.${index}.correctAnswer`} render={({ field }) => (
-                                <FormItem><FormLabel>Correct Answer</FormLabel><FormControl>
-                                <Textarea placeholder="Enter the exact correct answer" {...field} rows={2} />
-                                </FormControl><FormDescription>For MCQs, this must match one of the options exactly.</FormDescription><FormMessage /></FormItem>
-                            )} />
                         </div>
                     ))}
                     {form.formState.errors.questions && <p className="text-sm font-medium text-destructive">{form.formState.errors.questions.message || form.formState.errors.questions.root?.message}</p>}
@@ -506,5 +499,7 @@ function UploadPageWithKey() {
     // The key forces a re-mount when we navigate between editing an exam and creating a new one.
     return <UploadPageComponent key={examId || 'new'} />;
 }
+
+    
 
     

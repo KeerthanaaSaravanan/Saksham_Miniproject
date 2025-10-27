@@ -26,7 +26,6 @@ export type AssessmentQuestion = {
   id: string;
   question: string;
   options: string[];
-  correctAnswer: string;
   type?: 'mcq' | 'fillup' | 'short-answer' | 'long-answer';
   explanation?: string;
 };
@@ -106,31 +105,25 @@ export default function AssessmentPage({ params }: { params: { examId: string }}
 
     const batch = writeBatch(firestore);
 
-    let correctCount = 0;
     const studentAnswers = Object.entries(answers).map(([questionId, answer]) => {
-      const question = selectedExam.questions.find(q => q.id === questionId);
-      const isCorrect = question ? question.correctAnswer.toLowerCase().trim() === answer.toLowerCase().trim() : false;
-      if (isCorrect) correctCount++;
       return {
         questionId,
         answer,
-        isCorrect,
         studentExamAttemptId: attemptRef.id,
       };
     });
     
     studentAnswers.forEach(ans => {
-        const answerRef = doc(collection(answersCollectionRef));
+        const answerRef = doc(answersCollectionRef);
         batch.set(answerRef, ans);
     });
 
-    const score = (correctCount / selectedExam.questions.length) * 100;
     batch.set(attemptRef, {
         userId: user.uid,
         examId: selectedExam.id,
         startTime: new Date(), // This should ideally be when the student starts
         endTime: serverTimestamp(),
-        score: score,
+        score: 0, // Score is 0 initially, to be graded manually
         status: 'submitted',
     });
 
@@ -138,7 +131,7 @@ export default function AssessmentPage({ params }: { params: { examId: string }}
       .then(() => {
           toast({
               title: "Exam Submitted Successfully",
-              description: `Your answers have been saved. You can now close this tab.`
+              description: `Your answers have been saved for grading. You can now close this tab.`
           });
           // We can't close the tab automatically due to browser security
           // So we can replace the UI to prevent re-submission.
@@ -149,7 +142,7 @@ export default function AssessmentPage({ params }: { params: { examId: string }}
               path: attemptRef.path,
               operation: 'write', // This is a batch write operation
               requestResourceData: { 
-                  attempt: { examId: selectedExam.id, score },
+                  attempt: { examId: selectedExam.id, score: 0, status: 'submitted' },
                   answers: studentAnswers 
               }
           });
@@ -173,7 +166,7 @@ export default function AssessmentPage({ params }: { params: { examId: string }}
       return (
            <div className="fixed inset-0 bg-background flex flex-col justify-center items-center text-center p-4">
               <h1 className="text-3xl font-bold text-primary">Exam Submitted Successfully!</h1>
-              <p className="text-muted-foreground mt-2">Your responses have been recorded. You may now close this window.</p>
+              <p className="text-muted-foreground mt-2">Your responses have been recorded for manual grading. You may now close this window.</p>
           </div>
       )
   }
@@ -194,3 +187,5 @@ export default function AssessmentPage({ params }: { params: { examId: string }}
     />
   );
 }
+
+    

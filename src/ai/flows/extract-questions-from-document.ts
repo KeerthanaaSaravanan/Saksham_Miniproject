@@ -28,7 +28,6 @@ const questionSchema = z.object({
     question: z.string().describe("The text of the question."),
     type: z.enum(['mcq', 'fillup', 'short-answer', 'long-answer']).describe("The type of the question."),
     options: z.array(z.string()).optional().describe("A list of multiple-choice options. Required only for 'mcq' type."),
-    correctAnswer: z.string().describe("The correct answer to the question."),
     marks: z.number().optional().describe("The marks allocated to the question.")
 });
 
@@ -71,13 +70,14 @@ const prompt = ai.definePrompt({
   - The full question text.
   - The question type.
   - For MCQs, extract all the options.
-  - The correct answer.
   - The marks for the question.
+  
+  Do NOT include a 'correctAnswer' field in your output. Grading will be done manually.
 
   Document Content:
   {{media url=documentDataUri}}
 
-  Your output MUST be a valid JSON object matching the required schema. Ensure the options and correct answer for MCQs are accurate.
+  Your output MUST be a valid JSON object matching the required schema.
   `,
 });
 
@@ -92,3 +92,5 @@ const extractQuestionsFlow = ai.defineFlow(
     return output!;
   }
 );
+
+    
