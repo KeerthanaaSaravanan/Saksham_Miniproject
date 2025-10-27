@@ -11,6 +11,7 @@ import { collection, doc, Timestamp, getDocs, writeBatch, serverTimestamp } from
 import { ExamLayout } from '@/components/layout/exam-layout';
 import { useDoc } from '@/firebase/firestore/use-doc';
 import { useParams } from 'next/navigation';
+import { Button } from '@/components/ui/button';
 
 // Matches the Firestore data structure
 type Exam = {
