@@ -202,17 +202,24 @@ export default function DashboardPage() {
 
         // Fetch exam details for official attempts
         const officialPerformance: PerformanceDataItem[] = [];
-        if (officialAttempts) {
+        if (officialAttempts && officialAttempts.length > 0) {
             for (const attempt of officialAttempts) {
-                const examRef = doc(firestore, 'exams', attempt.examId);
-                const examSnap = await getDoc(examRef);
-                if (examSnap.exists()) {
-                    const examData = examSnap.data();
-                    officialPerformance.push({
-                        name: examData.title.slice(0, 15), // Shorten name for chart
-                        score: attempt.score,
-                        subject: examData.subject,
-                    });
+                // Only process attempts that have been graded
+                if (attempt.score > 0) {
+                    try {
+                        const examRef = doc(firestore, 'exams', attempt.examId);
+                        const examSnap = await getDoc(examRef);
+                        if (examSnap.exists()) {
+                            const examData = examSnap.data();
+                            officialPerformance.push({
+                                name: examData.title.slice(0, 15), // Shorten name for chart
+                                score: attempt.score,
+                                subject: examData.subject,
+                            });
+                        }
+                    } catch (error) {
+                        console.error(`Could not fetch details for exam ${attempt.examId}:`, error);
+                    }
                 }
             }
         }
@@ -240,21 +247,24 @@ export default function DashboardPage() {
         setIsPerformanceLoading(false);
     };
 
-    processPerformanceData();
+    if (!areAttemptsLoading) {
+        processPerformanceData();
+    }
   }, [officialAttempts, areAttemptsLoading, firestore]);
 
   const examsQuery = useMemoFirebase(() => {
     if (!firestore || !gradeLevel) return null;
     return query(
       collection(firestore, 'exams'),
-      where('gradeLevel', '==', gradeLevel)
+      where('gradeLevel', '==', gradeLevel),
+      where('startTime', '>', new Date())
     );
   }, [firestore, gradeLevel]);
 
   const { data: exams, isLoading: areExamsLoading } = useCollection<Exam>(examsQuery);
 
   const getSubjectImage = (subjectId: string) => {
-    const placeholder = PlaceHolderImages.find(img => img.id === subjectId.toLowerCase().replace(' ', '-'));
+    const placeholder = PlaceHolderImages.find(img => img.id === subjectId.toLowerCase().replace(/ /g, '-'));
     return placeholder?.imageUrl || `https://picsum.photos/seed/${subjectId}/600/400`;
   };
 
@@ -371,8 +381,8 @@ export default function DashboardPage() {
                                 <h4 className="text-sm font-semibold mb-2">Upcoming Exams</h4>
                                 {areExamsLoading ? <Skeleton className="h-10 w-full" /> : (
                                     <div className="space-y-2">
-                                    {exams?.filter(exam => exam.subject.toLowerCase() === subject.name.toLowerCase()).length > 0 ? (
-                                        exams?.filter(exam => exam.subject.toLowerCase() === subject.name.toLowerCase()).map(exam => (
+                                    {exams && exams.filter(exam => exam.subject.toLowerCase() === subject.name.toLowerCase()).length > 0 ? (
+                                        exams.filter(exam => exam.subject.toLowerCase() === subject.name.toLowerCase()).map(exam => (
                                         <div key={exam.id} className="text-xs p-2 rounded-md bg-muted/50 flex justify-between items-center">
                                             <div>
                                                 <p className="font-medium text-foreground">{exam.title}</p>
@@ -386,7 +396,7 @@ export default function DashboardPage() {
                                         </div>
                                         ))
                                     ) : (
-                                        <p className="text-xs text-muted-foreground">No exams scheduled.</p>
+                                        <p className="text-xs text-muted-foreground">No new exams scheduled.</p>
                                     )}
                                     </div>
                                 )}
