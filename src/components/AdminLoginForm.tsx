@@ -41,42 +41,34 @@ export function AdminLoginForm() {
       const userCredential = await signInWithEmailAndPassword(auth, email, password);
       const user = userCredential.user;
 
-      // Step 2: Verify the user's role in Firestore
+      // Step 2: Set/verify the user's role in Firestore
       const userDocRef = doc(firestore, 'users', user.uid);
       const userDocSnap = await getDoc(userDocRef);
 
       if (userDocSnap.exists() && userDocSnap.data().role === 'faculty') {
-        // Success: User is authenticated and has the 'faculty' role
+        // Success: User is authenticated and already has the 'faculty' role
         toast({
           title: 'Login Successful',
           description: 'Welcome back to the Faculty Portal!',
         });
         router.push('/admin/dashboard');
       } else {
-         // If user exists but is not faculty, or has no role
-        if (!userDocSnap.exists() || userDocSnap.data().role !== 'faculty') {
-            await setDoc(userDocRef, {
-                uid: user.uid,
-                email: user.email,
-                displayName: "Dakshata G",
-                role: 'faculty',
-                handledGrades: ['Class 6', 'Class 7', 'Class 8', 'Class 9', 'Class 10', 'Class 11', 'Class 12'],
-                handledSubjects: ["Mathematics", "Physics", "Chemistry", "Biology", "Social Studies", "English", "Computer Science"],
-            }, { merge: true });
-             toast({
-                title: 'Login Successful',
-                description: 'Faculty profile created. Welcome!',
-            });
-            router.push('/admin/dashboard');
-        } else {
-             // Auth success, but not a faculty member. Deny access.
-            await auth.signOut();
-            toast({
-                variant: 'destructive',
-                title: 'Access Denied',
-                description: 'This account does not have faculty privileges.',
-            });
-        }
+         // If user exists but is not faculty, or has no role, update them.
+         await setDoc(userDocRef, {
+             uid: user.uid,
+             email: user.email,
+             displayName: user.displayName || 'Faculty Member',
+             role: 'faculty',
+             // Provide default handled subjects/grades if they don't exist
+             handledGrades: userDocSnap.data()?.handledGrades || ['Class 6', 'Class 7', 'Class 8', 'Class 9', 'Class 10', 'Class 11', 'Class 12'],
+             handledSubjects: userDocSnap.data()?.handledSubjects || ["Mathematics", "Physics", "Chemistry", "Biology", "Social Studies", "English", "Computer Science"],
+         }, { merge: true });
+
+          toast({
+             title: 'Login Successful',
+             description: 'Your account has been configured for faculty access.',
+         });
+         router.push('/admin/dashboard');
       }
     } catch (error: any) {
         if (error.code === 'auth/user-not-found' || error.code === 'auth/invalid-credential') {
