@@ -3,7 +3,7 @@
 
 import { useState, useEffect } from 'react';
 import { useFirestore, useCollection, useMemoFirebase } from '@/firebase';
-import { collection, query, Timestamp, getDocs } from 'firebase/firestore';
+import { collection, query, Timestamp, getDocs, doc, writeBatch } from 'firebase/firestore';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import {
   Accordion,
@@ -11,13 +11,24 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { MoreHorizontal, Edit, Send, Loader2 } from 'lucide-react';
+import { MoreHorizontal, Edit, Loader2, Trash2 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { useToast } from '@/hooks/use-toast';
 
 type Exam = {
     id: string;
@@ -136,6 +147,9 @@ const ExamSubmissions = ({ examId }: { examId: string }) => {
 export default function ExaminationsPage() {
     const firestore = useFirestore();
     const router = useRouter();
+    const { toast } = useToast();
+
+    const [examToDelete, setExamToDelete] = useState<Exam | null>(null);
 
     const examsQuery = useMemoFirebase(() => {
         if (!firestore) return null;
@@ -144,7 +158,45 @@ export default function ExaminationsPage() {
 
     const { data: exams, isLoading: areExamsLoading } = useCollection<Exam>(examsQuery);
     
+    const handleDeleteExam = async () => {
+        if (!examToDelete || !firestore) return;
+
+        const examRef = doc(firestore, 'exams', examToDelete.id);
+        const questionsRef = collection(examRef, 'questions');
+
+        try {
+            const batch = writeBatch(firestore);
+            
+            // Delete all questions in the subcollection
+            const questionsSnap = await getDocs(questionsRef);
+            questionsSnap.forEach(questionDoc => {
+                batch.delete(questionDoc.ref);
+            });
+            
+            // Delete the main exam document
+            batch.delete(examRef);
+            
+            await batch.commit();
+
+            toast({
+                title: "Exam Deleted",
+                description: `"${examToDelete.title}" and all its questions have been removed.`,
+            });
+            
+        } catch (error) {
+            console.error("Error deleting exam:", error);
+            toast({
+                variant: "destructive",
+                title: "Deletion Failed",
+                description: "Could not delete the exam. Please try again.",
+            });
+        } finally {
+            setExamToDelete(null);
+        }
+    };
+
     return (
+        <>
         <div className="space-y-6">
             <div>
                 <h1 className="text-3xl font-bold font-headline">Examinations</h1>
@@ -195,7 +247,9 @@ export default function ExaminationsPage() {
                                                     <Button variant="outline" size="sm" onClick={() => router.push(`/admin/upload?examId=${exam.id}`)}>
                                                         <Edit className="mr-2 h-4 w-4" /> Edit Exam
                                                     </Button>
-                                                    <Button variant="default" size="sm"><Send className="mr-2 h-4 w-4" /> Publish Results</Button>
+                                                    <Button variant="destructive" size="sm" onClick={() => setExamToDelete(exam)}>
+                                                        <Trash2 className="mr-2 h-4 w-4" /> Delete Exam
+                                                    </Button>
                                                  </div>
                                             </div>
                                            <ExamSubmissions examId={exam.id} />
@@ -208,5 +262,26 @@ export default function ExaminationsPage() {
                 </Accordion>
             )}
         </div>
+
+        {examToDelete && (
+            <AlertDialog open onOpenChange={() => setExamToDelete(null)}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            This action cannot be undone. This will permanently delete the exam
+                             "{examToDelete.title}" and all associated student submissions.
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                        <AlertDialogAction onClick={handleDeleteExam}>
+                            Yes, delete exam
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
+        )}
+        </>
     );
 }
