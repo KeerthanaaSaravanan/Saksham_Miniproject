@@ -3,7 +3,7 @@
 
 import { useState, useEffect } from 'react';
 import { useFirestore, useCollection, useMemoFirebase } from '@/firebase';
-import { collection, query, Timestamp, getDocs, doc, writeBatch, where, collectionGroup } from 'firebase/firestore';
+import { collection, query, Timestamp, getDocs, doc, writeBatch, where, getDoc } from 'firebase/firestore';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import {
   Accordion,
@@ -73,32 +73,33 @@ const ExamSubmissions = ({ examId }: { examId: string }) => {
             setIsLoading(true);
             
             try {
-                // Use a collectionGroup query to efficiently get all attempts for this exam
-                const attemptsQuery = query(collectionGroup(firestore, 'exam_attempts'), where('examId', '==', examId));
-                const attemptsSnap = await getDocs(attemptsQuery);
+                // To avoid needing a composite index, we first get all students, then query their subcollections.
+                const usersQuery = query(collection(firestore, 'users'), where('role', '==', 'student'));
+                const usersSnap = await getDocs(usersQuery);
                 
-                if (attemptsSnap.empty) {
-                    setSubmissions([]);
-                    setIsLoading(false);
-                    return;
+                const allSubmissions: Submission[] = [];
+
+                for (const userDoc of usersSnap.docs) {
+                    const userData = userDoc.data();
+                    const attemptsCollectionRef = collection(firestore, 'users', userDoc.id, 'exam_attempts');
+                    const attemptQuery = query(attemptsCollectionRef, where('examId', '==', examId));
+                    const attemptsSnap = await getDocs(attemptQuery);
+
+                    if (!attemptsSnap.empty) {
+                        const attemptDoc = attemptsSnap.docs[0]; // Assuming one attempt per user per exam
+                        const attemptData = attemptDoc.data();
+                        
+                        allSubmissions.push({
+                            studentId: attemptData.userId,
+                            studentName: userData.displayName || 'Anonymous',
+                            submittedAt: attemptData.endTime.toDate(),
+                            status: attemptData.status === 'graded' ? 'Graded' : 'Pending',
+                            score: attemptData.score
+                        });
+                    }
                 }
-
-                const submissionsData = await Promise.all(attemptsSnap.docs.map(async (attemptDoc) => {
-                    const attemptData = attemptDoc.data();
-                    const userDocRef = doc(firestore, 'users', attemptData.userId);
-                    const userDocSnap = await getDoc(userDocRef);
-                    const userData = userDocSnap.exists() ? userDocSnap.data() : { displayName: 'Anonymous' };
-                    
-                    return {
-                        studentId: attemptData.userId,
-                        studentName: userData.displayName || 'Anonymous',
-                        submittedAt: attemptData.endTime.toDate(),
-                        status: attemptData.status === 'graded' ? 'Graded' : 'Pending',
-                        score: attemptData.score
-                    };
-                }));
-
-                setSubmissions(submissionsData);
+                
+                setSubmissions(allSubmissions);
             } catch (error) {
                 console.error("Error fetching submissions:", error);
             } finally {
