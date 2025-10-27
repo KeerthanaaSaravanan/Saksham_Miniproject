@@ -31,6 +31,7 @@ import { avatars } from '@/lib/avatars';
 import { AvatarSelector } from '@/components/AvatarSelector';
 import { Checkbox } from '@/components/ui/checkbox';
 import { usePathname } from 'next/navigation';
+import { gradeSubjectMap } from '@/lib/subjects';
 
 const gradeConfig = {
   'Class 6': { subjects: true },
@@ -47,7 +48,17 @@ const gradeConfig = {
 };
 
 const facultyGrades = ['Class 6', 'Class 7', 'Class 8', 'Class 9', 'Class 10', 'Class 11', 'Class 12'];
-const facultySubjects = ["Mathematics", "Physics", "Chemistry", "Biology", "Social Studies", "English", "Computer Science"];
+
+// Dynamically generate all unique subjects from the central subjects map
+const allSubjects = Object.values(gradeSubjectMap).flatMap(level => {
+    if (Array.isArray(level)) { // For grades 6-10
+        return level.flatMap(category => category.subjects.map(s => s.name));
+    } else { // For levels with streams (11, 12, College, etc.)
+        return Object.values(level).flatMap(stream => stream.flatMap(category => category.subjects.map(s => s.name)));
+    }
+});
+const uniqueFacultySubjects = [...new Set(allSubjects)];
+
 
 export default function ProfileSettingsPage() {
   const { user, isUserLoading } = useUser();
@@ -298,8 +309,8 @@ export default function ProfileSettingsPage() {
                       </div>
                        <div className="space-y-4">
                         <Label><Briefcase className="inline-block mr-2" />Handled Subjects</Label>
-                        <div className="grid grid-cols-2 md:grid-cols-3 gap-4 p-4 border rounded-md">
-                            {facultySubjects.map(s => (
+                        <div className="grid grid-cols-2 md:grid-cols-3 gap-4 p-4 border rounded-md max-h-60 overflow-y-auto">
+                            {uniqueFacultySubjects.map(s => (
                                 <div key={s} className="flex items-center space-x-2">
                                     <Checkbox id={`subj-${s}`} checked={handledSubjects.includes(s)} onCheckedChange={(checked) => onSubjectCheckedChange(s, !!checked)} />
                                     <Label htmlFor={`subj-${s}`} className="font-normal">{s}</Label>
