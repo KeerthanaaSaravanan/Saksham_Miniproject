@@ -167,7 +167,7 @@ const competitiveExams: GradeStream = {
 };
 
 
-const gradeSubjectMap: GradeLevel = {
+export const gradeSubjectMap: GradeLevel = {
     'Class 6': schoolSubjects['common'],
     'Class 7': schoolSubjects['common'],
     'Class 8': schoolSubjects['common'],
