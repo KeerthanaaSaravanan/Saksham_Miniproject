@@ -65,12 +65,11 @@ const formSchema = z.object({
 });
 
 const examTypes = [
-    "Final Exams",
-    "Annual Exams",
-    "Half-Yearly/Mid-Term Exams",
-    "Quarterly Exams",
-    "Periodic Assessments/Tests",
-    "Formative Assessments"
+    "Periodic Assessment (Pre-Mid Term)",
+    "Periodic Assessment (Post-Mid Term)",
+    "Quarterly Exam",
+    "Half Yearly Exam",
+    "Annual Exam"
 ];
 
 function UploadPageComponent() {
@@ -93,7 +92,7 @@ function UploadPageComponent() {
       title: '',
       subject: '',
       gradeLevel: '',
-      examType: 'Final Exams',
+      examType: 'Annual Exam',
       startTime: '',
       endTime: '',
       durationMinutes: 180,
@@ -115,9 +114,9 @@ function UploadPageComponent() {
   useEffect(() => {
     if(isEditMode) return; // Don't auto-change duration in edit mode
 
-    if (examType === 'Final Exams' || examType === 'Annual Exams') {
+    if (examType === 'Annual Exam') {
       form.setValue('durationMinutes', 180);
-    } else if (examType === 'Half-Yearly/Mid-Term Exams' || examType === 'Quarterly Exams') {
+    } else if (examType === 'Half Yearly Exam' || examType === 'Quarterly Exam') {
       form.setValue('durationMinutes', 90);
     } else {
         form.setValue('durationMinutes', 45);
