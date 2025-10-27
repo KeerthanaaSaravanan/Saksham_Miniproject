@@ -3,7 +3,7 @@
 
 import { useState, useEffect } from 'react';
 import { useFirestore, useCollection, useMemoFirebase } from '@/firebase';
-import { collection, query, Timestamp, getDocs, doc, writeBatch, where, getDoc } from 'firebase/firestore';
+import { collection, query, Timestamp, getDocs, doc, writeBatch, where, getDoc, collectionGroup } from 'firebase/firestore';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import {
   Accordion,
@@ -41,6 +41,7 @@ type Exam = {
 };
 
 type Submission = {
+    attemptId: string;
     studentId: string;
     studentName: string;
     submittedAt: Date;
@@ -64,6 +65,7 @@ const getExamStatus = (startTime: Timestamp, endTime: Timestamp): { text: string
 
 const ExamSubmissions = ({ examId }: { examId: string }) => {
     const firestore = useFirestore();
+    const router = useRouter();
     const [submissions, setSubmissions] = useState<Submission[]>([]);
     const [isLoading, setIsLoading] = useState(true);
 
@@ -73,31 +75,36 @@ const ExamSubmissions = ({ examId }: { examId: string }) => {
             setIsLoading(true);
             
             try {
-                // To avoid needing a composite index, we first get all students, then query their subcollections.
-                const usersQuery = query(collection(firestore, 'users'), where('role', '==', 'student'));
-                const usersSnap = await getDocs(usersQuery);
-                
-                const allSubmissions: Submission[] = [];
+                const attemptsQuery = collectionGroup(firestore, 'exam_attempts');
+                const q = query(attemptsQuery, where('examId', '==', examId));
+                const attemptsSnap = await getDocs(q);
 
-                for (const userDoc of usersSnap.docs) {
-                    const userData = userDoc.data();
-                    const attemptsCollectionRef = collection(firestore, 'users', userDoc.id, 'exam_attempts');
-                    const attemptQuery = query(attemptsCollectionRef, where('examId', '==', examId));
-                    const attemptsSnap = await getDocs(attemptQuery);
-
-                    if (!attemptsSnap.empty) {
-                        const attemptDoc = attemptsSnap.docs[0]; // Assuming one attempt per user per exam
-                        const attemptData = attemptDoc.data();
-                        
-                        allSubmissions.push({
-                            studentId: attemptData.userId,
-                            studentName: userData.displayName || 'Anonymous',
-                            submittedAt: attemptData.endTime.toDate(),
-                            status: attemptData.status === 'graded' ? 'Graded' : 'Pending',
-                            score: attemptData.score
-                        });
-                    }
+                if (attemptsSnap.empty) {
+                    setSubmissions([]);
+                    setIsLoading(false);
+                    return;
                 }
+
+                const studentIds = [...new Set(attemptsSnap.docs.map(doc => doc.data().userId))];
+                
+                // Batch fetch user data
+                const usersRef = collection(firestore, 'users');
+                const usersQuery = query(usersRef, where('uid', 'in', studentIds));
+                const usersSnap = await getDocs(usersQuery);
+                const usersData = new Map(usersSnap.docs.map(doc => [doc.id, doc.data()]));
+
+                const allSubmissions: Submission[] = attemptsSnap.docs.map(attemptDoc => {
+                    const attemptData = attemptDoc.data();
+                    const studentData = usersData.get(attemptData.userId);
+                    return {
+                        attemptId: attemptDoc.id,
+                        studentId: attemptData.userId,
+                        studentName: studentData?.displayName || 'Anonymous',
+                        submittedAt: attemptData.endTime.toDate(),
+                        status: attemptData.status === 'graded' ? 'Graded' : 'Pending',
+                        score: attemptData.score
+                    };
+                });
                 
                 setSubmissions(allSubmissions);
             } catch (error) {
@@ -132,7 +139,7 @@ const ExamSubmissions = ({ examId }: { examId: string }) => {
                     </TableHeader>
                     <TableBody>
                         {submissions.map(sub => (
-                            <TableRow key={sub.studentId}>
+                            <TableRow key={sub.attemptId}>
                                 <TableCell className="font-medium">{sub.studentName}</TableCell>
                                 <TableCell>{sub.submittedAt.toLocaleString()}</TableCell>
                                 <TableCell>{sub.score.toFixed(1)}%</TableCell>
@@ -145,8 +152,9 @@ const ExamSubmissions = ({ examId }: { examId: string }) => {
                                             </Button>
                                         </DropdownMenuTrigger>
                                         <DropdownMenuContent align="end">
-                                            <DropdownMenuItem>View Answer Sheet</DropdownMenuItem>
-                                            <DropdownMenuItem>Grade Submission</DropdownMenuItem>
+                                            <DropdownMenuItem onClick={() => router.push(`/admin/grading/${sub.attemptId}`)}>
+                                                View & Grade Submission
+                                            </DropdownMenuItem>
                                         </DropdownMenuContent>
                                     </DropdownMenu>
                                 </TableCell>
