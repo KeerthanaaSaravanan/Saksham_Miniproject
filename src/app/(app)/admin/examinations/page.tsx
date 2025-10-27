@@ -3,7 +3,7 @@
 
 import { useState, useEffect } from 'react';
 import { useFirestore, useCollection, useMemoFirebase } from '@/firebase';
-import { collection, query, Timestamp, getDocs, doc, writeBatch } from 'firebase/firestore';
+import { collection, query, Timestamp, getDocs, doc, writeBatch, where, collectionGroup } from 'firebase/firestore';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import {
   Accordion,
@@ -71,24 +71,39 @@ const ExamSubmissions = ({ examId }: { examId: string }) => {
         const fetchSubmissions = async () => {
             if (!firestore) return;
             setIsLoading(true);
-            const attempts: Submission[] = [];
-            const usersSnap = await getDocs(collection(firestore, 'users'));
-            for (const userDoc of usersSnap.docs) {
-                 const attemptsQuery = query(collection(firestore, 'users', userDoc.id, 'exam_attempts'), where => where('examId', '==', examId));
-                 const attemptsSnap = await getDocs(attemptsQuery);
-                 attemptsSnap.forEach(doc => {
-                     const data = doc.data();
-                     attempts.push({
-                         studentId: userDoc.id,
-                         studentName: userDoc.data().displayName || 'Anonymous',
-                         submittedAt: data.endTime.toDate(),
-                         status: data.status === 'graded' ? 'Graded' : 'Pending',
-                         score: data.score
-                     });
-                 });
+            
+            try {
+                // Use a collectionGroup query to efficiently get all attempts for this exam
+                const attemptsQuery = query(collectionGroup(firestore, 'exam_attempts'), where('examId', '==', examId));
+                const attemptsSnap = await getDocs(attemptsQuery);
+                
+                if (attemptsSnap.empty) {
+                    setSubmissions([]);
+                    setIsLoading(false);
+                    return;
+                }
+
+                const submissionsData = await Promise.all(attemptsSnap.docs.map(async (attemptDoc) => {
+                    const attemptData = attemptDoc.data();
+                    const userDocRef = doc(firestore, 'users', attemptData.userId);
+                    const userDocSnap = await getDoc(userDocRef);
+                    const userData = userDocSnap.exists() ? userDocSnap.data() : { displayName: 'Anonymous' };
+                    
+                    return {
+                        studentId: attemptData.userId,
+                        studentName: userData.displayName || 'Anonymous',
+                        submittedAt: attemptData.endTime.toDate(),
+                        status: attemptData.status === 'graded' ? 'Graded' : 'Pending',
+                        score: attemptData.score
+                    };
+                }));
+
+                setSubmissions(submissionsData);
+            } catch (error) {
+                console.error("Error fetching submissions:", error);
+            } finally {
+                setIsLoading(false);
             }
-            setSubmissions(attempts);
-            setIsLoading(false);
         }
         fetchSubmissions();
     }, [firestore, examId]);
