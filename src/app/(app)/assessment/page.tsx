@@ -11,10 +11,10 @@ import {
 } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
-import { Clock, BookOpen } from 'lucide-react';
-import { useState, useEffect } from 'react';
+import { Clock, BookOpen, CheckCircle } from 'lucide-react';
+import { useState, useEffect, useMemo } from 'react';
 import { useUser, useFirestore, useMemoFirebase, errorEmitter, FirestorePermissionError } from '@/firebase';
-import { collection, query, where, getDoc, doc, Timestamp } from 'firebase/firestore';
+import { collection, query, where, getDoc, doc, Timestamp, collectionGroup } from 'firebase/firestore';
 import { useCollection } from '@/firebase/firestore/use-collection';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
@@ -39,6 +39,11 @@ type Exam = {
     endTime: Timestamp;
     durationMinutes?: number;
 };
+
+type ExamAttempt = {
+    examId: string;
+};
+
 
 export default function AssessmentListPage() {
   const [examToConfirm, setExamToConfirm] = useState<Exam | null>(null);
@@ -77,7 +82,7 @@ export default function AssessmentListPage() {
     }
   }, [user, firestore, isUserLoading, toast]);
 
-  const examsQuery = useMemoFirebase(() => {
+  const allExamsQuery = useMemoFirebase(() => {
     if (!firestore || !gradeLevel) return null;
     return query(
       collection(firestore, 'exams'),
@@ -85,7 +90,25 @@ export default function AssessmentListPage() {
     );
   }, [firestore, gradeLevel]);
 
-  const { data: availableExams, isLoading: areExamsLoading } = useCollection<Exam>(examsQuery);
+  const attemptsQuery = useMemoFirebase(() => {
+    if (!firestore || !user) return null;
+    return collection(firestore, 'users', user.uid, 'exam_attempts');
+  }, [firestore, user]);
+
+  const { data: allExams, isLoading: areExamsLoading } = useCollection<Exam>(allExamsQuery);
+  const { data: attempts, isLoading: areAttemptsLoading } = useCollection<ExamAttempt>(attemptsQuery);
+  
+  const availableExams = useMemo(() => {
+    if (!allExams || !attempts) return [];
+    const attemptedExamIds = new Set(attempts.map(a => a.examId));
+    return allExams.filter(exam => !attemptedExamIds.has(exam.id));
+  }, [allExams, attempts]);
+  
+  const completedExams = useMemo(() => {
+      if (!allExams || !attempts) return [];
+      const attemptedExamIds = new Set(attempts.map(a => a.examId));
+      return allExams.filter(exam => attemptedExamIds.has(exam.id));
+  }, [allExams, attempts]);
 
   const handleStartExam = async (examId: string) => {
     try {
@@ -102,18 +125,16 @@ export default function AssessmentListPage() {
     }
   }
 
-  const isLoading = areExamsLoading || isUserLoading || isProfileLoading;
+  const isLoading = areExamsLoading || isUserLoading || isProfileLoading || areAttemptsLoading;
 
   return (
     <>
-      <div className="space-y-6">
-        <div className="flex justify-between items-start">
-          <div>
-              <h1 className="text-3xl font-bold font-headline">My Exams</h1>
-              <p className="text-muted-foreground">
-                  Available examinations for your grade level.
-              </p>
-          </div>
+      <div className="space-y-8">
+        <div>
+          <h1 className="text-3xl font-bold font-headline">My Exams</h1>
+          <p className="text-muted-foreground">
+              Available examinations for your grade level.
+          </p>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -148,9 +169,35 @@ export default function AssessmentListPage() {
                   </Card>
               ))
           ) : (
-              <p className="col-span-full text-center text-muted-foreground mt-8">No exams are scheduled for you at this time.</p>
+              <p className="col-span-full text-center text-muted-foreground mt-8">No new exams are scheduled for you at this time.</p>
           )}
         </div>
+        
+        {completedExams.length > 0 && (
+            <div className="mt-12">
+                <h2 className="text-2xl font-bold font-headline mb-4">Completed Exams</h2>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    {completedExams.map(exam => (
+                         <Card key={exam.id} className="flex flex-col bg-muted/50 border-dashed">
+                             <CardHeader>
+                                 <CardTitle className="text-xl text-muted-foreground">{exam.title}</CardTitle>
+                                 <CardDescription>{exam.subject} | {exam.gradeLevel}</CardDescription>
+                             </CardHeader>
+                             <CardContent className="flex-grow space-y-2">
+                                <p className="text-sm text-muted-foreground">You have already completed this exam.</p>
+                             </CardContent>
+                             <CardFooter>
+                                <Button className="w-full" disabled variant="secondary">
+                                    <CheckCircle className="mr-2 h-4 w-4"/>
+                                     Attempted
+                                 </Button>
+                             </CardFooter>
+                         </Card>
+                    ))}
+                </div>
+            </div>
+        )}
+        
       </div>
       
       {examToConfirm && (
