@@ -34,7 +34,7 @@ import {
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2, Upload, PlusCircle, XCircle, FileText, Wand2, FilePlus as FilePlusIcon } from 'lucide-react';
-import { useFirestore, useUser, errorEmitter, FirestorePermissionError, useMemoFirebase } from '@/firebase';
+import { useFirestore, useUser, errorEmitter, FirestorePermissionError, useMemoFirebase, useDoc } from '@/firebase';
 import { collection, serverTimestamp, doc, writeBatch, getDoc, getDocs } from 'firebase/firestore';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { extractQuestionsFromDocument } from '@/lib/actions/document-parser';
@@ -77,14 +77,19 @@ function UploadPageComponent() {
   const examId = searchParams.get('examId');
   const isEditMode = !!examId;
 
-  const [isLoading, setIsLoading] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [isParsing, setIsParsing] = useState(false);
-  const [isDataLoading, setIsDataLoading] = useState(true);
   const [uploadedFile, setUploadedFile] = useState<File | null>(null);
   
-  const { user } = useUser();
+  const { user, isUserLoading } = useUser();
   const firestore = useFirestore();
-  const [facultyProfile, setFacultyProfile] = useState<{ handledGrades: string[], handledSubjects: string[] } | null>(null);
+  
+  const facultyProfileRef = useMemoFirebase(() => {
+    if (!firestore || !user) return null;
+    return doc(firestore, 'users', user.uid);
+  }, [firestore, user]);
+  
+  const { data: facultyProfile, isLoading: isFacultyProfileLoading } = useDoc<any>(facultyProfileRef);
 
   const { toast } = useToast();
   const defaultValues = {
@@ -123,30 +128,8 @@ function UploadPageComponent() {
   }, [examType, form, isEditMode]);
 
   useEffect(() => {
-    async function fetchFacultyAndExamData() {
-        if (!user || !firestore) return;
-
-        setIsDataLoading(true);
-        // Fetch faculty profile
-        const userDocRef = doc(firestore, 'users', user.uid);
-        try {
-            const userDocSnap = await getDoc(userDocRef);
-            if (userDocSnap.exists() && userDocSnap.data().role === 'faculty') {
-                const userData = userDocSnap.data();
-                setFacultyProfile({
-                    handledGrades: userData.handledGrades || [],
-                    handledSubjects: userData.handledSubjects || [],
-                });
-            } else {
-                 toast({ variant: 'destructive', title: 'Error', description: 'Faculty profile not found.' });
-            }
-        } catch (error) {
-            console.error("Error fetching faculty profile:", error);
-            toast({ variant: 'destructive', title: 'Error', description: 'Could not load faculty profile.' });
-        }
-
-        // Fetch exam data if in edit mode
-        if (examId) {
+    async function fetchExamData() {
+        if (examId && firestore) {
             const examRef = doc(firestore, 'exams', examId);
             const questionsRef = collection(examRef, 'questions');
 
@@ -177,16 +160,15 @@ function UploadPageComponent() {
                 errorEmitter.emit('permission-error', permissionError);
             }
         }
-        setIsDataLoading(false);
     }
     
-    fetchFacultyAndExamData();
-
-    if (!isEditMode) {
-      form.reset(defaultValues);
-      setUploadedFile(null);
+    if (isEditMode) {
+      fetchExamData();
+    } else {
+        form.reset(defaultValues);
+        setUploadedFile(null);
     }
-  }, [examId, firestore, user, form, replace, router, toast, isEditMode]);
+  }, [examId, firestore, form, replace, router, toast, isEditMode]);
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -249,14 +231,13 @@ function UploadPageComponent() {
         return;
     }
 
-    setIsLoading(true);
+    setIsSubmitting(true);
 
     const examRef = isEditMode ? doc(firestore, 'exams', examId as string) : doc(collection(firestore, 'exams'));
-    const questionsRef = collection(examRef, 'questions');
-
+    
     const batch = writeBatch(firestore);
 
-    const examData = {
+    const examData: any = {
         title: values.title,
         subject: values.subject,
         gradeLevel: values.gradeLevel,
@@ -264,21 +245,23 @@ function UploadPageComponent() {
         startTime: new Date(values.startTime),
         endTime: new Date(values.endTime),
         durationMinutes: values.durationMinutes,
-        createdAt: isEditMode ? undefined : serverTimestamp(), // Don't update createdAt
         updatedAt: serverTimestamp(),
     };
-
+    
     if (isEditMode) {
       batch.update(examRef, examData);
     } else {
+      examData.createdAt = serverTimestamp();
       batch.set(examRef, examData);
     }
     
     values.questions.forEach(question => {
-        const questionRef = question.id ? doc(questionsRef, question.id) : doc(questionsRef);
+        const questionRef = question.id ? doc(examRef, 'questions', question.id) : doc(collection(examRef, 'questions'));
         batch.set(questionRef, {
-            ...question,
-            examId: examRef.id,
+            question: question.question,
+            type: question.type,
+            options: question.options || [],
+            marks: question.marks,
         });
     });
     
@@ -288,22 +271,27 @@ function UploadPageComponent() {
           title: `Exam ${isEditMode ? 'Updated' : 'Uploaded'} Successfully`,
           description: `The exam "${values.title}" has been saved.`,
         });
-        router.push('/admin/examinations');
+        if (isEditMode) {
+            router.push('/admin/examinations');
+        } else {
+            form.reset(defaultValues);
+            setUploadedFile(null);
+        }
       })
       .catch((error: any) => {
         const permissionError = new FirestorePermissionError({
           path: examRef.path,
-          operation: 'write',
+          operation: isEditMode ? 'update' : 'create',
           requestResourceData: { exam: examData, questions: values.questions },
         });
         errorEmitter.emit('permission-error', permissionError);
       })
       .finally(() => {
-        setIsLoading(false);
+        setIsSubmitting(false);
       });
   }
 
-  if (isDataLoading) {
+  if (isUserLoading || isFacultyProfileLoading) {
     return (
       <div className="flex justify-center items-center h-96">
         <Loader2 className="h-8 w-8 animate-spin" />
@@ -342,12 +330,12 @@ function UploadPageComponent() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                  <FormField control={form.control} name="subject" render={({ field }) => (
                     <FormItem><FormLabel>Subject</FormLabel><Select onValueChange={field.onChange} value={field.value}><FormControl><SelectTrigger><SelectValue placeholder="Select a subject" /></SelectTrigger></FormControl><SelectContent>
-                            {facultyProfile?.handledSubjects.map((subject) => <SelectItem key={subject} value={subject}>{subject}</SelectItem>)}
+                            {facultyProfile?.handledSubjects?.map((subject: string) => <SelectItem key={subject} value={subject}>{subject}</SelectItem>)}
                     </SelectContent></Select><FormMessage /></FormItem>
                 )} />
                 <FormField control={form.control} name="gradeLevel" render={({ field }) => (
                   <FormItem><FormLabel>Grade Level</FormLabel><Select onValueChange={field.onChange} value={field.value}><FormControl><SelectTrigger><SelectValue placeholder="Select a grade" /></SelectTrigger></FormControl><SelectContent>
-                          {facultyProfile?.handledGrades.map((grade) => <SelectItem key={grade} value={grade}>{grade}</SelectItem>)}
+                          {facultyProfile?.handledGrades?.map((grade: string) => <SelectItem key={grade} value={grade}>{grade}</SelectItem>)}
                   </SelectContent></Select><FormMessage /></FormItem>
                 )} />
               </div>
@@ -473,9 +461,9 @@ function UploadPageComponent() {
         )}
 
           <div className="flex justify-end">
-            <Button type="submit" disabled={isLoading || fields.length === 0} size="lg">
-                {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Upload className="mr-2 h-4 w-4" />}
-                {isLoading ? 'Saving...' : isEditMode ? 'Update Exam' : 'Upload Exam'}
+            <Button type="submit" disabled={isSubmitting || fields.length === 0} size="lg">
+                {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Upload className="mr-2 h-4 w-4" />}
+                {isSubmitting ? 'Saving...' : isEditMode ? 'Update Exam' : 'Upload Exam'}
             </Button>
           </div>
         </form>
@@ -499,7 +487,5 @@ function UploadPageWithKey() {
     // The key forces a re-mount when we navigate between editing an exam and creating a new one.
     return <UploadPageComponent key={examId || 'new'} />;
 }
-
-    
 
     
