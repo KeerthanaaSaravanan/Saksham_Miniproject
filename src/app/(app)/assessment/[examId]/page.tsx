@@ -42,20 +42,17 @@ export default function AssessmentPage({ params }: { params: { examId: string }}
   
   const { user } = useUser();
   const firestore = useFirestore();
+  const examId = params.examId;
 
   const examRef = useMemoFirebase(() => {
-    if (!firestore || !params.examId) return null;
-    return doc(firestore, 'exams', params.examId);
-  }, [firestore, params.examId]);
+    if (!firestore || !examId) return null;
+    return doc(firestore, 'exams', examId);
+  }, [firestore, examId]);
 
   const { data: examData, isLoading: isExamDataLoading } = useDoc<Exam>(examRef);
 
   useEffect(() => {
-    // Enter fullscreen when component mounts
-    document.documentElement.requestFullscreen().catch(err => {
-        console.error(`Error attempting to enable full-screen mode: ${err.message} (${err.name})`);
-    });
-
+    // Note: Fullscreen is now initiated from the confirmation dialog before navigating here.
     // Exit fullscreen when component unmounts
     return () => {
         if(document.fullscreenElement) {
@@ -187,5 +184,3 @@ export default function AssessmentPage({ params }: { params: { examId: string }}
     />
   );
 }
-
-    

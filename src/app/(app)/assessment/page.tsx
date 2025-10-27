@@ -87,10 +87,19 @@ export default function AssessmentListPage() {
 
   const { data: availableExams, isLoading: areExamsLoading } = useCollection<Exam>(examsQuery);
 
-  const handleStartExam = (examId: string) => {
-    setExamToConfirm(null);
-    // Open the dedicated exam page in a new tab
-    window.open(`/assessment/${examId}`, '_blank', 'noopener,noreferrer');
+  const handleStartExam = async (examId: string) => {
+    try {
+        await document.documentElement.requestFullscreen();
+        setExamToConfirm(null);
+        // Open the dedicated exam page in a new tab
+        window.open(`/assessment/${examId}`, '_blank', 'noopener,noreferrer');
+    } catch (err: any) {
+        toast({
+            variant: 'destructive',
+            title: 'Fullscreen Required',
+            description: `Could not enter fullscreen mode. Please allow fullscreen and try again. Error: ${err.message}`
+        });
+    }
   }
 
   const isLoading = areExamsLoading || isUserLoading || isProfileLoading;
@@ -172,5 +181,3 @@ export default function AssessmentListPage() {
     </>
   );
 }
-
-    
