@@ -3,7 +3,7 @@
 
 import {
   useToast,
-} from '@/components/ui/use-toast';
+} from '@/hooks/use-toast';
 import { Loader2 } from 'lucide-react';
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useUser, useFirestore, errorEmitter, FirestorePermissionError, useMemoFirebase } from '@/firebase';
