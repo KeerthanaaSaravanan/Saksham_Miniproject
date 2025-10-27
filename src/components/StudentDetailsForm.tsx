@@ -34,7 +34,7 @@ export default function StudentDetailsForm({ onComplete, isLoading }: { onComple
   const [stream, setStream] = useState('');
 
   const selectedGradeConfig = gradeConfig[gradeLevel as keyof typeof gradeConfig];
-  const subjectsForGrade = getSubjectsForGrade(gradeLevel);
+  const subjectsForGrade = getSubjectsForGrade(gradeLevel, stream);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

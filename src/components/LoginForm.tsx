@@ -169,7 +169,7 @@ export default function LoginForm() {
         };
 
         // This is a create operation, so we use 'create'
-        setDoc(userDocRef, userData)
+        await setDoc(userDocRef, userData)
             .then(() => {
                 toast({
                     title: 'Profile Complete!',

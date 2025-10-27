@@ -1,3 +1,4 @@
+
 export type Subject = {
   id: string;
   name: string;
@@ -55,7 +56,7 @@ const higherSecondaryStreams: GradeStream = {
             { id: 'physics', name: 'Physics' },
             { id: 'chemistry', name: 'Chemistry' },
             { id: 'math', name: 'Mathematics' },
-            { id: 'cs', name: 'Computer Science' },
+            { id: 'computer-science', name: 'Computer Science' },
             { id: 'english', name: 'English' },
             { id: 'tamil', name: 'Tamil / Second Language' },
         ]}
