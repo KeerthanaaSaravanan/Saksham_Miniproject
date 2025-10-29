@@ -133,11 +133,14 @@ export default function GradingPage() {
             
             // Update the main attempt document
             const attemptRef = doc(firestore, 'users', attempt.userId, 'exam_attempts', attemptId as string);
-            batch.update(attemptRef, {
+            
+            const attemptUpdateData = {
                 score: finalScore,
                 status: 'graded',
                 gradedAt: serverTimestamp()
-            });
+            };
+
+            batch.update(attemptRef, attemptUpdateData);
 
             // Update individual answers with feedback
             answers.forEach(ans => {
@@ -149,19 +152,23 @@ export default function GradingPage() {
                 });
             });
 
-            await batch.commit();
+            await batch.commit().catch((serverError) => {
+                const permissionError = new FirestorePermissionError({
+                  path: attemptRef.path,
+                  operation: 'update',
+                  requestResourceData: attemptUpdateData,
+                });
+                errorEmitter.emit('permission-error', permissionError);
+                // We throw the original error so React knows an error occurred.
+                throw serverError;
+            });
 
             toast({ title: 'Grade Saved!', description: `The submission has been graded with a score of ${finalScore.toFixed(1)}%.` });
             router.push('/admin/examinations');
 
         } catch (error: any) {
-            console.error("Error saving grade:", error);
-            const permissionError = new FirestorePermissionError({
-                path: `users/${attempt.userId}/exam_attempts/${attemptId}`,
-                operation: 'update',
-                requestResourceData: { score: finalScore, status: 'graded' },
-            });
-            errorEmitter.emit('permission-error', permissionError);
+            // The catch block above will handle the emission. This block will catch the re-thrown error.
+            // We don't need to log it again.
         } finally {
             setIsSaving(false);
         }
@@ -280,5 +287,3 @@ export default function GradingPage() {
         </div>
     );
 }
-
-  
