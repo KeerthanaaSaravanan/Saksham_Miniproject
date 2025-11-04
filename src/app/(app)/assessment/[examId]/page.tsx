@@ -6,12 +6,17 @@ import {
 } from '@/hooks/use-toast';
 import { Loader2 } from 'lucide-react';
 import { useState, useEffect, useCallback, useMemo } from 'react';
-import { useUser, useFirestore, errorEmitter, FirestorePermissionError, useMemoFirebase } from '@/firebase';
-import { collection, doc, Timestamp, getDocs, writeBatch, serverTimestamp } from 'firebase/firestore';
+import { useUser } from '@/firebase';
 import { ExamLayout } from '@/components/layout/exam-layout';
-import { useDoc } from '@/firebase/firestore/use-doc';
 import { useParams } from 'next/navigation';
 import { Button } from '@/components/ui/button';
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from '@/components/ui/card';
 
 // Matches the Firestore data structure
 type Exam = {
@@ -19,8 +24,8 @@ type Exam = {
     title: string;
     subject: string;
     gradeLevel: string;
-    startTime: Timestamp;
-    endTime: Timestamp;
+    startTime: Date;
+    endTime: Date;
     durationMinutes?: number;
 };
 
@@ -37,26 +42,48 @@ export type SelectedExamDetails = Exam & {
     questions: AssessmentQuestion[];
 }
 
+const MOCK_EXAMS: { [key: string]: SelectedExamDetails } = {
+    'exam1': {
+        id: 'exam1',
+        title: 'Mid-Term Social Studies',
+        subject: 'Social Studies',
+        gradeLevel: 'Class 8',
+        startTime: new Date(),
+        endTime: new Date(Date.now() + 60 * 60 * 1000),
+        durationMinutes: 60,
+        questions: [
+            { id: 'q1', question: 'Who was the first President of the United States?', options: ['Abraham Lincoln', 'George Washington', 'Thomas Jefferson', 'John Adams'], type: 'mcq', correctAnswer: 'George Washington' },
+            { id: 'q2', question: 'The ancient city of Rome was built on how many hills?', options: [], type: 'short-answer', correctAnswer: '7' },
+        ]
+    },
+     'exam2': {
+        id: 'exam2',
+        title: 'Annual Physics Exam',
+        subject: 'Physics',
+        gradeLevel: 'Class 11',
+        startTime: new Date(),
+        endTime: new Date(Date.now() + 180 * 60 * 1000),
+        durationMinutes: 180,
+        questions: [
+            { id: 'q3', question: 'What is the formula for Force?', options: ['E=mc^2', 'F=ma', 'H2O', 'a^2+b^2=c^2'], type: 'mcq', correctAnswer: 'F=ma' },
+        ]
+    },
+};
+
+
 export default function AssessmentPage() {
   const [selectedExam, setSelectedExam] = useState<SelectedExamDetails | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isLoadingExam, setIsLoadingExam] = useState(true);
   const [isFullScreen, setIsFullScreen] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const { toast } = useToast();
   const params = useParams();
   const examId = params.examId as string;
   
   const { user } = useUser();
-  const firestore = useFirestore();
   
-
-  const examRef = useMemoFirebase(() => {
-    if (!firestore || !examId) return null;
-    return doc(firestore, 'exams', examId);
-  }, [firestore, examId]);
-
-  const { data: examData, isLoading: isExamDataLoading } = useDoc<Exam>(examRef);
 
   useEffect(() => {
     const handleFullscreenChange = () => {
@@ -64,7 +91,6 @@ export default function AssessmentPage() {
     };
     document.addEventListener('fullscreenchange', handleFullscreenChange);
     
-    // Exit fullscreen when component unmounts
     return () => {
         document.removeEventListener('fullscreenchange', handleFullscreenChange);
         if(document.fullscreenElement) {
@@ -74,91 +100,36 @@ export default function AssessmentPage() {
   }, []);
 
   useEffect(() => {
-    const loadQuestions = async () => {
-        if (!examData || !firestore) return;
-
-        try {
-            const questionsCollectionRef = collection(firestore, 'exams', examData.id, 'questions');
-            const querySnapshot = await getDocs(questionsCollectionRef);
-            const questions = querySnapshot.docs.map(d => ({
-                id: d.id,
-                ...d.data(),
-            })) as AssessmentQuestion[];
-
-            setSelectedExam({ ...examData, questions });
-        } catch (error: any) {
-            const permissionError = new FirestorePermissionError({
-                path: `exams/${examData.id}/questions`,
-                operation: 'list',
-            });
-            errorEmitter.emit('permission-error', permissionError);
-             toast({ variant: 'destructive', title: 'Error Loading Questions', description: 'Could not fetch exam questions.' });
-        } finally {
-            setIsLoadingExam(false);
+    setIsLoadingExam(true);
+    // Simulate fetching exam
+    setTimeout(() => {
+        const examData = MOCK_EXAMS[examId];
+        if (examData) {
+            setSelectedExam(examData);
+        } else {
+            setError("The requested exam could not be found.");
         }
-    }
-
-    if (examData) {
-        loadQuestions();
-    }
-  }, [examData, firestore, toast]);
+        setIsLoadingExam(false);
+    }, 500);
+  }, [examId]);
 
   const handleSubmitExam = useCallback(async (answers: Record<string, string>) => {
-    if (isSubmitting || !selectedExam || !user || !firestore) return;
+    if (isSubmitting || !selectedExam || !user) return;
 
     setIsSubmitting(true);
     toast({ title: 'Submitting Exam...', description: 'Please wait while we process your submission.' });
 
-    const attemptRef = doc(collection(firestore, 'users', user.uid, 'exam_attempts'));
-    const answersCollectionRef = collection(attemptRef, 'answers');
-
-    const batch = writeBatch(firestore);
-
-    const studentAnswers = Object.entries(answers).map(([questionId, answer]) => {
-      return {
-        questionId,
-        answer,
-        studentExamAttemptId: attemptRef.id,
-      };
-    });
+    // Simulate submission
+    await new Promise(resolve => setTimeout(resolve, 1000));
     
-    studentAnswers.forEach(ans => {
-        const answerRef = doc(answersCollectionRef);
-        batch.set(answerRef, ans);
+    toast({
+        title: "Exam Submitted Successfully (Mock)",
+        description: `Your answers have been saved. You can now close this tab.`
     });
-
-    batch.set(attemptRef, {
-        userId: user.uid,
-        examId: selectedExam.id,
-        startTime: new Date(), // This should ideally be when the student starts
-        endTime: serverTimestamp(),
-        score: 0, // Score is 0 initially, to be graded manually
-        status: 'submitted',
-    });
-
-    batch.commit()
-      .then(() => {
-          toast({
-              title: "Exam Submitted Successfully",
-              description: `Your answers have been saved for grading. You can now close this tab.`
-          });
-          // We can't close the tab automatically due to browser security
-          // So we can replace the UI to prevent re-submission.
-          setIsSubmitting(true);
-      })
-      .catch((error: any) => {
-          const permissionError = new FirestorePermissionError({
-              path: attemptRef.path,
-              operation: 'write', // This is a batch write operation
-              requestResourceData: { 
-                  attempt: { examId: selectedExam.id, score: 0, status: 'submitted' },
-                  answers: studentAnswers 
-              }
-          });
-          errorEmitter.emit('permission-error', permissionError);
-          setIsSubmitting(false); // Allow retry
-      });
-  }, [isSubmitting, selectedExam, user, firestore, toast]);
+    // We can't close the tab automatically due to browser security
+    // So we can replace the UI to prevent re-submission.
+    setIsSubmitting(true); // Keep in submitting state to show completion message
+  }, [isSubmitting, selectedExam, user, toast]);
   
   const handleEnterFullscreen = async () => {
     try {
@@ -173,7 +144,7 @@ export default function AssessmentPage() {
   };
 
 
-  if (isLoadingExam || isExamDataLoading) {
+  if (isLoadingExam) {
       return (
           <div className="fixed inset-0 bg-background flex justify-center items-center">
               <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -187,15 +158,17 @@ export default function AssessmentPage() {
       return (
            <div className="fixed inset-0 bg-background flex flex-col justify-center items-center text-center p-4">
               <h1 className="text-3xl font-bold text-primary">Exam Submitted Successfully!</h1>
-              <p className="text-muted-foreground mt-2">Your responses have been recorded for manual grading. You may now close this window.</p>
+              <p className="text-muted-foreground mt-2">Your responses have been recorded. You may now close this window.</p>
           </div>
       )
   }
 
-  if (!selectedExam) {
+  if (error || !selectedExam) {
        return (
-           <div className="fixed inset-0 bg-background flex justify-center items-center">
+           <div className="fixed inset-0 bg-background flex flex-col justify-center items-center text-center p-4">
               <h1 className="text-2xl font-bold text-destructive">Error: Could not load the exam.</h1>
+              <p className="text-muted-foreground mt-2">{error || "Please try again later."}</p>
+              <Button className="mt-4" onClick={() => window.history.back()}>Go Back</Button>
           </div>
       )
   }
@@ -222,3 +195,5 @@ export default function AssessmentPage() {
     />
   );
 }
+
+    

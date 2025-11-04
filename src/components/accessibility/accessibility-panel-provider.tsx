@@ -1,11 +1,10 @@
 
 'use client';
 
-import React, { createContext, useState, useContext, ReactNode } from 'react';
+import React, { createContext, useState, useContext, ReactNode, useEffect, useCallback } from 'react';
 import { AccessibilityFlyout } from './accessibility-flyout';
 import { accessibilityModules } from './modules';
-import { useUser, useFirestore, errorEmitter, FirestorePermissionError } from '@/firebase';
-import { doc, setDoc, onSnapshot } from 'firebase/firestore';
+import { useUser } from '@/firebase';
 import { useToast } from '@/hooks/use-toast';
 
 export interface AccessibilitySettings {
@@ -38,59 +37,57 @@ export function useAccessibilityPanel() {
 
 export function AccessibilityPanelProvider({ children }: { children: ReactNode }) {
   const [openModule, setOpenModule] = useState<string | null>(null);
-  const [userProfile, setUserProfile] = useState<{ accessibility_profile: AccessibilitySettings } | null>(null);
+  const [userProfile, setUserProfile] = useState<{ accessibility_profile: AccessibilitySettings } | null>({ accessibility_profile: { largeText: 'normal' } });
   const [isLoading, setIsLoading] = useState(true);
   const { user } = useUser();
-  const firestore = useFirestore();
   const { toast } = useToast();
 
-   React.useEffect(() => {
-    if (user && firestore) {
-      setIsLoading(true);
-      const profileRef = doc(firestore, 'users', user.uid, 'accessibility_profile', 'settings');
-      const unsubscribe = onSnapshot(profileRef, (docSnap) => {
-        if (docSnap.exists()) {
-          setUserProfile({ accessibility_profile: docSnap.data() as AccessibilitySettings });
-        } else {
-          setUserProfile({ accessibility_profile: { largeText: 'normal' } }); // Default empty profile
+   const loadSettings = useCallback(() => {
+    if (user) {
+        setIsLoading(true);
+        try {
+            const savedSettings = localStorage.getItem(`accessibility_settings_${user.uid}`);
+            if (savedSettings) {
+                setUserProfile({ accessibility_profile: JSON.parse(savedSettings) });
+            } else {
+                setUserProfile({ accessibility_profile: { largeText: 'normal' } });
+            }
+        } catch (e) {
+            setUserProfile({ accessibility_profile: { largeText: 'normal' } });
+        } finally {
+            setIsLoading(false);
         }
-        setIsLoading(false);
-      }, (error) => {
-        const permissionError = new FirestorePermissionError({
-            path: profileRef.path,
-            operation: 'get',
-        });
-        errorEmitter.emit('permission-error', permissionError);
-        setIsLoading(false);
-      });
-      return () => unsubscribe();
-    } else if (!user) {
-        setIsLoading(false);
+    } else {
+        // Not logged in, use default
         setUserProfile({ accessibility_profile: { largeText: 'normal' } });
+        setIsLoading(false);
     }
-  }, [user, firestore]);
+   }, [user]);
+
+   useEffect(() => {
+    loadSettings();
+    // Add a custom event listener to reload settings when they are updated elsewhere
+    window.addEventListener('accessibilitySettingsChanged', loadSettings);
+    return () => {
+      window.removeEventListener('accessibilitySettingsChanged', loadSettings);
+    };
+  }, [loadSettings]);
 
   const handleSettingsUpdate = async (settings: any) => {
-    if (!user || !firestore) {
+    if (!user) {
         toast({ variant: 'destructive', title: 'Error', description: 'You must be logged in to save settings.' });
         return;
     }
 
-    const profileRef = doc(firestore, 'users', user.uid, 'accessibility_profile', 'settings');
-    
-    setDoc(profileRef, settings, { merge: true })
-        .then(() => {
-             toast({ title: 'Settings Saved', description: 'Your accessibility preferences have been updated.' });
-             setUserProfile({ accessibility_profile: settings });
-        })
-        .catch((error: any) => {
-            const permissionError = new FirestorePermissionError({
-                path: profileRef.path,
-                operation: 'update',
-                requestResourceData: settings,
-            });
-            errorEmitter.emit('permission-error', permissionError);
-        });
+    try {
+        localStorage.setItem(`accessibility_settings_${user.uid}`, JSON.stringify(settings));
+        toast({ title: 'Settings Saved (Locally)', description: 'Your accessibility preferences have been updated.' });
+        setUserProfile({ accessibility_profile: settings });
+        // Dispatch an event to notify other components of the change
+        window.dispatchEvent(new Event('accessibilitySettingsChanged'));
+    } catch (e) {
+        toast({ variant: 'destructive', title: 'Error', description: 'Could not save settings locally.' });
+    }
   };
 
   const moduleData = openModule ? accessibilityModules.find(m => m.id === openModule) : null;
@@ -110,3 +107,5 @@ export function AccessibilityPanelProvider({ children }: { children: ReactNode }
     </AccessibilityPanelContext.Provider>
   );
 }
+
+    

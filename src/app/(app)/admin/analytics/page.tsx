@@ -2,8 +2,6 @@
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
-import { useFirestore, useCollection, useMemoFirebase } from '@/firebase';
-import { collection, query, where, getDocs, Timestamp } from 'firebase/firestore';
 import {
   Card,
   CardContent,
@@ -44,18 +42,31 @@ type ExamAttempt = {
 
 const PASS_THRESHOLD = 50; 
 
+const MOCK_EXAMS: Exam[] = [
+    { id: 'exam1', title: 'Mid-Term Social Studies', subject: 'Social Studies', gradeLevel: 'Class 8' },
+    { id: 'exam2', title: 'Annual Physics Exam', subject: 'Physics', gradeLevel: 'Class 11' },
+];
+
+const MOCK_ATTEMPTS: ExamAttempt[] = [
+    { id: 'attempt1', userId: 'user1', examId: 'exam1', score: 85, userName: 'Alice', userAvatar: 'https://i.pravatar.cc/40?u=user1' },
+    { id: 'attempt2', userId: 'user2', examId: 'exam1', score: 45, userName: 'Bob', userAvatar: 'https://i.pravatar.cc/40?u=user2' },
+    { id: 'attempt3', userId: 'user3', examId: 'exam1', score: 92, userName: 'Charlie', userAvatar: 'https://i.pravatar.cc/40?u=user3' },
+    { id: 'attempt4', userId: 'user4', examId: 'exam2', score: 78, userName: 'David', userAvatar: 'https://i.pravatar.cc/40?u=user4' },
+    { id: 'attempt5', userId: 'user5', examId: 'exam2', score: 65, userName: 'Eve', userAvatar: 'https://i.pravatar.cc/40?u=user5' },
+];
+
 export default function AnalyticsPage() {
-    const firestore = useFirestore();
     const [selectedExamId, setSelectedExamId] = useState<string | null>(null);
     const [analytics, setAnalytics] = useState<any>(null);
     const [isLoading, setIsLoading] = useState(false);
+    const [exams, setExams] = useState<Exam[]>([]);
+    const [areExamsLoading, setAreExamsLoading] = useState(true);
 
-    const examsQuery = useMemoFirebase(() => {
-        if (!firestore) return null;
-        return query(collection(firestore, 'exams'));
-    }, [firestore]);
-
-    const { data: exams, isLoading: areExamsLoading } = useCollection<Exam>(examsQuery);
+    useEffect(() => {
+        // Simulate fetching exams
+        setExams(MOCK_EXAMS);
+        setAreExamsLoading(false);
+    }, []);
 
     useEffect(() => {
         if (exams && exams.length > 0 && !selectedExamId) {
@@ -65,76 +76,56 @@ export default function AnalyticsPage() {
     
     useEffect(() => {
         const calculateAnalytics = async () => {
-            if (!selectedExamId || !firestore) return;
+            if (!selectedExamId) return;
 
             setIsLoading(true);
             setAnalytics(null);
 
-            try {
-                const usersSnap = await getDocs(collection(firestore, 'users'));
-                const usersData = usersSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+            // Simulate a delay for fetching data
+            await new Promise(resolve => setTimeout(resolve, 500));
 
-                let attempts: ExamAttempt[] = [];
-                for (const user of usersData) {
-                    const attemptsQuery = query(
-                        collection(firestore, 'users', user.id, 'exam_attempts'),
-                        where('examId', '==', selectedExamId)
-                    );
-                    const attemptsSnap = await getDocs(attemptsQuery);
-                    attemptsSnap.forEach(doc => {
-                        attempts.push({ 
-                            id: doc.id,
-                            userName: user.displayName || 'Anonymous',
-                            userAvatar: user.photoURL || '',
-                            ...doc.data() 
-                        } as ExamAttempt);
-                    });
-                }
-                
-                if (attempts.length === 0) {
-                    setAnalytics({ attempts: [], avgScore: 0, highestScore: 0, lowestScore: 0, passCount: 0, failCount: 0, scoreDistribution: [] });
-                    setIsLoading(false);
-                    return;
-                }
-
-                const scores = attempts.map(a => a.score);
-                const avgScore = scores.reduce((a, b) => a + b, 0) / scores.length;
-                const highestScore = Math.max(...scores);
-                const lowestScore = Math.min(...scores);
-                
-                const passCount = scores.filter(s => s >= PASS_THRESHOLD).length;
-                const failCount = scores.length - passCount;
-
-                const scoreDistribution = [
-                    { range: "0-20", count: scores.filter(s => s >= 0 && s <= 20).length },
-                    { range: "21-40", count: scores.filter(s => s > 20 && s <= 40).length },
-                    { range: "41-60", count: scores.filter(s => s > 40 && s <= 60).length },
-                    { range: "61-80", count: scores.filter(s => s > 60 && s <= 80).length },
-                    { range: "81-100", count: scores.filter(s => s > 80 && s <= 100).length },
-                ];
-                
-                attempts.sort((a, b) => b.score - a.score);
-
-                setAnalytics({
-                    attempts,
-                    avgScore,
-                    highestScore,
-                    lowestScore,
-                    passCount,
-                    failCount,
-                    scoreDistribution
-                });
-
-            } catch (error) {
-                console.error("Error calculating analytics:", error);
-            } finally {
+            const attempts = MOCK_ATTEMPTS.filter(a => a.examId === selectedExamId);
+            
+            if (attempts.length === 0) {
+                setAnalytics({ attempts: [], avgScore: 0, highestScore: 0, lowestScore: 0, passCount: 0, failCount: 0, scoreDistribution: [] });
                 setIsLoading(false);
+                return;
             }
+
+            const scores = attempts.map(a => a.score);
+            const avgScore = scores.reduce((a, b) => a + b, 0) / scores.length;
+            const highestScore = Math.max(...scores);
+            const lowestScore = Math.min(...scores);
+            
+            const passCount = scores.filter(s => s >= PASS_THRESHOLD).length;
+            const failCount = scores.length - passCount;
+
+            const scoreDistribution = [
+                { range: "0-20", count: scores.filter(s => s >= 0 && s <= 20).length },
+                { range: "21-40", count: scores.filter(s => s > 20 && s <= 40).length },
+                { range: "41-60", count: scores.filter(s => s > 40 && s <= 60).length },
+                { range: "61-80", count: scores.filter(s => s > 60 && s <= 80).length },
+                { range: "81-100", count: scores.filter(s => s > 80 && s <= 100).length },
+            ];
+            
+            attempts.sort((a, b) => b.score - a.score);
+
+            setAnalytics({
+                attempts,
+                avgScore,
+                highestScore,
+                lowestScore,
+                passCount,
+                failCount,
+                scoreDistribution
+            });
+
+            setIsLoading(false);
         };
 
         calculateAnalytics();
 
-    }, [selectedExamId, firestore]);
+    }, [selectedExamId]);
 
     const passFailData = useMemo(() => {
         if (!analytics) return [];
@@ -320,3 +311,5 @@ export default function AnalyticsPage() {
         </div>
       );
 }
+
+    

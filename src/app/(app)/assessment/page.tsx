@@ -13,9 +13,7 @@ import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { Clock, BookOpen, CheckCircle } from 'lucide-react';
 import { useState, useEffect, useMemo } from 'react';
-import { useUser, useFirestore, useMemoFirebase, errorEmitter, FirestorePermissionError } from '@/firebase';
-import { collection, query, where, getDoc, doc, Timestamp, collectionGroup } from 'firebase/firestore';
-import { useCollection } from '@/firebase/firestore/use-collection';
+import { useUser } from '@/firebase';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
   AlertDialog,
@@ -36,14 +34,22 @@ type Exam = {
     title: string;
     subject: string;
     gradeLevel: string;
-    startTime: Timestamp;
-    endTime: Timestamp;
+    startTime: Date;
+    endTime: Date;
     durationMinutes?: number;
 };
 
-type ExamAttempt = {
-    examId: string;
+const MOCK_PROFILE = {
+    gradeLevel: 'Class 8',
 };
+
+const MOCK_EXAMS: Exam[] = [
+    { id: 'exam1', title: 'Mid-Term Social Studies', subject: 'Social Studies', gradeLevel: 'Class 8', startTime: new Date(Date.now() + 1 * 24 * 60 * 60 * 1000), endTime: new Date(), durationMinutes: 90},
+    { id: 'exam2', title: 'Annual Physics Exam', subject: 'Physics', gradeLevel: 'Class 11', startTime: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000), endTime: new Date(), durationMinutes: 180 },
+    { id: 'exam3', title: 'Completed History Exam', subject: 'History', gradeLevel: 'Class 8', startTime: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000), endTime: new Date(), durationMinutes: 120 },
+];
+
+const MOCK_ATTEMPTS = ['exam3'];
 
 
 export default function AssessmentListPage() {
@@ -52,72 +58,50 @@ export default function AssessmentListPage() {
   const router = useRouter();
   
   const { user, isUserLoading } = useUser();
-  const firestore = useFirestore();
   const [gradeLevel, setGradeLevel] = useState('');
   const [isProfileLoading, setIsProfileLoading] = useState(true);
 
+  const [allExams, setAllExams] = useState<Exam[]>([]);
+  const [attempts, setAttempts] = useState<string[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+
   useEffect(() => {
-    if (user && firestore) {
-      const fetchUserProfile = async () => {
-        setIsProfileLoading(true);
-        const userDocRef = doc(firestore, 'users', user.uid);
-        try {
-            const userDocSnap = await getDoc(userDocRef);
-            if (userDocSnap.exists()) {
-              setGradeLevel(userDocSnap.data().gradeLevel || '');
-            } else {
-              toast({ variant: 'destructive', title: 'Profile Not Found', description: 'Please complete your profile in settings.'})
-            }
-        } catch (error: any) {
-            const permissionError = new FirestorePermissionError({
-              path: userDocRef.path,
-              operation: 'get',
-            });
-            errorEmitter.emit('permission-error', permissionError);
-        } finally {
-            setIsProfileLoading(false);
+    setIsProfileLoading(true);
+    setIsLoading(true);
+    // Simulate fetching user profile
+    setTimeout(() => {
+        if(user) {
+            setGradeLevel(MOCK_PROFILE.gradeLevel);
         }
-      };
-      fetchUserProfile();
-    } else if (!isUserLoading) {
-      setIsProfileLoading(false);
-    }
-  }, [user, firestore, isUserLoading, toast]);
+        setIsProfileLoading(false);
+    }, 500);
+    
+    // Simulate fetching exams and attempts
+    setTimeout(() => {
+        setAllExams(MOCK_EXAMS);
+        setAttempts(MOCK_ATTEMPTS);
+        setIsLoading(false);
+    }, 1000);
 
-  const allExamsQuery = useMemoFirebase(() => {
-    if (!firestore || !gradeLevel) return null;
-    return query(
-      collection(firestore, 'exams'),
-      where('gradeLevel', '==', gradeLevel)
-    );
-  }, [firestore, gradeLevel]);
+  }, [user]);
 
-  const attemptsQuery = useMemoFirebase(() => {
-    if (!firestore || !user) return null;
-    return collection(firestore, 'users', user.uid, 'exam_attempts');
-  }, [firestore, user]);
-
-  const { data: allExams, isLoading: areExamsLoading } = useCollection<Exam>(allExamsQuery);
-  const { data: attempts, isLoading: areAttemptsLoading } = useCollection<ExamAttempt>(attemptsQuery);
   
   const availableExams = useMemo(() => {
-    if (!allExams || !attempts) return [];
-    const attemptedExamIds = new Set(attempts.map(a => a.examId));
-    return allExams.filter(exam => !attemptedExamIds.has(exam.id));
-  }, [allExams, attempts]);
+    if (!gradeLevel) return [];
+    return allExams.filter(exam => exam.gradeLevel === gradeLevel && !attempts.includes(exam.id));
+  }, [allExams, attempts, gradeLevel]);
   
   const completedExams = useMemo(() => {
-      if (!allExams || !attempts) return [];
-      const attemptedExamIds = new Set(attempts.map(a => a.examId));
-      return allExams.filter(exam => attemptedExamIds.has(exam.id));
-  }, [allExams, attempts]);
+      if (!gradeLevel) return [];
+      return allExams.filter(exam => exam.gradeLevel === gradeLevel && attempts.includes(exam.id));
+  }, [allExams, attempts, gradeLevel]);
 
   const handleStartExam = (examId: string) => {
     setExamToConfirm(null);
     router.push(`/assessment/${examId}`);
   }
 
-  const isLoading = areExamsLoading || isUserLoading || isProfileLoading || areAttemptsLoading;
+  const pageIsLoading = isLoading || isUserLoading || isProfileLoading;
 
   return (
     <>
@@ -130,7 +114,7 @@ export default function AssessmentListPage() {
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {isLoading ? (
+          {pageIsLoading ? (
               <>
                   <Skeleton className="h-56 w-full" />
                   <Skeleton className="h-56 w-full" />
@@ -150,7 +134,7 @@ export default function AssessmentListPage() {
                           </div>
                           <div className="flex items-center text-sm text-muted-foreground">
                               <BookOpen className="mr-2 h-4 w-4" />
-                              <span>Starts: {exam.startTime.toDate().toLocaleString()}</span>
+                              <span>Starts: {exam.startTime.toLocaleString()}</span>
                           </div>
                       </CardContent>
                       <CardFooter>
@@ -220,3 +204,5 @@ export default function AssessmentListPage() {
     </>
   );
 }
+
+    

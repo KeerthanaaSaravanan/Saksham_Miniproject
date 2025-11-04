@@ -34,8 +34,7 @@ import {
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2, Upload, PlusCircle, XCircle, Wand2, FilePlus as FilePlusIcon } from 'lucide-react';
-import { useFirestore, useUser, errorEmitter, FirestorePermissionError, useMemoFirebase, useDoc } from '@/firebase';
-import { collection, serverTimestamp, doc, writeBatch, getDoc, getDocs } from 'firebase/firestore';
+import { useUser } from '@/firebase';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { extractQuestionsFromDocument } from '@/lib/actions/document-parser';
 import { useRouter, useSearchParams } from 'next/navigation';
@@ -70,6 +69,11 @@ const examTypes = [
     "Annual Exam"
 ];
 
+const MOCK_FACULTY_PROFILE = {
+    handledSubjects: ["Mathematics", "Physics", "Chemistry", "Biology", "Social Studies", "English", "Computer Science"],
+    handledGrades: ['Class 6', 'Class 7', 'Class 8', 'Class 9', 'Class 10', 'Class 11', 'Class 12'],
+};
+
 function UploadPageComponent() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -81,14 +85,8 @@ function UploadPageComponent() {
   const [uploadedFile, setUploadedFile] = useState<File | null>(null);
   
   const { user, isUserLoading } = useUser();
-  const firestore = useFirestore();
-  
-  const facultyProfileRef = useMemoFirebase(() => {
-    if (!firestore || !user) return null;
-    return doc(firestore, 'users', user.uid);
-  }, [firestore, user]);
-  
-  const { data: facultyProfile, isLoading: isFacultyProfileLoading } = useDoc<any>(facultyProfileRef);
+  const [facultyProfile, setFacultyProfile] = useState<any>(null);
+  const [isFacultyProfileLoading, setIsFacultyProfileLoading] = useState(true);
 
   const { toast } = useToast();
   const defaultValues = {
@@ -112,6 +110,15 @@ function UploadPageComponent() {
     name: "questions"
   });
 
+  useEffect(() => {
+      setIsFacultyProfileLoading(true);
+      // Simulate fetching profile
+      setTimeout(() => {
+          setFacultyProfile(MOCK_FACULTY_PROFILE);
+          setIsFacultyProfileLoading(false);
+      }, 500);
+  }, []);
+
   const examType = form.watch('examType');
 
   useEffect(() => {
@@ -127,48 +134,34 @@ function UploadPageComponent() {
   }, [examType, form, isEditMode]);
 
   useEffect(() => {
-    async function fetchExamData() {
-        if (examId && firestore) {
-            const examRef = doc(firestore, 'exams', examId);
-            const questionsRef = collection(examRef, 'questions');
-
-            try {
-                const [examSnap, questionsSnap] = await Promise.all([
-                    getDoc(examRef),
-                    getDocs(questionsRef)
-                ]);
-
-                if (examSnap.exists()) {
-                    const examData = examSnap.data();
-                    form.reset({
-                        ...examData,
-                        startTime: examData.startTime ? format(examData.startTime.toDate(), "yyyy-MM-dd'T'HH:mm") : '',
-                        endTime: examData.endTime ? format(examData.endTime.toDate(), "yyyy-MM-dd'T'HH:mm") : '',
-                        questions: [], // Reset questions initially
-                    });
-
-                    const questions = questionsSnap.docs.map(doc => ({ id: doc.id, ...doc.data() })) as z.infer<typeof questionSchema>[];
-                    replace(questions);
-                } else {
-                     toast({ variant: 'destructive', title: 'Error', description: 'Exam not found.' });
-                     router.push('/admin/examinations');
-                }
-            } catch (error: any) {
-                console.error("Error fetching exam:", error);
-                const permissionError = new FirestorePermissionError({ path: examRef.path, operation: 'get' });
-                errorEmitter.emit('permission-error', permissionError);
-            }
-        }
-    }
-    
     if (isEditMode) {
-      fetchExamData();
+      // Simulate fetching existing exam data
+       const MOCK_EXAM_TO_EDIT = {
+            title: 'Annual Physics Exam',
+            subject: 'Physics',
+            gradeLevel: 'Class 11',
+            examType: 'Annual Exam',
+            startTime: new Date(),
+            endTime: new Date(Date.now() + 3 * 60 * 60 * 1000),
+            durationMinutes: 180,
+            questions: [
+                { id: 'q1', question: 'What is Newtons first law?', type: 'short-answer', marks: 5 },
+                { id: 'q2', question: 'What is the formula for force?', type: 'mcq', options: ['F=ma', 'E=mc^2', 'a^2+b^2=c^2', 'F=mv'], marks: 5 }
+            ]
+        };
+        form.reset({
+            ...MOCK_EXAM_TO_EDIT,
+            startTime: format(MOCK_EXAM_TO_EDIT.startTime, "yyyy-MM-dd'T'HH:mm"),
+            endTime: format(MOCK_EXAM_TO_EDIT.endTime, "yyyy-MM-dd'T'HH:mm"),
+            questions: MOCK_EXAM_TO_EDIT.questions,
+        });
+        replace(MOCK_EXAM_TO_EDIT.questions);
     } else {
         form.reset(defaultValues);
         setUploadedFile(null);
         replace([]);
     }
-  }, [examId, firestore, form, replace, router, toast, isEditMode]);
+  }, [examId, form, replace, isEditMode]);
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -226,70 +219,23 @@ function UploadPageComponent() {
   }
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
-    if (!firestore) {
-        toast({ variant: 'destructive', title: 'Error', description: 'Firestore is not available.' });
-        return;
-    }
-
     setIsSubmitting(true);
+    // Simulate API call
+    await new Promise(res => setTimeout(res, 1000));
 
-    const examRef = isEditMode ? doc(firestore, 'exams', examId as string) : doc(collection(firestore, 'exams'));
-    
-    const batch = writeBatch(firestore);
-
-    const examData: any = {
-        title: values.title,
-        subject: values.subject,
-        gradeLevel: values.gradeLevel,
-        examType: values.examType,
-        startTime: new Date(values.startTime),
-        endTime: new Date(values.endTime),
-        durationMinutes: values.durationMinutes,
-        updatedAt: serverTimestamp(),
-    };
-    
-    if (isEditMode) {
-      batch.update(examRef, examData);
-    } else {
-      examData.createdAt = serverTimestamp();
-      batch.set(examRef, examData);
-    }
-    
-    values.questions.forEach(question => {
-        const questionRef = question.id ? doc(examRef, 'questions', question.id) : doc(collection(examRef, 'questions'));
-        batch.set(questionRef, {
-            question: question.question,
-            type: question.type,
-            options: question.options || [],
-            marks: question.marks,
-        });
+    toast({
+      title: `Exam ${isEditMode ? 'Updated' : 'Uploaded'} Successfully`,
+      description: `The exam "${values.title}" has been saved. (This is a mock-up)`,
     });
     
-    batch.commit()
-      .then(() => {
-        toast({
-          title: `Exam ${isEditMode ? 'Updated' : 'Uploaded'} Successfully`,
-          description: `The exam "${values.title}" has been saved.`,
-        });
-        if (isEditMode) {
-            router.push('/admin/examinations');
-        } else {
-            form.reset(defaultValues);
-            setUploadedFile(null);
-            replace([]);
-        }
-      })
-      .catch((error: any) => {
-        const permissionError = new FirestorePermissionError({
-          path: examRef.path,
-          operation: isEditMode ? 'update' : 'create',
-          requestResourceData: { exam: examData, questions: values.questions },
-        });
-        errorEmitter.emit('permission-error', permissionError);
-      })
-      .finally(() => {
-        setIsSubmitting(false);
-      });
+    if (isEditMode) {
+        router.push('/admin/examinations');
+    } else {
+        form.reset(defaultValues);
+        setUploadedFile(null);
+        replace([]);
+    }
+    setIsSubmitting(false);
   }
 
   if (isUserLoading || isFacultyProfileLoading) {
@@ -309,10 +255,12 @@ function UploadPageComponent() {
               {isEditMode ? 'Modify the details of the existing exam.' : 'Create exams using AI-powered document parsing or manual entry.'}
             </p>
           </div>
-          <Button variant="outline" onClick={handleCreateNew}>
-            <FilePlusIcon className="mr-2 h-4 w-4" />
-            Create New
-          </Button>
+          {!isEditMode && 
+            <Button variant="outline" onClick={handleCreateNew}>
+                <FilePlusIcon className="mr-2 h-4 w-4" />
+                Create New
+            </Button>
+          }
       </div>
 
       <Form {...form}>

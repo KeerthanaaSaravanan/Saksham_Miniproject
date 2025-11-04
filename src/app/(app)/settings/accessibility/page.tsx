@@ -1,65 +1,53 @@
+
 'use client';
 
 import { useState, useEffect } from 'react';
 import AccessibilityModules from '@/components/AccessibilityModules';
-import { useUser, useFirestore, errorEmitter, FirestorePermissionError } from '@/firebase';
-import { doc, setDoc, getDoc } from 'firebase/firestore';
+import { useUser } from '@/firebase';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2 } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 
 export default function AccessibilitySettingsPage() {
     const { user, isUserLoading } = useUser();
-    const firestore = useFirestore();
     const { toast } = useToast();
     const [isLoading, setIsLoading] = useState(true);
     const [userProfile, setUserProfile] = useState<any>(null);
 
     useEffect(() => {
-        if (user && firestore) {
-            const profileRef = doc(firestore, 'users', user.uid, 'accessibility_profile', 'settings');
-            getDoc(profileRef).then(docSnap => {
-                if (docSnap.exists()) {
-                    setUserProfile({ accessibility_profile: docSnap.data() });
+        if (user) {
+            setIsLoading(true);
+            // Simulate loading from localStorage or a non-DB source
+            try {
+                const savedSettings = localStorage.getItem(`accessibility_settings_${user.uid}`);
+                if (savedSettings) {
+                    setUserProfile({ accessibility_profile: JSON.parse(savedSettings) });
                 } else {
                     setUserProfile({ accessibility_profile: {} }); // Default empty profile
                 }
+            } catch (e) {
+                 setUserProfile({ accessibility_profile: {} });
+            } finally {
                 setIsLoading(false);
-            }).catch(error => {
-                const permissionError = new FirestorePermissionError({
-                  path: profileRef.path,
-                  operation: 'get',
-                });
-                errorEmitter.emit('permission-error', permissionError);
-                setIsLoading(false);
-            });
+            }
         } else if (!isUserLoading) {
             setIsLoading(false);
         }
-    }, [user, firestore, isUserLoading, toast]);
+    }, [user, isUserLoading]);
     
     const handleSettingsUpdate = async (settings: any) => {
-        if (!user || !firestore) {
+        if (!user) {
             toast({ variant: 'destructive', title: 'Error', description: 'You must be logged in to save settings.' });
             return;
         }
 
-        const profileRef = doc(firestore, 'users', user.uid, 'accessibility_profile', 'settings');
-        
-        setDoc(profileRef, settings, { merge: true })
-            .then(() => {
-                 toast({ title: 'Settings Saved', description: 'Your accessibility preferences have been updated.' });
-                 // Update local state to reflect changes
-                 setUserProfile({ accessibility_profile: settings });
-            })
-            .catch((error: any) => {
-                const permissionError = new FirestorePermissionError({
-                    path: profileRef.path,
-                    operation: 'update', // or 'create' if it's the first time
-                    requestResourceData: settings,
-                });
-                errorEmitter.emit('permission-error', permissionError);
-            });
+        try {
+            localStorage.setItem(`accessibility_settings_${user.uid}`, JSON.stringify(settings));
+            toast({ title: 'Settings Saved (Locally)', description: 'Your accessibility preferences have been updated.' });
+            // Update local state to reflect changes
+            setUserProfile({ accessibility_profile: settings });
+        } catch (e) {
+            toast({ variant: 'destructive', title: 'Error', description: 'Could not save settings locally.' });
+        }
     };
 
     if (isLoading) {
@@ -87,3 +75,5 @@ export default function AccessibilitySettingsPage() {
         </div>
     );
 }
+
+    

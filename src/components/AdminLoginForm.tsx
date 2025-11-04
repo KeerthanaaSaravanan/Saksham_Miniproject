@@ -8,9 +8,8 @@ import { Label } from '@/components/ui/label';
 import { useRouter } from 'next/navigation';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2, KeyRound, AtSign, Eye, EyeOff } from 'lucide-react';
-import { useAuth, useFirestore, errorEmitter, FirestorePermissionError } from '@/firebase';
+import { useAuth } from '@/firebase';
 import { signInWithEmailAndPassword, createUserWithEmailAndPassword } from 'firebase/auth';
-import { doc, getDoc, setDoc } from 'firebase/firestore';
 
 export function AdminLoginForm() {
   const [email, setEmail] = useState('dakshata@gmail.com');
@@ -20,13 +19,12 @@ export function AdminLoginForm() {
   const router = useRouter();
   const { toast } = useToast();
   const auth = useAuth();
-  const firestore = useFirestore();
 
   const handleAdminLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
 
-    if (!auth || !firestore) {
+    if (!auth) {
       toast({
         variant: 'destructive',
         title: 'Error',
@@ -37,54 +35,22 @@ export function AdminLoginForm() {
     }
 
     try {
-      // Step 1: Authenticate the user with Firebase Auth. We try to sign in first.
-      const userCredential = await signInWithEmailAndPassword(auth, email, password);
-      const user = userCredential.user;
-
-      // Step 2: Set/verify the user's role in Firestore
-      const userDocRef = doc(firestore, 'users', user.uid);
-      const userDocSnap = await getDoc(userDocRef);
-
-      if (userDocSnap.exists() && userDocSnap.data().role === 'faculty') {
-        // Success: User is authenticated and already has the 'faculty' role
-        toast({
+      await signInWithEmailAndPassword(auth, email, password);
+      toast({
           title: 'Login Successful',
           description: 'Welcome back to the Faculty Portal!',
-        });
-        router.push('/admin/dashboard');
-      } else {
-         // If user exists but is not faculty, or has no role, update them.
-         await setDoc(userDocRef, {
-             uid: user.uid,
-             email: user.email,
-             displayName: user.displayName || 'Faculty Member',
-             role: 'faculty',
-             // Provide default handled subjects/grades if they don't exist
-             handledGrades: userDocSnap.data()?.handledGrades || ['Class 6', 'Class 7', 'Class 8', 'Class 9', 'Class 10', 'Class 11', 'Class 12'],
-             handledSubjects: userDocSnap.data()?.handledSubjects || ["Mathematics", "Physics", "Chemistry", "Biology", "Social Studies", "English", "Computer Science"],
-         }, { merge: true });
+      });
+      router.push('/admin/dashboard');
 
-          toast({
-             title: 'Login Successful',
-             description: 'Your account has been configured for faculty access.',
-         });
-         router.push('/admin/dashboard');
-      }
     } catch (error: any) {
         if (error.code === 'auth/user-not-found' || error.code === 'auth/invalid-credential') {
             // If user does not exist, create them
             try {
                 const newUserCredential = await createUserWithEmailAndPassword(auth, email, password);
-                const newUser = newUserCredential.user;
-                const userDocRef = doc(firestore, 'users', newUser.uid);
-                await setDoc(userDocRef, {
-                    uid: newUser.uid,
-                    email: newUser.email,
-                    displayName: 'Dakshata G',
-                    role: 'faculty',
-                    handledGrades: ['Class 6', 'Class 7', 'Class 8', 'Class 9', 'Class 10', 'Class 11', 'Class 12'],
-                    handledSubjects: ["Mathematics", "Physics", "Chemistry", "Biology", "Social Studies", "English", "Computer Science"],
-                });
+                
+                // You might want to update the profile here if needed, e.g., displayName
+                // await updateProfile(newUserCredential.user, { displayName: "Dakshata G" });
+
                 toast({
                     title: 'Faculty Account Created',
                     description: 'Welcome to the Faculty Portal!',
@@ -98,7 +64,7 @@ export function AdminLoginForm() {
                 });
             }
         } else {
-            // Handle other authentication errors (e.g., wrong password)
+            // Handle other authentication errors
             let description = 'An unexpected error occurred.';
             if (error.code === 'auth/wrong-password') {
                 description = 'Invalid email or password for faculty account.';
@@ -187,3 +153,5 @@ export function AdminLoginForm() {
     </div>
   );
 }
+
+    

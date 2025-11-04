@@ -34,12 +34,10 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useRouter } from 'next/navigation';
-import { useAuth, useUser, useFirestore, useMemoFirebase, errorEmitter, FirestorePermissionError } from '@/firebase';
+import { useAuth, useUser } from '@/firebase';
 import { Skeleton } from '@/components/ui/skeleton';
-import { doc, getDoc, collection, query, where, Timestamp } from 'firebase/firestore';
 import { useEffect, useState, useMemo } from 'react';
 import { getSubjectsForGrade, SubjectCategory } from '@/lib/subjects';
-import { useCollection } from '@/firebase/firestore/use-collection';
 import Image from 'next/image';
 import { PlaceHolderImages } from '@/lib/placeholder-images';
 import { Bar, BarChart, ResponsiveContainer, XAxis, YAxis } from "recharts"
@@ -51,14 +49,14 @@ interface Exam {
   title: string;
   subject: string;
   gradeLevel: string;
-  startTime: Timestamp;
+  startTime: Date;
 }
 
 interface ExamAttempt {
     id: string;
     examId: string;
     score: number;
-    endTime: Timestamp;
+    endTime: Date;
     title?: string;
     subject?: string;
 }
@@ -92,6 +90,24 @@ const quotes = [
     { quote: "Success is not final, failure is not fatal: it is the courage to continue that counts.", author: "Winston Churchill" },
 ];
 
+// MOCK DATA
+const MOCK_USER_PROFILE = {
+    gradeLevel: 'Class 8',
+    stream: '',
+    accessibility: { visual: true }
+};
+
+const MOCK_EXAMS: Exam[] = [
+    { id: 'ex1', title: 'History Chapter 5 Test', subject: 'Social Science', gradeLevel: 'Class 8', startTime: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000) },
+    { id: 'ex2', title: 'Algebra Mid-Term', subject: 'Mathematics', gradeLevel: 'Class 8', startTime: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000) }
+];
+
+const MOCK_PERFORMANCE: PerformanceDataItem[] = [
+    { name: 'Practice: Geometry', score: 88, subject: 'Mathematics' },
+    { name: 'Practice: The Cell', score: 75, subject: 'Science' },
+    { name: 'History Exam', score: 92, subject: 'Social Science' },
+];
+
 const getPersonalizedGreeting = (name: string, profile?: AccessibilityProfile): string => {
     if (!profile) {
         return `Here's what's on your schedule. Let's get started.`;
@@ -119,7 +135,6 @@ export default function DashboardPage() {
   const router = useRouter();
   const auth = useAuth();
   const { user, isUserLoading } = useUser();
-  const firestore = useFirestore();
   const [gradeLevel, setGradeLevel] = useState('');
   const [stream, setStream] = useState('');
   const [subjects, setSubjects] = useState<SubjectCategory[]>([]);
@@ -129,139 +144,47 @@ export default function DashboardPage() {
   const [performanceData, setPerformanceData] = useState<PerformanceDataItem[]>([]);
   const [isPerformanceLoading, setIsPerformanceLoading] = useState(true);
   const [quote, setQuote] = useState<{ quote: string; author: string } | null>(null);
+  const [exams, setExams] = useState<Exam[]>([]);
+  const [areExamsLoading, setAreExamsLoading] = useState(true);
 
    useEffect(() => {
     // This will only run on the client, after initial hydration
     setQuote(quotes[Math.floor(Math.random() * quotes.length)]);
   }, []);
   
-  // Fetch official exam attempts
-  const attemptsQuery = useMemoFirebase(() => {
-    if (!firestore || !user) return null;
-    return query(collection(firestore, 'users', user.uid, 'exam_attempts'));
-  }, [firestore, user]);
-  const { data: officialAttempts, isLoading: areAttemptsLoading } = useCollection<ExamAttempt>(attemptsQuery);
-  
   useEffect(() => {
-    if (user && firestore) {
-      const fetchUserProfile = async () => {
-        setIsProfileLoading(true);
-        const userDocRef = doc(firestore, 'users', user.uid);
-        const accessibilityProfileRef = doc(firestore, 'users', user.uid, 'accessibility_profile', 'settings');
-        
-        try {
-          const userDocSnap = await getDoc(userDocRef);
-          if (userDocSnap.exists()) {
-            const userData = userDocSnap.data();
-            const userGrade = userData.gradeLevel || '';
-            const userStream = userData.stream || '';
-            setGradeLevel(userGrade);
-            setStream(userStream);
-            setSubjects(getSubjectsForGrade(userGrade, userStream));
-            
-            try {
-              const accessibilityDocSnap = await getDoc(accessibilityProfileRef);
-              if (accessibilityDocSnap.exists()) {
-                  const profileData = accessibilityDocSnap.data() as AccessibilityProfile;
-                  setAccessibilityProfile(profileData);
-                  setWelcomeMessage(getPersonalizedGreeting(user.displayName || 'Student', profileData));
-              } else {
-                  setWelcomeMessage(getPersonalizedGreeting(user.displayName || 'Student'));
-              }
-            } catch (accError: any) {
-                const permissionError = new FirestorePermissionError({ path: accessibilityProfileRef.path, operation: 'get' });
-                errorEmitter.emit('permission-error', permissionError);
-            }
-
-          } else {
-             setWelcomeMessage(getPersonalizedGreeting(user.displayName || 'Student'));
-          }
-
-        } catch (error: any) {
-          const permissionError = new FirestorePermissionError({ path: userDocRef.path, operation: 'get' });
-          errorEmitter.emit('permission-error', permissionError);
-          setWelcomeMessage(getPersonalizedGreeting(user.displayName || 'Student'));
-        } finally {
-          setIsProfileLoading(false);
-        }
-      };
-      fetchUserProfile();
+    if (user) {
+      setIsProfileLoading(true);
+      // Simulate fetching profile data
+      setTimeout(() => {
+        const userGrade = MOCK_USER_PROFILE.gradeLevel;
+        const userStream = MOCK_USER_PROFILE.stream;
+        setGradeLevel(userGrade);
+        setStream(userStream);
+        setSubjects(getSubjectsForGrade(userGrade, userStream));
+        setAccessibilityProfile(MOCK_USER_PROFILE.accessibility);
+        setWelcomeMessage(getPersonalizedGreeting(user.displayName || 'Student', MOCK_USER_PROFILE.accessibility));
+        setIsProfileLoading(false);
+      }, 500);
     } else if (!isUserLoading) {
-      setIsProfileLoading(false);
-      setWelcomeMessage(getPersonalizedGreeting('Student'));
+        setIsProfileLoading(false);
+        setWelcomeMessage(getPersonalizedGreeting('Student'));
     }
-  }, [user, firestore, isUserLoading]);
+  }, [user, isUserLoading]);
   
-  // This effect processes all performance data once it's loaded.
   useEffect(() => {
-    const processPerformanceData = async () => {
-        if (areAttemptsLoading || !firestore) {
-            return;
-        }
-        setIsPerformanceLoading(true);
+    setIsPerformanceLoading(true);
+    setAreExamsLoading(true);
 
-        // Fetch exam details for official attempts
-        const officialPerformance: PerformanceDataItem[] = [];
-        if (officialAttempts && officialAttempts.length > 0) {
-            for (const attempt of officialAttempts) {
-                // Only process attempts that have been graded
-                if (attempt.score > 0) {
-                    try {
-                        const examRef = doc(firestore, 'exams', attempt.examId);
-                        const examSnap = await getDoc(examRef);
-                        if (examSnap.exists()) {
-                            const examData = examSnap.data();
-                            officialPerformance.push({
-                                name: examData.title.slice(0, 15), // Shorten name for chart
-                                score: attempt.score,
-                                subject: examData.subject,
-                            });
-                        }
-                    } catch (error) {
-                        console.error(`Could not fetch details for exam ${attempt.examId}:`, error);
-                    }
-                }
-            }
-        }
-
-        // Fetch practice history from localStorage
-        let practicePerformance: PerformanceDataItem[] = [];
-        try {
-            const savedHistory = localStorage.getItem('practiceHistory');
-            if (savedHistory) {
-                const history: PracticeHistoryEntry[] = JSON.parse(savedHistory);
-                practicePerformance = history.map(h => ({
-                    name: h.title.slice(0, 15),
-                    score: h.score,
-                    subject: h.subject,
-                }));
-            }
-        } catch (error) {
-            console.error("Could not load practice history from localStorage", error);
-        }
-        
-        // Combine and sort by date (approximated for this example)
-        const combinedData = [...officialPerformance, ...practicePerformance];
-        
-        setPerformanceData(combinedData);
+    // Simulate fetching performance data & exams
+    setTimeout(() => {
+        setPerformanceData(MOCK_PERFORMANCE);
         setIsPerformanceLoading(false);
-    };
 
-    if (!areAttemptsLoading) {
-        processPerformanceData();
-    }
-  }, [officialAttempts, areAttemptsLoading, firestore]);
-
-  const examsQuery = useMemoFirebase(() => {
-    if (!firestore || !gradeLevel) return null;
-    return query(
-      collection(firestore, 'exams'),
-      where('gradeLevel', '==', gradeLevel),
-      where('startTime', '>', new Date())
-    );
-  }, [firestore, gradeLevel]);
-
-  const { data: exams, isLoading: areExamsLoading } = useCollection<Exam>(examsQuery);
+        setExams(MOCK_EXAMS);
+        setAreExamsLoading(false);
+    }, 1000);
+  }, []);
 
   const getSubjectImage = (subjectId: string) => {
     const placeholder = PlaceHolderImages.find(img => img.id === subjectId.toLowerCase().replace(/ /g, '-'));
@@ -278,7 +201,6 @@ export default function DashboardPage() {
     const totalScore = performanceData.reduce((sum, item) => sum + item.score, 0);
     const avgScore = totalScore / performanceData.length;
     
-    // For trend, compare the average of the first half to the second half
     const midpoint = Math.ceil(performanceData.length / 2);
     const firstHalf = performanceData.slice(0, midpoint);
     const secondHalf = performanceData.slice(midpoint);
@@ -286,7 +208,6 @@ export default function DashboardPage() {
     const avgSecondHalf = secondHalf.reduce((sum, item) => sum + item.score, 0) / (secondHalf.length || 1);
     const scoreTrend = avgSecondHalf - avgFirstHalf;
 
-    // For improvement areas, find subjects with the lowest average scores
     const subjectScores: { [key: string]: { total: number; count: number } } = {};
     performanceData.forEach(item => {
         if (!subjectScores[item.subject]) {
@@ -387,7 +308,7 @@ export default function DashboardPage() {
                                             <div>
                                                 <p className="font-medium text-foreground">{exam.title}</p>
                                                 <p className="text-muted-foreground">
-                                                    {exam.startTime.toDate().toLocaleDateString()}
+                                                    {exam.startTime.toLocaleDateString()}
                                                 </p>
                                             </div>
                                             <Button variant="ghost" size="icon" onClick={() => router.push('/assessment')}>

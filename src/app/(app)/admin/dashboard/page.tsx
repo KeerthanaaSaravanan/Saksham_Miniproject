@@ -24,11 +24,9 @@ import { Progress } from '@/components/ui/progress';
 import { ChartConfig, ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart';
 import { Bar, BarChart, ResponsiveContainer, XAxis, YAxis } from "recharts";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
-import { useUser, useFirestore, useMemoFirebase } from '@/firebase';
+import { useUser } from '@/firebase';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useState, useEffect } from 'react';
-import { collection, query, where, getDocs, Timestamp, collectionGroup } from 'firebase/firestore';
-import { useCollection } from '@/firebase/firestore/use-collection';
 
 type Student = {
     id: string;
@@ -45,25 +43,38 @@ type Exam = {
     title: string;
     subject: string;
     gradeLevel: string;
-    startTime: Timestamp;
-    endTime: Timestamp;
+    startTime: Date;
+    endTime: Date;
 };
-
-type ExamAttempt = {
-    examId: string;
-    userId: string;
-    score: number;
-}
 
 type SubjectPerformance = {
     subject: string;
     score: number;
 };
 
+const MOCK_STUDENTS: Student[] = [
+    { id: '1', name: 'Alice Smith', email: 'alice@example.com', progress: 82, disability: 'Dyslexia', avatar: 'https://i.pravatar.cc/40?u=1', gradeLevel: 'Class 8' },
+    { id: '2', name: 'Bob Johnson', email: 'bob@example.com', progress: 75, disability: 'N/A', avatar: 'https://i.pravatar.cc/40?u=2', gradeLevel: 'Class 8' },
+    { id: '3', name: 'Charlie Brown', email: 'charlie@example.com', progress: 91, disability: 'Visual', avatar: 'https://i.pravatar.cc/40?u=3', gradeLevel: 'Class 9' },
+    { id: '4', name: 'Diana Prince', email: 'diana@example.com', progress: 68, disability: 'N/A', avatar: 'https://i.pravatar.cc/40?u=4', gradeLevel: 'Class 9' },
+];
+
+const MOCK_EXAMS: Exam[] = [
+    { id: '1', title: 'Annual History Exam', subject: 'History', gradeLevel: 'Class 8', startTime: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000), endTime: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000 + 2 * 60 * 60 * 1000)},
+    { id: '2', title: 'Mid-Term Physics Exam', subject: 'Physics', gradeLevel: 'Class 9', startTime: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000), endTime: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000 + 2 * 60 * 60 * 1000)},
+];
+
+const MOCK_PERFORMANCE: SubjectPerformance[] = [
+    { subject: 'Math', score: 85 },
+    { subject: 'Science', score: 78 },
+    { subject: 'History', score: 92 },
+    { subject: 'English', score: 81 },
+    { subject: 'Physics', score: 72 },
+];
+
+
 export default function AdminDashboardPage() {
     const { user, isUserLoading } = useUser();
-    const firestore = useFirestore();
-
     const [students, setStudents] = useState<Student[]>([]);
     const [exams, setExams] = useState<Exam[]>([]);
     const [subjectPerformance, setSubjectPerformance] = useState<SubjectPerformance[]>([]);
@@ -72,101 +83,26 @@ export default function AdminDashboardPage() {
     
     const facultyName = user?.displayName || 'Faculty';
     
-    const examsQuery = useMemoFirebase(() => {
-        if (!firestore) return null;
-        return query(collection(firestore, 'exams'));
-    }, [firestore]);
-
-    const { data: fetchedExams, isLoading: areExamsLoading } = useCollection<Exam>(examsQuery);
-
     useEffect(() => {
-        if (!firestore) return;
-
         const fetchData = async () => {
             setIsLoading(true);
+            // Simulate API delay
+            await new Promise(resolve => setTimeout(resolve, 500));
 
-            // Fetch all users with the 'student' role
-            const usersQuery = query(collection(firestore, 'users'), where('role', '==', 'student'));
-            const usersSnap = await getDocs(usersQuery);
-            const userMap = new Map(usersSnap.docs.map(doc => [doc.id, doc.data()]));
-            
-            // Fetch all exam attempts across all users
-            const attemptsQuery = collectionGroup(firestore, 'exam_attempts');
-            const attemptsSnap = await getDocs(attemptsQuery);
-            const allAttempts: ExamAttempt[] = attemptsSnap.docs.map(doc => doc.data() as ExamAttempt);
-
-            const studentProgressMap = new Map<string, { totalScore: number, count: number }>();
-            allAttempts.forEach(attempt => {
-                if (!studentProgressMap.has(attempt.userId)) {
-                    studentProgressMap.set(attempt.userId, { totalScore: 0, count: 0 });
-                }
-                const current = studentProgressMap.get(attempt.userId)!;
-                current.totalScore += attempt.score;
-                current.count++;
-            });
-            
-            const studentList: Student[] = [];
-            userMap.forEach((userData, userId) => {
-                const progressData = studentProgressMap.get(userId);
-                const progress = progressData && progressData.count > 0 ? progressData.totalScore / progressData.count : 0;
-                
-                studentList.push({
-                    id: userId,
-                    name: userData.displayName || 'N/A',
-                    email: userData.email,
-                    progress: progress,
-                    disability: 'N/A', // This would need to be fetched from their accessibility profile
-                    avatar: userData.photoURL || `https://i.pravatar.cc/40?u=${userId}`,
-                    gradeLevel: userData.gradeLevel || 'N/A',
-                });
+            setStudents(MOCK_STUDENTS);
+            setExams(MOCK_EXAMS);
+            setSubjectPerformance(MOCK_PERFORMANCE);
+            setStats({
+                totalStudents: MOCK_STUDENTS.length,
+                assessmentsCreated: MOCK_EXAMS.length,
+                pendingReviews: 8,
+                activeExams: 1,
             });
 
-            setStudents(studentList);
-            
-             const subjectScores: { [key: string]: { total: number, count: number } } = {};
-             if(fetchedExams) {
-                const examDetails = new Map(fetchedExams.map(exam => [exam.id, { subject: exam.subject }]));
-                 allAttempts.forEach(attempt => {
-                     const exam = examDetails.get(attempt.examId);
-                     if (exam) {
-                         if (!subjectScores[exam.subject]) subjectScores[exam.subject] = { total: 0, count: 0 };
-                         subjectScores[exam.subject].total += attempt.score;
-                         subjectScores[exam.subject].count++;
-                     }
-                 });
-             }
-            
-            const performanceData = Object.entries(subjectScores).map(([subject, data]) => ({
-                subject,
-                score: data.total / data.count,
-            }));
-            setSubjectPerformance(performanceData);
-            
-            const now = new Date();
-            if(fetchedExams) {
-                const upcomingExams = fetchedExams
-                    .filter(exam => exam.startTime.toDate() > now && exam.startTime.toDate() < new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000))
-                    .sort((a, b) => a.startTime.toDate().getTime() - b.startTime.toDate().getTime());
-                setExams(upcomingExams);
-
-                setStats(prev => ({
-                    ...prev,
-                    totalStudents: userMap.size,
-                    assessmentsCreated: fetchedExams.length,
-                    activeExams: fetchedExams.filter(exam => {
-                        return exam.startTime.toDate() < now && exam.endTime.toDate() > now;
-                    }).length,
-                }));
-            }
-            
             setIsLoading(false);
         };
-
-        if(!areExamsLoading) {
-            fetchData().catch(console.error);
-        }
-
-    }, [firestore, fetchedExams, areExamsLoading]);
+        fetchData();
+    }, []);
     
     const chartConfig = {
       score: {
@@ -277,7 +213,7 @@ export default function AdminDashboardPage() {
                                         <p className="font-semibold text-sm">{exam.title}</p>
                                         <p className="text-xs text-muted-foreground">{exam.subject} - {exam.gradeLevel}</p>
                                     </div>
-                                    <p className="text-xs text-muted-foreground font-medium">{exam.startTime.toDate().toLocaleDateString()}</p>
+                                    <p className="text-xs text-muted-foreground font-medium">{exam.startTime.toLocaleDateString()}</p>
                                 </div>
                             ))}
                             </div>

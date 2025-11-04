@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useRouter } from 'next/navigation';
-import { useAuth, errorEmitter, FirestorePermissionError } from '@/firebase';
+import { useAuth } from '@/firebase';
 import {
   createUserWithEmailAndPassword,
   signInWithEmailAndPassword,
@@ -17,8 +17,6 @@ import { useToast } from '@/hooks/use-toast';
 import { Loader2 } from 'lucide-react';
 import Link from 'next/link';
 import StudentDetailsForm from './StudentDetailsForm';
-import { doc, setDoc } from 'firebase/firestore';
-import { useFirestore } from '@/firebase';
 import { useVoiceControl } from './voice-control-provider';
 import { avatars } from '@/lib/avatars';
 
@@ -30,7 +28,6 @@ export default function LoginForm() {
   const [newUser, setNewUser] = useState<User | null>(null);
   const router = useRouter();
   const auth = useAuth();
-  const firestore = useFirestore();
   const { toast } = useToast();
 
   useEffect(() => {
@@ -45,7 +42,6 @@ export default function LoginForm() {
     };
 
     const handleVoiceSubmit = () => {
-        // Find the form and submit it programmatically
         const form = document.getElementById('login-form');
         if (form) {
             form.dispatchEvent(new Event('submit', { cancelable: true, bubbles: true }));
@@ -64,11 +60,7 @@ export default function LoginForm() {
   const handleAuthError = (error: any) => {
     let description = 'An unknown error occurred. Please try again.';
     if (error.code === 'auth/network-request-failed') {
-      description =
-        'A network error occurred. Please check your connection and ensure this domain is added to the authorized domains in your Firebase console.';
-    } else if (error.code === 'auth/unauthorized-domain') {
-      description =
-        'This domain is not authorized for authentication. Please add it to the authorized domains in your Firebase console.';
+      description = 'A network error occurred. Please check your connection.';
     } else if (
       error.code === 'auth/wrong-password' ||
       error.code === 'auth/user-not-found' ||
@@ -93,43 +85,23 @@ export default function LoginForm() {
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!auth) {
-      toast({
-        variant: 'destructive',
-        title: 'Error',
-        description:
-          'Authentication service is not available. Please try again later.',
-      });
+      toast({ variant: 'destructive', title: 'Error', description: 'Authentication service is not available.' });
       return;
     }
     if (!password) {
-      toast({
-        variant: 'destructive',
-        title: 'Password required',
-        description: 'Please enter a password to sign up.',
-      });
+      toast({ variant: 'destructive', title: 'Password required', description: 'Please enter a password.' });
       return;
     }
     setIsLoading(true);
     try {
-      // First, try to sign in.
       await signInWithEmailAndPassword(auth, email, password);
-      toast({
-        title: 'Login Successful',
-        description: 'Welcome back!',
-      });
+      toast({ title: 'Login Successful', description: 'Welcome back!' });
       router.push('/dashboard');
     } catch (signInError: any) {
-      // If user not found, proceed to sign up
-      if (
-        signInError.code === 'auth/user-not-found' ||
-        signInError.code === 'auth/invalid-credential'
-      ) {
+      if (signInError.code === 'auth/user-not-found' || signInError.code === 'auth/invalid-credential') {
         try {
           const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-          toast({
-            title: 'Account Created',
-            description: "Let's set up your profile.",
-          });
+          toast({ title: 'Account Created', description: "Let's set up your profile." });
           handleAuthSuccess(userCredential.user);
         } catch (signUpError) {
           handleAuthError(signUpError);
@@ -143,8 +115,8 @@ export default function LoginForm() {
   };
 
   const onDetailsComplete = async (details: {name: string, gradeLevel: string, stream: string}) => {
-    if (!newUser || !firestore) {
-        toast({ variant: 'destructive', title: 'Error', description: 'User or database not available.' });
+    if (!newUser) {
+        toast({ variant: 'destructive', title: 'Error', description: 'User not available.' });
         return;
     }
     setIsLoading(true);
@@ -156,35 +128,23 @@ export default function LoginForm() {
             photoURL: defaultAvatar,
         });
         
-        const userDocRef = doc(firestore, "users", newUser.uid);
-        const userData = {
+        // Save details to local storage instead of Firestore
+        const profileData = {
             displayName: details.name,
             email: newUser.email,
-            firebaseUid: newUser.uid,
             gradeLevel: details.gradeLevel,
             stream: details.stream || '',
             photoURL: defaultAvatar,
             role: 'student',
-            uid: newUser.uid,
         };
+        localStorage.setItem(`profile_data_${newUser.uid}`, JSON.stringify(profileData));
 
-        // This is a create operation, so we use 'create'
-        await setDoc(userDocRef, userData)
-            .then(() => {
-                toast({
-                    title: 'Profile Complete!',
-                    description: `Welcome, ${details.name}! Your learning path is set.`,
-                });
-                router.push('/dashboard');
-            })
-            .catch((error: any) => {
-                const permissionError = new FirestorePermissionError({
-                    path: userDocRef.path,
-                    operation: 'create',
-                    requestResourceData: userData,
-                });
-                errorEmitter.emit('permission-error', permissionError);
-            });
+        toast({
+            title: 'Profile Complete!',
+            description: `Welcome, ${details.name}! Your learning path is set.`,
+        });
+        router.push('/dashboard');
+        
     } catch (error: any) {
         handleAuthError(error);
     } finally {
@@ -253,3 +213,5 @@ export default function LoginForm() {
     </div>
   );
 }
+
+    

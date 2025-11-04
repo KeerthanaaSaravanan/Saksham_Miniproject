@@ -2,8 +2,6 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useFirestore, useCollection, useMemoFirebase } from '@/firebase';
-import { collection, query, Timestamp, getDocs, doc, writeBatch, where, getDoc } from 'firebase/firestore';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import {
   Accordion,
@@ -35,8 +33,8 @@ type Exam = {
     title: string;
     subject: string;
     gradeLevel: string;
-    startTime: Timestamp;
-    endTime: Timestamp;
+    startTime: Date;
+    endTime: Date;
     durationMinutes?: number;
 };
 
@@ -49,14 +47,28 @@ type Submission = {
     score: number;
 }
 
-const getExamStatus = (startTime: Timestamp, endTime: Timestamp): { text: string; variant: "default" | "secondary" | "destructive" | "outline" } => {
-    const now = new Date();
-    const start = startTime.toDate();
-    const end = endTime.toDate();
+const MOCK_EXAMS: Exam[] = [
+    { id: 'exam1', title: 'Mid-Term Social Studies', subject: 'Social Studies', gradeLevel: 'Class 8', startTime: new Date(), endTime: new Date(Date.now() + 2 * 60 * 60 * 1000), durationMinutes: 90 },
+    { id: 'exam2', title: 'Annual Physics Exam', subject: 'Physics', gradeLevel: 'Class 11', startTime: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000), endTime: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000 + 3* 60 * 60 * 1000), durationMinutes: 180 },
+    { id: 'exam3', title: 'Upcoming Biology Test', subject: 'Biology', gradeLevel: 'Class 12', startTime: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000), endTime: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000 + 60 * 60 * 1000), durationMinutes: 60 },
+];
 
-    if (now < start) {
+const MOCK_SUBMISSIONS: { [examId: string]: Submission[] } = {
+    'exam1': [
+        { attemptId: 'sub1', studentId: 's1', studentName: 'Alice', submittedAt: new Date(Date.now() - 10*60*1000), status: 'Pending', score: 0},
+        { attemptId: 'sub2', studentId: 's2', studentName: 'Bob', submittedAt: new Date(Date.now() - 5*60*1000), status: 'Pending', score: 0},
+    ],
+    'exam2': [
+         { attemptId: 'sub3', studentId: 's3', studentName: 'Charlie', submittedAt: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000), status: 'Graded', score: 88},
+    ]
+};
+
+
+const getExamStatus = (startTime: Date, endTime: Date): { text: string; variant: "default" | "secondary" | "destructive" | "outline" } => {
+    const now = new Date();
+    if (now < startTime) {
         return { text: 'Upcoming', variant: 'secondary' };
-    } else if (now > end) {
+    } else if (now > endTime) {
         return { text: 'Completed', variant: 'outline' };
     } else {
         return { text: 'Live', variant: 'destructive' };
@@ -64,54 +76,18 @@ const getExamStatus = (startTime: Timestamp, endTime: Timestamp): { text: string
 };
 
 const ExamSubmissions = ({ examId }: { examId: string }) => {
-    const firestore = useFirestore();
     const router = useRouter();
     const [submissions, setSubmissions] = useState<Submission[]>([]);
     const [isLoading, setIsLoading] = useState(true);
 
     useEffect(() => {
-        const fetchSubmissions = async () => {
-            if (!firestore) return;
-            setIsLoading(true);
-            
-            try {
-                // 1. Fetch all users who are students
-                const usersQuery = query(collection(firestore, 'users'), where('role', '==', 'student'));
-                const usersSnap = await getDocs(usersQuery);
-                const students = usersSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-
-                const allSubmissions: Submission[] = [];
-
-                // 2. Iterate over each student to check for submissions for this exam
-                for (const student of students) {
-                    const attemptsQuery = query(
-                        collection(firestore, 'users', student.id, 'exam_attempts'),
-                        where('examId', '==', examId)
-                    );
-                    const attemptsSnap = await getDocs(attemptsQuery);
-
-                    attemptsSnap.forEach(attemptDoc => {
-                        const attemptData = attemptDoc.data();
-                        allSubmissions.push({
-                            attemptId: attemptDoc.id,
-                            studentId: attemptData.userId,
-                            studentName: student.displayName || 'Anonymous',
-                            submittedAt: attemptData.endTime.toDate(),
-                            status: attemptData.status === 'graded' ? 'Graded' : 'Pending',
-                            score: attemptData.score
-                        });
-                    });
-                }
-                
-                setSubmissions(allSubmissions);
-            } catch (error) {
-                console.error("Error fetching submissions:", error);
-            } finally {
-                setIsLoading(false);
-            }
-        }
-        fetchSubmissions();
-    }, [firestore, examId]);
+        setIsLoading(true);
+        // Simulate fetching submissions
+        setTimeout(() => {
+            setSubmissions(MOCK_SUBMISSIONS[examId] || []);
+            setIsLoading(false);
+        }, 500);
+    }, [examId]);
     
     if (isLoading) {
         return <div className="flex justify-center p-8"><Loader2 className="animate-spin" /></div>;
@@ -139,7 +115,7 @@ const ExamSubmissions = ({ examId }: { examId: string }) => {
                             <TableRow key={sub.attemptId}>
                                 <TableCell className="font-medium">{sub.studentName}</TableCell>
                                 <TableCell>{sub.submittedAt.toLocaleString()}</TableCell>
-                                <TableCell>{sub.score.toFixed(1)}%</TableCell>
+                                <TableCell>{sub.score > 0 ? `${sub.score.toFixed(1)}%` : 'N/A'}</TableCell>
                                 <TableCell><Badge variant={sub.status === 'Graded' ? 'secondary' : 'default'}>{sub.status}</Badge></TableCell>
                                 <TableCell className="text-right">
                                    <DropdownMenu>
@@ -166,54 +142,24 @@ const ExamSubmissions = ({ examId }: { examId: string }) => {
 
 
 export default function ExaminationsPage() {
-    const firestore = useFirestore();
     const router = useRouter();
     const { toast } = useToast();
-
+    const [exams, setExams] = useState<Exam[]>(MOCK_EXAMS);
+    const [areExamsLoading, setAreExamsLoading] = useState(false);
     const [examToDelete, setExamToDelete] = useState<Exam | null>(null);
 
-    const examsQuery = useMemoFirebase(() => {
-        if (!firestore) return null;
-        return query(collection(firestore, 'exams'));
-    }, [firestore]);
-
-    const { data: exams, isLoading: areExamsLoading } = useCollection<Exam>(examsQuery);
-    
     const handleDeleteExam = async () => {
-        if (!examToDelete || !firestore) return;
+        if (!examToDelete) return;
 
-        const examRef = doc(firestore, 'exams', examToDelete.id);
-        const questionsRef = collection(examRef, 'questions');
+        // Simulate deleting an exam
+        setExams(prev => prev.filter(exam => exam.id !== examToDelete.id));
 
-        try {
-            const batch = writeBatch(firestore);
-            
-            // Delete all questions in the subcollection
-            const questionsSnap = await getDocs(questionsRef);
-            questionsSnap.forEach(questionDoc => {
-                batch.delete(questionDoc.ref);
-            });
-            
-            // Delete the main exam document
-            batch.delete(examRef);
-            
-            await batch.commit();
-
-            toast({
-                title: "Exam Deleted",
-                description: `"${examToDelete.title}" and all its questions have been removed.`,
-            });
-            
-        } catch (error) {
-            console.error("Error deleting exam:", error);
-            toast({
-                variant: "destructive",
-                title: "Deletion Failed",
-                description: "Could not delete the exam. Please try again.",
-            });
-        } finally {
-            setExamToDelete(null);
-        }
+        toast({
+            title: "Exam Deleted",
+            description: `"${examToDelete.title}" and all its questions have been removed.`,
+        });
+        
+        setExamToDelete(null);
     };
 
     return (
@@ -254,7 +200,7 @@ export default function ExaminationsPage() {
                                                 <CardDescription className="mt-1 flex items-center gap-2">
                                                     <span>{exam.subject}</span>
                                                     <Badge variant="outline">{exam.gradeLevel}</Badge>
-                                                    <span>Starts: {exam.startTime.toDate().toLocaleString()}</span>
+                                                    <span>Starts: {exam.startTime.toLocaleString()}</span>
                                                 </CardDescription>
                                             </div>
                                             <Badge variant={status.variant} className="h-6">{status.text}</Badge>
@@ -306,3 +252,5 @@ export default function ExaminationsPage() {
         </>
     );
 }
+
+    

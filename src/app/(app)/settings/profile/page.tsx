@@ -23,9 +23,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { useUser, useFirestore, errorEmitter, FirestorePermissionError } from '@/firebase';
+import { useUser } from '@/firebase';
 import { updateProfile } from 'firebase/auth';
-import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { Skeleton } from '@/components/ui/skeleton';
 import { avatars } from '@/lib/avatars';
 import { AvatarSelector } from '@/components/AvatarSelector';
@@ -49,11 +48,10 @@ const gradeConfig = {
 
 const facultyGrades = ['Class 6', 'Class 7', 'Class 8', 'Class 9', 'Class 10', 'Class 11', 'Class 12'];
 
-// Dynamically generate all unique subjects from the central subjects map
 const allSubjects = Object.values(gradeSubjectMap).flatMap(level => {
-    if (Array.isArray(level)) { // For grades 6-10
+    if (Array.isArray(level)) {
         return level.flatMap(category => category.subjects.map(s => s.name));
-    } else { // For levels with streams (11, 12, College, etc.)
+    } else {
         return Object.values(level).flatMap(stream => stream.flatMap(category => category.subjects.map(s => s.name)));
     }
 });
@@ -62,19 +60,15 @@ const uniqueFacultySubjects = [...new Set(allSubjects)];
 
 export default function ProfileSettingsPage() {
   const { user, isUserLoading } = useUser();
-  const firestore = useFirestore();
   const pathname = usePathname();
   const isFaculty = useMemo(() => pathname.includes('/admin'), [pathname]);
 
-  // Common State
   const [name, setName] = useState('');
   const [currentAvatarUrl, setCurrentAvatarUrl] = useState(avatars[0].url);
   
-  // Student State
   const [gradeLevel, setGradeLevel] = useState('');
   const [stream, setStream] = useState('');
 
-  // Faculty State
   const [handledGrades, setHandledGrades] = useState<string[]>([]);
   const [handledSubjects, setHandledSubjects] = useState<string[]>([]);
 
@@ -85,41 +79,33 @@ export default function ProfileSettingsPage() {
   const { toast } = useToast();
 
   useEffect(() => {
-    if (!isUserLoading && user && firestore) {
-      const fetchUserProfile = async () => {
+    if (!isUserLoading && user) {
         setIsProfileLoading(true);
         setName(user.displayName || '');
         setCurrentAvatarUrl(user.photoURL || avatars[0].url);
         
-        const userDocRef = doc(firestore, 'users', user.uid);
+        // Simulate loading profile data from localStorage
         try {
-            const userDocSnap = await getDoc(userDocRef);
-            if (userDocSnap.exists()) {
-              const userData = userDocSnap.data();
-              if(isFaculty) {
-                setHandledGrades(userData.handledGrades || []);
-                setHandledSubjects(userData.handledSubjects || []);
-              } else {
-                setGradeLevel(userData.gradeLevel || '');
-                setStream(userData.stream || '');
-              }
+            const profileDataStr = localStorage.getItem(`profile_data_${user.uid}`);
+            if (profileDataStr) {
+                const profileData = JSON.parse(profileDataStr);
+                 if(isFaculty) {
+                    setHandledGrades(profileData.handledGrades || []);
+                    setHandledSubjects(profileData.handledSubjects || []);
+                  } else {
+                    setGradeLevel(profileData.gradeLevel || '');
+                    setStream(profileData.stream || '');
+                  }
             }
-        } catch (error: any) {
-            const permissionError = new FirestorePermissionError({
-              path: userDocRef.path,
-              operation: 'get',
-            });
-            errorEmitter.emit('permission-error', permissionError);
+        } catch (e) {
+            console.error("Could not load profile from localStorage", e);
         } finally {
             setIsProfileLoading(false);
         }
-      };
-
-      fetchUserProfile();
     } else if (!isUserLoading) {
         setIsProfileLoading(false);
     }
-  }, [user, firestore, isUserLoading, isFaculty]);
+  }, [user, isUserLoading, isFaculty]);
 
 
   const selectedGradeConfig = gradeConfig[gradeLevel as keyof typeof gradeConfig];
@@ -127,13 +113,13 @@ export default function ProfileSettingsPage() {
   const userInitial = name.split(' ').map((n) => n[0]).join('') || (isFaculty ? 'F' : 'U');
 
   const handleSaveChanges = async () => {
-    if (!user || !firestore) {
-      toast({ variant: 'destructive', title: 'Not authenticated or database not ready' });
+    if (!user) {
+      toast({ variant: 'destructive', title: 'Not authenticated' });
       return;
     }
     setIsSaving(true);
     
-    // This part is common for both students and faculty
+    // Update display name in Auth
     if (user.displayName !== name) {
       try {
         await updateProfile(user, { displayName: name });
@@ -144,68 +130,49 @@ export default function ProfileSettingsPage() {
       }
     }
 
-    const userDocRef = doc(firestore, "users", user.uid);
-    let dataToSave: any = { displayName: name, email: user.email, uid: user.uid };
-
+    // Save other details to localStorage
+    let dataToSave: any = { displayName: name };
     if (isFaculty) {
         dataToSave = { ...dataToSave, handledGrades, handledSubjects, role: 'faculty' };
     } else {
         dataToSave = { ...dataToSave, gradeLevel, stream, role: 'student' };
     }
     
-    setDoc(userDocRef, dataToSave, { merge: true })
-      .then(() => {
+    try {
+        localStorage.setItem(`profile_data_${user.uid}`, JSON.stringify(dataToSave));
         toast({
-          title: 'Profile Updated',
+          title: 'Profile Updated (Locally)',
           description: 'Your personal information has been saved.',
         });
-      })
-      .catch(async (serverError) => {
-        const permissionError = new FirestorePermissionError({
-          path: userDocRef.path,
-          operation: 'update',
-          requestResourceData: dataToSave,
-        });
-        errorEmitter.emit('permission-error', permissionError);
-      })
-      .finally(() => {
+    } catch(e) {
+        toast({ variant: 'destructive', title: 'Save Failed', description: 'Could not save profile to local storage.' });
+    } finally {
         setIsSaving(false);
-      });
+    }
   };
 
   const handleSavePhoto = async () => {
-    if (!user || !firestore) {
-        toast({ variant: 'destructive', title: 'Not authenticated or database not ready' });
+    if (!user) {
+        toast({ variant: 'destructive', title: 'Not authenticated' });
         return;
     }
     setIsPhotoSaving(true);
 
     try {
         await updateProfile(user, { photoURL: currentAvatarUrl });
+        
+        // Also save to local storage profile data
+        const profileDataStr = localStorage.getItem(`profile_data_${user.uid}`);
+        const profileData = profileDataStr ? JSON.parse(profileDataStr) : {};
+        profileData.photoURL = currentAvatarUrl;
+        localStorage.setItem(`profile_data_${user.uid}`, JSON.stringify(profileData));
+
+        toast({ title: 'Avatar Updated!', description: 'Your new profile picture has been saved.' });
     } catch (error: any) {
         toast({ variant: 'destructive', title: 'Avatar Update Failed', description: error.message });
+    } finally {
         setIsPhotoSaving(false);
-        return;
     }
-
-    const userDocRef = doc(firestore, "users", user.uid);
-    const dataToSave = { photoURL: currentAvatarUrl };
-
-    setDoc(userDocRef, dataToSave, { merge: true })
-      .then(() => {
-          toast({ title: 'Avatar Updated!', description: 'Your new profile picture has been saved.' });
-      })
-      .catch(async (serverError) => {
-          const permissionError = new FirestorePermissionError({
-            path: userDocRef.path,
-            operation: 'update',
-            requestResourceData: dataToSave,
-          });
-          errorEmitter.emit('permission-error', permissionError);
-      })
-      .finally(() => {
-          setIsPhotoSaving(false);
-      });
   };
 
   const onGradeCheckedChange = (grade: string, isChecked: boolean) => {
@@ -361,3 +328,5 @@ export default function ProfileSettingsPage() {
     </div>
   );
 }
+
+    

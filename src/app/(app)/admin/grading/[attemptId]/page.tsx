@@ -2,8 +2,6 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useFirestore, useUser, errorEmitter, FirestorePermissionError, useMemoFirebase } from '@/firebase';
-import { doc, getDoc, collection, getDocs, writeBatch, serverTimestamp, query, where } from 'firebase/firestore';
 import { useParams, useRouter } from 'next/navigation';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -35,9 +33,23 @@ type Student = {
     email: string;
 };
 
+const MOCK_DATA = {
+    exam: { id: 'exam1', title: 'Mid-Term Social Studies', subject: 'Social Studies', gradeLevel: 'Class 8' },
+    student: { displayName: 'Alice', photoURL: 'https://i.pravatar.cc/40?u=user1', email: 'alice@example.com' },
+    attempt: { userId: 's1', examId: 'exam1', endTime: new Date(Date.now() - 10 * 60 * 1000) },
+    questions: [
+        { id: 'q1', question: 'Who was the first President of the United States?', marks: 10 },
+        { id: 'q2', question: 'What is the capital of France?', marks: 5 },
+    ],
+    answers: [
+        { id: 'ans1', questionId: 'q1', answer: 'George Washington' },
+        { id: 'ans2', questionId: 'q2', answer: 'Paris' },
+    ]
+};
+
+
 export default function GradingPage() {
     const { attemptId } = useParams();
-    const firestore = useFirestore();
     const router = useRouter();
     const { toast } = useToast();
     
@@ -54,124 +66,49 @@ export default function GradingPage() {
     const [feedback, setFeedback] = useState<Record<string, string>>({});
 
     useEffect(() => {
-        if (!firestore || !attemptId) return;
+        if (!attemptId) return;
 
         const fetchSubmissionData = async () => {
             setIsLoading(true);
-            try {
-                // Find the attempt document using a collectionGroup query
-                // This is a placeholder since collectionGroup queries can't be used directly like this.
-                // A real implementation would need a different structure or to know the user's ID.
-                // For this app, let's assume we can find the attempt by its ID across all users.
-                // The correct way would be to search through users, but that's inefficient.
-                // We'll simulate finding it.
+            // Simulate API delay
+            await new Promise(resolve => setTimeout(resolve, 500));
+            
+            // For this mock, we'll just use the mock data regardless of attemptId
+            setAttempt(MOCK_DATA.attempt);
+            setStudent(MOCK_DATA.student);
+            setExam(MOCK_DATA.exam);
+            setAnswers(MOCK_DATA.answers);
+            setQuestions(MOCK_DATA.questions);
+            
+            // Initialize scores
+            const initialScores: Record<string, number> = {};
+            MOCK_DATA.questions.forEach(q => {
+                initialScores[q.id] = 0;
+            });
+            setScores(initialScores);
 
-                let attemptRef: any;
-                let attemptData: any;
-                const usersSnap = await getDocs(collection(firestore, 'users'));
-                for(const userDoc of usersSnap.docs) {
-                    const tempAttemptRef = doc(firestore, 'users', userDoc.id, 'exam_attempts', attemptId as string);
-                    const attemptSnap = await getDoc(tempAttemptRef);
-                    if (attemptSnap.exists()) {
-                        attemptRef = tempAttemptRef;
-                        attemptData = attemptSnap.data();
-                        break;
-                    }
-                }
-
-                if (!attemptRef) {
-                    toast({ variant: 'destructive', title: 'Error', description: 'Submission not found.' });
-                    router.back();
-                    return;
-                }
-                
-                setAttempt(attemptData);
-                
-                // Fetch associated data
-                const [studentSnap, examSnap, answersSnap, questionsSnap] = await Promise.all([
-                    getDoc(doc(firestore, 'users', attemptData.userId)),
-                    getDoc(doc(firestore, 'exams', attemptData.examId)),
-                    getDocs(collection(attemptRef, 'answers')),
-                    getDocs(collection(doc(firestore, 'exams', attemptData.examId), 'questions')),
-                ]);
-
-                if (studentSnap.exists()) setStudent(studentSnap.data() as Student);
-                if (examSnap.exists()) setExam({ id: examSnap.id, ...examSnap.data() });
-
-                setAnswers(answersSnap.docs.map(d => ({ id: d.id, ...d.data() } as Answer)));
-                setQuestions(questionsSnap.docs.map(d => ({ id: d.id, ...d.data() } as Question)));
-                
-                // Initialize scores
-                const initialScores: Record<string, number> = {};
-                questionsSnap.docs.forEach(q => {
-                    initialScores[q.id] = 0;
-                });
-                setScores(initialScores);
-
-            } catch (error) {
-                console.error("Error fetching submission data:", error);
-                toast({ variant: 'destructive', title: 'Error', description: 'Could not load submission data.' });
-            } finally {
-                setIsLoading(false);
-            }
+            setIsLoading(false);
         };
 
         fetchSubmissionData();
 
-    }, [firestore, attemptId, router, toast]);
+    }, [attemptId, router, toast]);
 
     const handleSaveGrade = async () => {
-        if (!firestore || !attemptId || !attempt) return;
+        if (!attempt) return;
         setIsSaving(true);
         
         const totalMarks = questions.reduce((sum, q) => sum + q.marks, 0);
         const obtainedMarks = Object.values(scores).reduce((sum, s) => sum + s, 0);
         const finalScore = totalMarks > 0 ? (obtainedMarks / totalMarks) * 100 : 0;
         
-        try {
-            const batch = writeBatch(firestore);
-            
-            // Update the main attempt document
-            const attemptRef = doc(firestore, 'users', attempt.userId, 'exam_attempts', attemptId as string);
-            
-            const attemptUpdateData = {
-                score: finalScore,
-                status: 'graded',
-                gradedAt: serverTimestamp()
-            };
+        // Simulate saving
+        await new Promise(resolve => setTimeout(resolve, 1000));
 
-            batch.update(attemptRef, attemptUpdateData);
+        toast({ title: 'Grade Saved!', description: `The submission has been graded with a score of ${finalScore.toFixed(1)}%.` });
+        router.push('/admin/examinations');
 
-            // Update individual answers with feedback
-            answers.forEach(ans => {
-                const answerRef = doc(attemptRef, 'answers', ans.id);
-                batch.update(answerRef, {
-                    marks: scores[ans.questionId] || 0,
-                    feedback: feedback[ans.questionId] || '',
-                    isCorrect: (scores[ans.questionId] || 0) === questions.find(q => q.id === ans.questionId)?.marks
-                });
-            });
-
-            await batch.commit().catch((serverError) => {
-                const permissionError = new FirestorePermissionError({
-                  path: attemptRef.path,
-                  operation: 'update',
-                  requestResourceData: attemptUpdateData,
-                });
-                errorEmitter.emit('permission-error', permissionError);
-                // We throw the original error so React knows an error occurred.
-                throw serverError;
-            });
-
-            toast({ title: 'Grade Saved!', description: `The submission has been graded with a score of ${finalScore.toFixed(1)}%.` });
-            router.push('/admin/examinations');
-
-        } catch (error: any) {
-            // The catch block above will handle the emission. This block will catch the re-thrown error.
-            // We don't need to log it again.
-        } finally {
-            setIsSaving(false);
-        }
+        setIsSaving(false);
     }
     
     const totalScore = Object.values(scores).reduce((sum, score) => sum + (Number(score) || 0), 0);
@@ -224,7 +161,7 @@ export default function GradingPage() {
                     </div>
                 </CardHeader>
                 <CardContent className="grid grid-cols-3 gap-4">
-                    <div><Badge variant="outline">Submitted: {attempt.endTime.toDate().toLocaleString()}</Badge></div>
+                    <div><Badge variant="outline">Submitted: {attempt.endTime.toLocaleString()}</Badge></div>
                     <div><Badge variant="outline">Subject: {exam?.subject}</Badge></div>
                     <div><Badge variant="outline">Grade: {exam?.gradeLevel}</Badge></div>
                 </CardContent>
@@ -287,3 +224,5 @@ export default function GradingPage() {
         </div>
     );
 }
+
+    
