@@ -23,14 +23,13 @@ import { Progress } from '@/components/ui/progress';
 import { ChartConfig, ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart';
 import { Bar, BarChart, ResponsiveContainer, XAxis, YAxis } from "recharts";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
-import { useUser, useFirestore, useCollection, useMemoFirebase } from '@/firebase';
+import { useUser } from '@/firebase';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useState, useEffect } from 'react';
-import { collection, query, where, getDocs, limit, orderBy } from 'firebase/firestore';
-import type { WithId } from '@/firebase';
 import Link from 'next/link';
 
-type Student = WithId<{
+type Student = {
+    id: string;
     name: string;
     email: string;
     progress: number;
@@ -38,14 +37,15 @@ type Student = WithId<{
     avatar: string;
     gradeLevel: string;
     role: 'student';
-}>;
+};
 
-type Exam = WithId<{
+type Exam = {
+    id: string;
     title: string;
     subject: string;
     gradeLevel: string;
-    startTime: { seconds: number; nanoseconds: number };
-}>;
+    startTime: Date;
+};
 
 type SubjectPerformance = {
     subject: string;
@@ -60,21 +60,25 @@ const MOCK_PERFORMANCE: SubjectPerformance[] = [
     { subject: 'Physics', score: 72 },
 ];
 
+const MOCK_STUDENTS: Student[] = [
+    { id: '1', name: 'Ravi Kumar', email: 'ravi@example.com', progress: 75, disability: 'Dyslexia', avatar: 'https://i.pravatar.cc/150?u=a042581f4e29026704d', gradeLevel: 'Class 8', role: 'student' },
+    { id: '2', name: 'Priya Sharma', email: 'priya@example.com', progress: 90, disability: 'N/A', avatar: 'https://i.pravatar.cc/150?u=a042581f4e29026704e', gradeLevel: 'Class 8', role: 'student' },
+    { id: '3', name: 'Amit Singh', email: 'amit@example.com', progress: 60, disability: 'Low Vision', avatar: 'https://i.pravatar.cc/150?u=a042581f4e29026704f', gradeLevel: 'Class 9', role: 'student' },
+];
+
+const MOCK_EXAMS: Exam[] = [
+    { id: 'exam1', title: 'Mid-Term Social Studies', subject: 'Social Studies', gradeLevel: 'Class 8', startTime: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000) },
+    { id: 'exam2', title: 'Annual Physics Exam', subject: 'Physics', gradeLevel: 'Class 11', startTime: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000) },
+];
+
 
 export default function AdminDashboardPage() {
     const { user, isUserLoading } = useUser();
-    const firestore = useFirestore();
-
-    const studentsQuery = useMemoFirebase(() => firestore && collection(firestore, 'users'), [firestore]);
-    const { data: students, isLoading: areStudentsLoading } = useCollection<Student>(studentsQuery);
     
-    const upcomingExamsQuery = useMemoFirebase(() => firestore && query(
-        collection(firestore, 'exams'),
-        where('startTime', '>', new Date()),
-        orderBy('startTime', 'asc'),
-        limit(4)
-    ), [firestore]);
-    const { data: exams, isLoading: areExamsLoading } = useCollection<Exam>(upcomingExamsQuery);
+    const [students, setStudents] = useState<Student[]>([]);
+    const [exams, setExams] = useState<Exam[]>([]);
+    const [areStudentsLoading, setAreStudentsLoading] = useState(true);
+    const [areExamsLoading, setAreExamsLoading] = useState(true);
     
     const [subjectPerformance, setSubjectPerformance] = useState<SubjectPerformance[]>([]);
     const [stats, setStats] = useState({ totalStudents: 0, assessmentsCreated: 0, pendingReviews: 8, activeExams: 0 });
@@ -83,22 +87,27 @@ export default function AdminDashboardPage() {
     const facultyName = user?.displayName || 'Faculty';
     
     useEffect(() => {
-        const fetchData = async () => {
-            if (areStudentsLoading || areExamsLoading) return;
-            setIsLoading(true);
-            
+        setIsLoading(true);
+        setAreStudentsLoading(true);
+        setAreExamsLoading(true);
+        
+        setTimeout(() => {
             setSubjectPerformance(MOCK_PERFORMANCE);
+            setStudents(MOCK_STUDENTS);
+            setExams(MOCK_EXAMS);
+            
             setStats({
-                totalStudents: students?.length || 0,
-                assessmentsCreated: 0, // This would require another query
+                totalStudents: MOCK_STUDENTS.length,
+                assessmentsCreated: MOCK_EXAMS.length,
                 pendingReviews: 8,
-                activeExams: 0,
+                activeExams: 1, // Mock value
             });
 
             setIsLoading(false);
-        };
-        fetchData();
-    }, [areStudentsLoading, areExamsLoading, students]);
+            setAreStudentsLoading(false);
+            setAreExamsLoading(false);
+        }, 1000);
+    }, []);
     
     const chartConfig = {
       score: {
@@ -209,7 +218,7 @@ export default function AdminDashboardPage() {
                                         <p className="font-semibold text-sm">{exam.title}</p>
                                         <p className="text-xs text-muted-foreground">{exam.subject} - {exam.gradeLevel}</p>
                                     </div>
-                                    <p className="text-xs text-muted-foreground font-medium">{new Date(exam.startTime.seconds * 1000).toLocaleDateString()}</p>
+                                    <p className="text-xs text-muted-foreground font-medium">{exam.startTime.toLocaleDateString()}</p>
                                 </div>
                             ))}
                             </div>

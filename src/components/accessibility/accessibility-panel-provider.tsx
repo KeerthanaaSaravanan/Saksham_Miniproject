@@ -1,12 +1,11 @@
 
 'use client';
 
-import React, { createContext, useState, useContext, ReactNode, useEffect, useCallback, useMemo } from 'react';
+import React, { createContext, useState, useContext, ReactNode, useEffect, useMemo } from 'react';
 import { AccessibilityFlyout } from './accessibility-flyout';
 import { accessibilityModules } from './modules';
-import { useUser, useFirestore, useDoc, useMemoFirebase, updateDocumentNonBlocking } from '@/firebase';
+import { useUser } from '@/firebase';
 import { useToast } from '@/hooks/use-toast';
-import { doc } from 'firebase/firestore';
 
 export interface AccessibilitySettings {
   textToSpeech?: boolean;
@@ -39,24 +38,41 @@ export function useAccessibilityPanel() {
 export function AccessibilityPanelProvider({ children }: { children: ReactNode }) {
   const [openModule, setOpenModule] = useState<string | null>(null);
   const { user, isUserLoading } = useUser();
-  const firestore = useFirestore();
   const { toast } = useToast();
 
-  const profileRef = useMemoFirebase(() => user && firestore && doc(firestore, `users/${user.uid}/accessibility_profile`, 'settings'), [user, firestore]);
-  const { data: accessibilityProfile, isLoading: isProfileLoading } = useDoc<AccessibilitySettings>(profileRef);
+  const [accessibilityProfile, setAccessibilityProfile] = useState<AccessibilitySettings>({ largeText: 'normal' });
+  const [isProfileLoading, setIsProfileLoading] = useState(true);
+
+  useEffect(() => {
+    setIsProfileLoading(true);
+    // Simulate loading profile
+    setTimeout(() => {
+      setAccessibilityProfile({
+        largeText: 'normal',
+        textToSpeech: false,
+        highContrast: false,
+        dyslexiaFriendlyFont: true
+      });
+      setIsProfileLoading(false);
+    }, 500);
+  }, []);
 
   const userProfile = useMemo(() => ({
-    accessibility_profile: accessibilityProfile || { largeText: 'normal' }
+    accessibility_profile: accessibilityProfile
   }), [accessibilityProfile]);
   
   const isLoading = isUserLoading || isProfileLoading;
 
   const handleSettingsUpdate = async (settings: any) => {
-    if (!profileRef) {
+    if (!user) {
         toast({ variant: 'destructive', title: 'Error', description: 'You must be logged in to save settings.' });
         return;
     }
-    updateDocumentNonBlocking(profileRef, settings);
+    
+    // Mock saving the settings
+    console.log("Mock saving accessibility settings:", settings);
+    setAccessibilityProfile(settings); // Optimistically update state
+
     toast({ title: 'Settings Saved', description: 'Your accessibility preferences have been updated.' });
   };
 

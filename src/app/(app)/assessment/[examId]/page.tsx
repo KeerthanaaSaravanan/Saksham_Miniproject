@@ -1,47 +1,49 @@
 
 'use client';
 
-import {
-  useToast,
-} from '@/hooks/use-toast';
+import { useToast } from '@/hooks/use-toast';
 import { Loader2 } from 'lucide-react';
 import { useState, useEffect, useCallback, useMemo } from 'react';
-import { useUser, useFirestore, useDoc, useCollection, useMemoFirebase, addDocumentNonBlocking } from '@/firebase';
+import { useUser } from '@/firebase';
 import { ExamLayout } from '@/components/layout/exam-layout';
 import { useParams } from 'next/navigation';
 import { Button } from '@/components/ui/button';
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from '@/components/ui/card';
-import { doc, collection, writeBatch, serverTimestamp } from 'firebase/firestore';
-import type { WithId } from '@/firebase';
 
-
-type Exam = WithId<{
-    title: string;
-    subject: string;
-    gradeLevel: string;
-    startTime: { seconds: number };
-    endTime: { seconds: number };
-    durationMinutes?: number;
-}>;
-
-export type AssessmentQuestion = WithId<{
+export type AssessmentQuestion = {
+  id: string;
   question: string;
   options: string[];
   type?: 'mcq' | 'fillup' | 'short-answer' | 'long-answer';
   explanation?: string;
   correctAnswer?: string;
-}>;
+};
 
-export type SelectedExamDetails = Exam & {
+export type SelectedExamDetails = {
+    id: string;
+    title: string;
+    subject: string;
+    gradeLevel: string;
+    startTime: Date;
+    endTime: Date;
+    durationMinutes?: number;
     questions: AssessmentQuestion[];
-}
+};
 
+const MOCK_EXAMS: Record<string, SelectedExamDetails> = {
+    'exam1': {
+        id: 'exam1',
+        title: 'Mid-Term Social Studies',
+        subject: 'Social Studies',
+        gradeLevel: 'Class 8',
+        startTime: new Date(),
+        endTime: new Date(Date.now() + 60 * 60 * 1000),
+        durationMinutes: 60,
+        questions: [
+            { id: 'q1', question: 'Who was the first Mughal emperor of India?', options: ['Babur', 'Akbar', 'Humayun', 'Shah Jahan'], type: 'mcq', correctAnswer: 'Babur' },
+            { id: 'q2', question: 'The French Revolution began in the year ____.', type: 'fillup', correctAnswer: '1789' },
+        ]
+    }
+};
 
 export default function AssessmentPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -53,21 +55,24 @@ export default function AssessmentPage() {
   const examId = params.examId as string;
   
   const { user } = useUser();
-  const firestore = useFirestore();
-
-  const examRef = useMemoFirebase(() => firestore && examId && doc(firestore, 'exams', examId), [firestore, examId]);
-  const { data: examData, isLoading: isExamLoading } = useDoc<Exam>(examRef);
-
-  const questionsQuery = useMemoFirebase(() => firestore && examId && collection(firestore, `exams/${examId}/questions`), [firestore, examId]);
-  const { data: questions, isLoading: areQuestionsLoading } = useCollection<AssessmentQuestion>(questionsQuery);
   
-  const selectedExam = useMemo(() => {
-    if (!examData || !questions) return null;
-    return { ...examData, questions };
-  }, [examData, questions]);
-  
-  const isLoadingExam = isExamLoading || areQuestionsLoading;
+  const [selectedExam, setSelectedExam] = useState<SelectedExamDetails | null>(null);
+  const [isLoadingExam, setIsLoadingExam] = useState(true);
 
+  useEffect(() => {
+    setIsLoadingExam(true);
+    setError(null);
+    setTimeout(() => {
+        const exam = MOCK_EXAMS[examId];
+        if(exam) {
+            setSelectedExam(exam);
+        } else {
+            setError("The requested exam could not be found.");
+        }
+        setIsLoadingExam(false);
+    }, 1000);
+  }, [examId]);
+  
   useEffect(() => {
     const handleFullscreenChange = () => {
         setIsFullScreen(!!document.fullscreenElement);
@@ -83,52 +88,27 @@ export default function AssessmentPage() {
   }, []);
 
   const handleSubmitExam = useCallback(async (answers: Record<string, string>) => {
-    if (isSubmitting || !selectedExam || !user || !firestore) return;
+    if (isSubmitting || !selectedExam || !user) return;
 
     setIsSubmitting(true);
     toast({ title: 'Submitting Exam...', description: 'Please wait while we process your submission.' });
 
-    const submissionRef = collection(firestore, `exams/${selectedExam.id}/submissions`);
+    // Mock submission
+    console.log("Mock submitting exam:", {
+        examId: selectedExam.id,
+        userId: user.uid,
+        answers
+    });
     
-    try {
-        const batch = writeBatch(firestore);
-
-        const newSubmissionRef = doc(submissionRef);
-        batch.set(newSubmissionRef, {
-            userId: user.uid,
-            studentName: user.displayName,
-            examId: selectedExam.id,
-            submittedAt: serverTimestamp(),
-            status: 'Pending',
-            score: 0,
-        });
-
-        // Save each answer in a subcollection
-        const answersRef = collection(newSubmissionRef, 'answers');
-        Object.entries(answers).forEach(([questionId, answer]) => {
-            const answerRef = doc(answersRef, questionId);
-            batch.set(answerRef, { answer, questionId });
-        });
-        
-        await batch.commit();
-
+    setTimeout(() => {
         toast({
             title: "Exam Submitted Successfully!",
             description: `Your answers have been saved. You can now close this tab.`
         });
         setIsSubmitting(true); // Keep in submitting state to show completion message
-
-    } catch (e: any) {
-        console.error("Submission Error:", e);
-        toast({
-            variant: "destructive",
-            title: "Submission Failed",
-            description: e.message || "An error occurred while submitting your exam."
-        });
-        setIsSubmitting(false);
-    }
+    }, 1500);
     
-  }, [isSubmitting, selectedExam, user, firestore, toast]);
+  }, [isSubmitting, selectedExam, user, toast]);
   
   const handleEnterFullscreen = async () => {
     try {

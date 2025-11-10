@@ -8,9 +8,8 @@ import { Label } from '@/components/ui/label';
 import { useRouter } from 'next/navigation';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2, KeyRound, AtSign, Eye, EyeOff } from 'lucide-react';
-import { useAuth, useFirestore } from '@/firebase';
+import { useAuth } from '@/firebase';
 import { signInWithEmailAndPassword, createUserWithEmailAndPassword, updateProfile } from 'firebase/auth';
-import { doc, setDoc } from 'firebase/firestore';
 
 export function AdminLoginForm() {
   const [email, setEmail] = useState('dakshata@gmail.com');
@@ -20,13 +19,12 @@ export function AdminLoginForm() {
   const router = useRouter();
   const { toast } = useToast();
   const auth = useAuth();
-  const firestore = useFirestore();
 
   const handleAdminLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
 
-    if (!auth || !firestore) {
+    if (!auth) {
       toast({
         variant: 'destructive',
         title: 'Error',
@@ -52,16 +50,8 @@ export function AdminLoginForm() {
                 
                 await updateProfile(user, { displayName: "Dakshata G" });
 
-                // Create a user profile document in Firestore
-                const userRef = doc(firestore, 'users', user.uid);
-                await setDoc(userRef, {
-                    displayName: "Dakshata G",
-                    email: user.email,
-                    role: 'faculty',
-                    photoURL: user.photoURL,
-                    handledGrades: [],
-                    handledSubjects: []
-                });
+                // Mock saving faculty role
+                console.log("Mock saving faculty role for user:", user.uid);
 
                 toast({
                     title: 'Faculty Account Created',

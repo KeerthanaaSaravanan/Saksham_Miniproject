@@ -3,29 +3,46 @@
 
 import { useState, useEffect } from 'react';
 import AccessibilityModules from '@/components/AccessibilityModules';
-import { useUser, useFirestore, useDoc, useMemoFirebase, updateDocumentNonBlocking } from '@/firebase';
+import { useUser } from '@/firebase';
 import { useToast } from '@/hooks/use-toast';
 import { Skeleton } from '@/components/ui/skeleton';
-import { doc } from 'firebase/firestore';
 
 export default function AccessibilitySettingsPage() {
     const { user, isUserLoading } = useUser();
-    const firestore = useFirestore();
     const { toast } = useToast();
+    
+    // Mocking user profile and loading state
+    const [userProfile, setUserProfile] = useState<any>(null);
+    const [isLoading, setIsLoading] = useState(true);
 
-    const profileRef = useMemoFirebase(() => user && firestore && doc(firestore, `users/${user.uid}/accessibility_profile`, 'settings'), [user, firestore]);
-    const { data: userProfile, isLoading } = useDoc<any>(profileRef);
-
+    useEffect(() => {
+        setIsLoading(true);
+        // Simulate fetching accessibility profile
+        setTimeout(() => {
+            const mockProfile = {
+                textToSpeech: false,
+                speechToText: false,
+                voiceNavigation: true,
+                highContrast: false,
+                largeText: 'normal',
+                dyslexiaFriendlyFont: true
+            };
+            setUserProfile(mockProfile);
+            setIsLoading(false);
+        }, 500);
+    }, []);
     
     const handleSettingsUpdate = async (settings: any) => {
-        if (!profileRef) {
+        if (!user) {
             toast({ variant: 'destructive', title: 'Error', description: 'You must be logged in to save settings.' });
             return;
         }
 
-        updateDocumentNonBlocking(profileRef, settings);
+        // Mock saving settings
+        console.log("Mock saving accessibility settings:", settings);
+        setUserProfile(settings); // Optimistically update local state
+
         toast({ title: 'Settings Saved', description: 'Your accessibility preferences have been updated.' });
-        // The useDoc hook will handle state updates automatically
     };
 
     if (isLoading || isUserLoading) {

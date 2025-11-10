@@ -8,7 +8,6 @@ import { AccessibilityWrapper } from '@/components/accessibility/accessibility-w
 import { AccessibilityPanelProvider } from '@/components/accessibility/accessibility-panel-provider';
 import { VoiceControlProvider } from '@/components/voice-control-provider';
 import { ExamModeProvider } from '@/hooks/use-exam-mode';
-import { FirebaseErrorListener } from '@/components/FirebaseErrorListener';
 
 export const metadata: Metadata = {
   title: 'Saksham - Accessible Learning Platform',
@@ -37,7 +36,6 @@ export default function RootLayout({
               <VoiceControlProvider>
                 <AccessibilityPanelProvider>
                   <AccessibilityWrapper>
-                    <FirebaseErrorListener />
                     {children}
                   </AccessibilityWrapper>
                 </AccessibilityPanelProvider>

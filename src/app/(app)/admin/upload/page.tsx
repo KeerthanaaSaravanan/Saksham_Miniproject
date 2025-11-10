@@ -34,13 +34,12 @@ import {
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2, Upload, PlusCircle, XCircle, Wand2, FilePlus as FilePlusIcon } from 'lucide-react';
-import { useUser, useFirestore, useDoc, useMemoFirebase } from '@/firebase';
+import { useUser } from '@/firebase';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { extractQuestionsFromDocument } from '@/lib/actions/document-parser';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { format } from 'date-fns';
 import { Label } from '@/components/ui/label';
-import { collection, doc, writeBatch, serverTimestamp, getDoc } from 'firebase/firestore';
 
 
 const questionSchema = z.object({
@@ -70,6 +69,11 @@ const examTypes = [
     "Annual Exam"
 ];
 
+const MOCK_FACULTY_PROFILE = {
+    handledSubjects: ['Physics', 'Mathematics', 'Chemistry', 'Social Studies'],
+    handledGrades: ['Class 8', 'Class 9', 'Class 10', 'Class 11']
+};
+
 function UploadPageComponent() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -81,10 +85,17 @@ function UploadPageComponent() {
   const [uploadedFile, setUploadedFile] = useState<File | null>(null);
   
   const { user, isUserLoading } = useUser();
-  const firestore = useFirestore();
   
-  const facultyProfileRef = useMemoFirebase(() => user && firestore && doc(firestore, 'users', user.uid), [user, firestore]);
-  const { data: facultyProfile, isLoading: isFacultyProfileLoading } = useDoc<any>(facultyProfileRef);
+  const [facultyProfile, setFacultyProfile] = useState<any>(null);
+  const [isFacultyProfileLoading, setIsFacultyProfileLoading] = useState(true);
+
+  useEffect(() => {
+      setIsFacultyProfileLoading(true);
+      setTimeout(() => {
+          setFacultyProfile(MOCK_FACULTY_PROFILE);
+          setIsFacultyProfileLoading(false);
+      }, 500);
+  }, []);
 
   const { toast } = useToast();
   const defaultValues = {
@@ -124,24 +135,26 @@ function UploadPageComponent() {
 
   useEffect(() => {
     const fetchExamData = async () => {
-        if (isEditMode && firestore && examId) {
-            const examRef = doc(firestore, 'exams', examId);
-            const examSnap = await getDoc(examRef);
-            if(examSnap.exists()) {
-                const examData = examSnap.data();
-                const questionsRef = collection(firestore, `exams/${examId}/questions`);
-                const questionsSnap = await getDoc(questionsRef);
-                
-                const questions = (questionsSnap.docs || []).map(d => ({id: d.id, ...d.data()}));
-
-                form.reset({
-                    ...examData,
-                    startTime: format(new Date(examData.startTime.seconds * 1000), "yyyy-MM-dd'T'HH:mm"),
-                    endTime: format(new Date(examData.endTime.seconds * 1000), "yyyy-MM-dd'T'HH:mm"),
-                    questions: questions as any[],
-                });
-                replace(questions as any[]);
-            }
+        if (isEditMode && examId) {
+            // Mock fetching exam data
+            const mockExamData = {
+                title: 'Existing Exam Title',
+                subject: 'Physics',
+                gradeLevel: 'Class 11',
+                startTime: new Date(),
+                endTime: new Date(Date.now() + 2 * 60 * 60 * 1000),
+                durationMinutes: 120,
+                questions: [
+                    { id: 'q1', question: 'What is the speed of light?', type: 'short-answer', marks: 5 },
+                    { id: 'q2', question: 'Newtons first law is also known as...', type: 'fillup', marks: 5 },
+                ],
+            };
+            form.reset({
+                ...mockExamData,
+                startTime: format(new Date(mockExamData.startTime), "yyyy-MM-dd'T'HH:mm"),
+                endTime: format(new Date(mockExamData.endTime), "yyyy-MM-dd'T'HH:mm"),
+            });
+            replace(mockExamData.questions as any[]);
         } else {
             form.reset(defaultValues);
             setUploadedFile(null);
@@ -149,7 +162,7 @@ function UploadPageComponent() {
         }
     }
     fetchExamData();
-  }, [examId, isEditMode, firestore, form, replace]);
+  }, [examId, isEditMode, form, replace]);
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -207,40 +220,14 @@ function UploadPageComponent() {
   }
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
-    if(!firestore || !user) return;
+    if(!user) return;
     setIsSubmitting(true);
     
     try {
-        const batch = writeBatch(firestore);
+        // Mock saving the exam
+        console.log(`Mock saving exam for faculty ${user.uid}:`, values);
         
-        const examRef = isEditMode ? doc(firestore, 'exams', examId) : doc(collection(firestore, 'exams'));
-
-        const examData = {
-            ...values,
-            startTime: new Date(values.startTime),
-            endTime: new Date(values.endTime),
-            updatedAt: serverTimestamp(),
-            facultyId: user.uid,
-        };
-        delete (examData as any).questions;
-
-        if (isEditMode) {
-            batch.update(examRef, examData);
-        } else {
-            batch.set(examRef, { ...examData, createdAt: serverTimestamp() });
-        }
-
-        // Handle questions subcollection
-        values.questions.forEach(question => {
-            const questionRef = question.id 
-                ? doc(firestore, `exams/${examRef.id}/questions`, question.id)
-                : doc(collection(firestore, `exams/${examRef.id}/questions`));
-            
-            const { id, ...questionData } = question; // Don't save our client-side ID to the doc
-            batch.set(questionRef, questionData);
-        });
-
-        await batch.commit();
+        await new Promise(res => setTimeout(res, 1000));
 
         toast({
           title: `Exam ${isEditMode ? 'Updated' : 'Uploaded'} Successfully`,

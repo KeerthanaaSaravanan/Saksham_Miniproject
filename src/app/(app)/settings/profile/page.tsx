@@ -23,7 +23,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { useUser, useFirestore, useDoc, useMemoFirebase, updateDocumentNonBlocking } from '@/firebase';
+import { useUser } from '@/firebase';
 import { updateProfile } from 'firebase/auth';
 import { Skeleton } from '@/components/ui/skeleton';
 import { avatars } from '@/lib/avatars';
@@ -31,7 +31,6 @@ import { AvatarSelector } from '@/components/AvatarSelector';
 import { Checkbox } from '@/components/ui/checkbox';
 import { usePathname } from 'next/navigation';
 import { gradeSubjectMap } from '@/lib/subjects';
-import { doc, setDoc } from 'firebase/firestore';
 
 const gradeConfig = {
   'Class 6': { subjects: true },
@@ -61,12 +60,12 @@ const uniqueFacultySubjects = [...new Set(allSubjects)];
 
 export default function ProfileSettingsPage() {
   const { user, isUserLoading } = useUser();
-  const firestore = useFirestore();
   const pathname = usePathname();
   const isFaculty = useMemo(() => pathname.includes('/admin'), [pathname]);
 
-  const userProfileRef = useMemoFirebase(() => user && firestore && doc(firestore, 'users', user.uid), [user, firestore]);
-  const { data: userProfile, isLoading: isProfileLoading } = useDoc<any>(userProfileRef);
+  // Mocking profile data since there is no database
+  const [userProfile, setUserProfile] = useState<any>(null);
+  const [isProfileLoading, setIsProfileLoading] = useState(true);
 
   const [name, setName] = useState('');
   const [currentAvatarUrl, setCurrentAvatarUrl] = useState(avatars[0].url);
@@ -86,17 +85,33 @@ export default function ProfileSettingsPage() {
     if (user) {
         setName(user.displayName || '');
         setCurrentAvatarUrl(user.photoURL || avatars[0].url);
+        
+        // Mock fetching profile
+        setIsProfileLoading(true);
+        setTimeout(() => {
+            const mockProfile = {
+                handledGrades: ['Class 8', 'Class 9'],
+                handledSubjects: ['Mathematics', 'Physics'],
+                gradeLevel: 'Class 8',
+                stream: '',
+                role: isFaculty ? 'faculty' : 'student',
+            };
+            setUserProfile(mockProfile);
+            
+            if(isFaculty) {
+                setHandledGrades(mockProfile.handledGrades || []);
+                setHandledSubjects(mockProfile.handledSubjects || []);
+            } else {
+                setGradeLevel(mockProfile.gradeLevel || '');
+                setStream(mockProfile.stream || '');
+            }
+            setIsProfileLoading(false);
+        }, 500);
+
+    } else if (!isUserLoading) {
+        setIsProfileLoading(false);
     }
-    if (userProfile) {
-        if(isFaculty) {
-          setHandledGrades(userProfile.handledGrades || []);
-          setHandledSubjects(userProfile.handledSubjects || []);
-        } else {
-          setGradeLevel(userProfile.gradeLevel || '');
-          setStream(userProfile.stream || '');
-        }
-    }
-  }, [user, userProfile, isFaculty]);
+  }, [user, isUserLoading, isFaculty]);
 
 
   const selectedGradeConfig = gradeConfig[gradeLevel as keyof typeof gradeConfig];
@@ -104,41 +119,44 @@ export default function ProfileSettingsPage() {
   const userInitial = name.split(' ').map((n) => n[0]).join('') || (isFaculty ? 'F' : 'U');
 
   const handleSaveChanges = async () => {
-    if (!user || !userProfileRef) {
+    if (!user) {
       toast({ variant: 'destructive', title: 'Not authenticated' });
       return;
     }
     setIsSaving(true);
     
-    // Update display name in Auth
-    if (user.displayName !== name) {
-      try {
-        await updateProfile(user, { displayName: name });
-      } catch (error: any) {
-        toast({ variant: 'destructive', title: 'Update Name Failed', description: error.message });
-        setIsSaving(false);
-        return;
-      }
+    try {
+        if (user.displayName !== name) {
+            await updateProfile(user, { displayName: name });
+        }
+        
+        // Mock saving data
+        console.log("Mock saving profile data:", {
+            displayName: name,
+            email: user.email,
+            photoURL: currentAvatarUrl,
+            ...(isFaculty ? { handledGrades, handledSubjects, role: 'faculty' } : { gradeLevel, stream, role: 'student' })
+        });
+        
+        // Optimistically update local state
+        setUserProfile((prev: any) => ({
+             ...prev,
+            ...(isFaculty ? { handledGrades, handledSubjects } : { gradeLevel, stream })
+        }));
+        
+        toast({
+            title: 'Profile Updated',
+            description: 'Your personal information has been saved.',
+        });
+    } catch (error: any) {
+        toast({ variant: 'destructive', title: 'Update Failed', description: error.message });
     }
-
-    let dataToSave: any = { displayName: name, email: user.email, photoURL: currentAvatarUrl };
-    if (isFaculty) {
-        dataToSave = { ...dataToSave, handledGrades, handledSubjects, role: 'faculty' };
-    } else {
-        dataToSave = { ...dataToSave, gradeLevel, stream, role: 'student' };
-    }
-    
-    updateDocumentNonBlocking(userProfileRef, dataToSave);
-    toast({
-        title: 'Profile Updated',
-        description: 'Your personal information has been saved.',
-    });
     
     setIsSaving(false);
   };
 
   const handleSavePhoto = async () => {
-    if (!user || !userProfileRef) {
+    if (!user) {
         toast({ variant: 'destructive', title: 'Not authenticated' });
         return;
     }
@@ -146,7 +164,10 @@ export default function ProfileSettingsPage() {
 
     try {
         await updateProfile(user, { photoURL: currentAvatarUrl });
-        updateDocumentNonBlocking(userProfileRef, { photoURL: currentAvatarUrl });
+        
+        // Mock saving photo URL to DB
+        console.log("Mock saving photoURL:", currentAvatarUrl);
+
         toast({ title: 'Avatar Updated!', description: 'Your new profile picture has been saved.' });
     } catch (error: any) {
         toast({ variant: 'destructive', title: 'Avatar Update Failed', description: error.message });

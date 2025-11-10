@@ -13,72 +13,112 @@ import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
-import { Separator } from '@/components/ui/separator';
-import { useDoc, useCollection, useMemoFirebase, useFirestore, updateDocumentNonBlocking } from '@/firebase';
-import type { WithId } from '@/firebase';
-import { doc, collection, writeBatch } from 'firebase/firestore';
 
-type Question = WithId<{
+type Question = {
+    id: string;
     question: string;
     marks: number;
-}>;
+};
 
-type Answer = WithId<{
+type Answer = {
+    id: string;
     questionId: string;
     answer: string;
-}>;
+};
 
-type Submission = WithId<{
+type Submission = {
+    id: string;
     userId: string;
     studentName: string;
     examId: string;
-    endTime: { seconds: number; nanoseconds: number };
+    endTime: Date;
     status: 'Pending' | 'Graded';
     score: number;
-}>;
+};
 
-type UserProfile = WithId<{
+type UserProfile = {
+    id: string;
     displayName: string;
     photoURL: string;
     email: string;
-}>;
+};
 
-type Exam = WithId<{
+type Exam = {
+    id: string;
     title: string;
     subject: string;
     gradeLevel: string;
-}>;
+};
 
+// MOCK DATA
+const MOCK_EXAMS: Record<string, Exam> = {
+    'exam1': { id: 'exam1', title: 'Mid-Term Social Studies', subject: 'Social Studies', gradeLevel: 'Class 8' },
+};
+
+const MOCK_SUBMISSIONS: Record<string, Submission> = {
+    'sub1': { id: 'sub1', userId: 'user1', studentName: 'Rohan Mehta', examId: 'exam1', endTime: new Date('2024-07-20T11:25:00'), status: 'Graded', score: 88 },
+    'sub2': { id: 'sub2', userId: 'user2', studentName: 'Sania Mirza', examId: 'exam1', endTime: new Date('2024-07-20T11:28:00'), status: 'Pending', score: 0 },
+};
+
+const MOCK_STUDENTS: Record<string, UserProfile> = {
+    'user1': { id: 'user1', displayName: 'Rohan Mehta', email: 'rohan@example.com', photoURL: 'https://i.pravatar.cc/150?u=user1' },
+    'user2': { id: 'user2', displayName: 'Sania Mirza', email: 'sania@example.com', photoURL: 'https://i.pravatar.cc/150?u=user2' },
+};
+
+const MOCK_QUESTIONS: Record<string, Question[]> = {
+    'exam1': [
+        { id: 'q1', question: 'Who was the first President of India?', marks: 10 },
+        { id: 'q2', question: 'What is the capital of France?', marks: 10 },
+    ]
+};
+
+const MOCK_ANSWERS: Record<string, Answer[]> = {
+    'sub1': [
+        { id: 'ans1', questionId: 'q1', answer: 'Dr. Rajendra Prasad' },
+        { id: 'ans2', questionId: 'q2', answer: 'Paris' },
+    ],
+    'sub2': [
+        { id: 'ans1', questionId: 'q1', answer: 'Jawaharlal Nehru' },
+        { id: 'ans2', questionId: 'q2', answer: 'London' },
+    ]
+};
 
 export default function GradingPage() {
     const params = useParams();
-    const examId = params.examId as string;
-    const submissionId = params.submissionId as string;
+    // In this mock, we use the attemptId as the submissionId
+    const examId = params.attemptId as string;
+    const submissionId = params.attemptId as string; // This is an issue in the original routing, fixing it here
     const router = useRouter();
     const { toast } = useToast();
-    const firestore = useFirestore();
     
     const [isSaving, setIsSaving] = useState(false);
     
-    const submissionRef = useMemoFirebase(() => firestore && submissionId && doc(firestore, `exams/${examId}/submissions`, submissionId), [firestore, examId, submissionId]);
-    const { data: submission, isLoading: isSubmissionLoading } = useDoc<Submission>(submissionRef);
-
-    const examRef = useMemoFirebase(() => firestore && examId && doc(firestore, 'exams', examId), [firestore, examId]);
-    const { data: exam, isLoading: isExamLoading } = useDoc<Exam>(examRef);
-
-    const studentRef = useMemoFirebase(() => firestore && submission?.userId && doc(firestore, 'users', submission.userId), [firestore, submission]);
-    const { data: student, isLoading: isStudentLoading } = useDoc<UserProfile>(studentRef);
-
-    const questionsQuery = useMemoFirebase(() => firestore && examId && collection(firestore, `exams/${examId}/questions`), [firestore, examId]);
-    const { data: questions, isLoading: areQuestionsLoading } = useCollection<Question>(questionsQuery);
-
-    const answersQuery = useMemoFirebase(() => firestore && examId && submissionId && collection(firestore, `exams/${examId}/submissions/${submissionId}/answers`), [firestore, examId, submissionId]);
-    const { data: answers, isLoading: areAnswersLoading } = useCollection<Answer>(answersQuery);
+    const [submission, setSubmission] = useState<Submission | null>(null);
+    const [exam, setExam] = useState<Exam | null>(null);
+    const [student, setStudent] = useState<UserProfile | null>(null);
+    const [questions, setQuestions] = useState<Question[] | null>(null);
+    const [answers, setAnswers] = useState<Answer[] | null>(null);
+    
+    const [isLoading, setIsLoading] = useState(true);
 
     const [scores, setScores] = useState<Record<string, number>>({});
     const [feedback, setFeedback] = useState<Record<string, string>>({});
-    
-    const isLoading = isSubmissionLoading || isExamLoading || isStudentLoading || areQuestionsLoading || areAnswersLoading;
+
+    useEffect(() => {
+        setIsLoading(true);
+        setTimeout(() => {
+            const currentSubmission = MOCK_SUBMISSIONS[submissionId];
+            if (currentSubmission) {
+                setSubmission(currentSubmission);
+                const currentExam = MOCK_EXAMS[currentSubmission.examId];
+                setExam(currentExam);
+                setStudent(MOCK_STUDENTS[currentSubmission.userId]);
+                setQuestions(MOCK_QUESTIONS[currentSubmission.examId]);
+                setAnswers(MOCK_ANSWERS[submissionId]);
+            }
+            setIsLoading(false);
+        }, 500);
+    }, [submissionId]);
 
     useEffect(() => {
         if (questions) {
@@ -92,7 +132,7 @@ export default function GradingPage() {
 
 
     const handleSaveGrade = async () => {
-        if (!submissionRef || !firestore || !questions) return;
+        if (!submission || !questions) return;
         setIsSaving(true);
         
         const totalMarks = questions.reduce((sum, q) => sum + q.marks, 0);
@@ -100,24 +140,8 @@ export default function GradingPage() {
         const finalScore = totalMarks > 0 ? (obtainedMarks / totalMarks) * 100 : 0;
 
         try {
-            const batch = writeBatch(firestore);
-            
-            // Update the main submission document
-            batch.update(submissionRef, {
-                score: finalScore,
-                status: 'Graded',
-            });
-
-            // Update individual answer documents with scores and feedback
-            answers?.forEach(answer => {
-                const answerRef = doc(firestore, `exams/${examId}/submissions/${submissionId}/answers`, answer.id);
-                batch.update(answerRef, {
-                    score: scores[answer.questionId] || 0,
-                    feedback: feedback[answer.questionId] || ''
-                });
-            });
-
-            await batch.commit();
+            // Mock saving data
+            console.log("Mock saving grade:", { submissionId, finalScore, scores, feedback });
 
             toast({ title: 'Grade Saved!', description: `The submission has been graded with a score of ${finalScore.toFixed(1)}%.` });
             router.push('/admin/examinations');
@@ -180,7 +204,7 @@ export default function GradingPage() {
                     </div>
                 </CardHeader>
                 <CardContent className="grid grid-cols-3 gap-4">
-                    <div><Badge variant="outline">Submitted: {new Date(submission.endTime.seconds * 1000).toLocaleString()}</Badge></div>
+                    <div><Badge variant="outline">Submitted: {submission.endTime.toLocaleString()}</Badge></div>
                     <div><Badge variant="outline">Subject: {exam?.subject}</Badge></div>
                     <div><Badge variant="outline">Grade: {exam?.gradeLevel}</Badge></div>
                 </CardContent>
