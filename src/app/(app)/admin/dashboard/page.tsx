@@ -18,51 +18,39 @@ import {
 } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Button } from '@/components/ui/button';
 import { MoreHorizontal, Users, FilePlus, Clock, BookOpen, Activity } from 'lucide-react';
 import { Progress } from '@/components/ui/progress';
 import { ChartConfig, ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart';
 import { Bar, BarChart, ResponsiveContainer, XAxis, YAxis } from "recharts";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
-import { useUser } from '@/firebase';
+import { useUser, useFirestore, useCollection, useMemoFirebase } from '@/firebase';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useState, useEffect } from 'react';
+import { collection, query, where, getDocs, limit, orderBy } from 'firebase/firestore';
+import type { WithId } from '@/firebase';
+import Link from 'next/link';
 
-type Student = {
-    id: string;
+type Student = WithId<{
     name: string;
     email: string;
     progress: number;
     disability: string;
     avatar: string;
     gradeLevel: string;
-};
+    role: 'student';
+}>;
 
-type Exam = {
-    id: string;
+type Exam = WithId<{
     title: string;
     subject: string;
     gradeLevel: string;
-    startTime: Date;
-    endTime: Date;
-};
+    startTime: { seconds: number; nanoseconds: number };
+}>;
 
 type SubjectPerformance = {
     subject: string;
     score: number;
 };
-
-const MOCK_STUDENTS: Student[] = [
-    { id: '1', name: 'Alice Smith', email: 'alice@example.com', progress: 82, disability: 'Dyslexia', avatar: 'https://i.pravatar.cc/40?u=1', gradeLevel: 'Class 8' },
-    { id: '2', name: 'Bob Johnson', email: 'bob@example.com', progress: 75, disability: 'N/A', avatar: 'https://i.pravatar.cc/40?u=2', gradeLevel: 'Class 8' },
-    { id: '3', name: 'Charlie Brown', email: 'charlie@example.com', progress: 91, disability: 'Visual', avatar: 'https://i.pravatar.cc/40?u=3', gradeLevel: 'Class 9' },
-    { id: '4', name: 'Diana Prince', email: 'diana@example.com', progress: 68, disability: 'N/A', avatar: 'https://i.pravatar.cc/40?u=4', gradeLevel: 'Class 9' },
-];
-
-const MOCK_EXAMS: Exam[] = [
-    { id: '1', title: 'Annual History Exam', subject: 'History', gradeLevel: 'Class 8', startTime: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000), endTime: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000 + 2 * 60 * 60 * 1000)},
-    { id: '2', title: 'Mid-Term Physics Exam', subject: 'Physics', gradeLevel: 'Class 9', startTime: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000), endTime: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000 + 2 * 60 * 60 * 1000)},
-];
 
 const MOCK_PERFORMANCE: SubjectPerformance[] = [
     { subject: 'Math', score: 85 },
@@ -75,8 +63,19 @@ const MOCK_PERFORMANCE: SubjectPerformance[] = [
 
 export default function AdminDashboardPage() {
     const { user, isUserLoading } = useUser();
-    const [students, setStudents] = useState<Student[]>([]);
-    const [exams, setExams] = useState<Exam[]>([]);
+    const firestore = useFirestore();
+
+    const studentsQuery = useMemoFirebase(() => firestore && collection(firestore, 'users'), [firestore]);
+    const { data: students, isLoading: areStudentsLoading } = useCollection<Student>(studentsQuery);
+    
+    const upcomingExamsQuery = useMemoFirebase(() => firestore && query(
+        collection(firestore, 'exams'),
+        where('startTime', '>', new Date()),
+        orderBy('startTime', 'asc'),
+        limit(4)
+    ), [firestore]);
+    const { data: exams, isLoading: areExamsLoading } = useCollection<Exam>(upcomingExamsQuery);
+    
     const [subjectPerformance, setSubjectPerformance] = useState<SubjectPerformance[]>([]);
     const [stats, setStats] = useState({ totalStudents: 0, assessmentsCreated: 0, pendingReviews: 8, activeExams: 0 });
     const [isLoading, setIsLoading] = useState(true);
@@ -85,24 +84,21 @@ export default function AdminDashboardPage() {
     
     useEffect(() => {
         const fetchData = async () => {
+            if (areStudentsLoading || areExamsLoading) return;
             setIsLoading(true);
-            // Simulate API delay
-            await new Promise(resolve => setTimeout(resolve, 500));
-
-            setStudents(MOCK_STUDENTS);
-            setExams(MOCK_EXAMS);
+            
             setSubjectPerformance(MOCK_PERFORMANCE);
             setStats({
-                totalStudents: MOCK_STUDENTS.length,
-                assessmentsCreated: MOCK_EXAMS.length,
+                totalStudents: students?.length || 0,
+                assessmentsCreated: 0, // This would require another query
                 pendingReviews: 8,
-                activeExams: 1,
+                activeExams: 0,
             });
 
             setIsLoading(false);
         };
         fetchData();
-    }, []);
+    }, [areStudentsLoading, areExamsLoading, students]);
     
     const chartConfig = {
       score: {
@@ -201,10 +197,10 @@ export default function AdminDashboardPage() {
                     <CardDescription>Exams starting within the next week.</CardDescription>
                 </CardHeader>
                 <CardContent>
-                    {isLoading ? <Skeleton className="h-[300px] w-full" /> : (
-                         exams.length > 0 ? (
+                    {areExamsLoading ? <Skeleton className="h-[300px] w-full" /> : (
+                         exams && exams.length > 0 ? (
                             <div className="space-y-4">
-                            {exams.slice(0, 4).map(exam => (
+                            {exams.map(exam => (
                                 <div key={exam.id} className="flex items-center">
                                     <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center mr-4">
                                         <BookOpen className="h-4 w-4 text-primary" />
@@ -213,7 +209,7 @@ export default function AdminDashboardPage() {
                                         <p className="font-semibold text-sm">{exam.title}</p>
                                         <p className="text-xs text-muted-foreground">{exam.subject} - {exam.gradeLevel}</p>
                                     </div>
-                                    <p className="text-xs text-muted-foreground font-medium">{exam.startTime.toLocaleDateString()}</p>
+                                    <p className="text-xs text-muted-foreground font-medium">{new Date(exam.startTime.seconds * 1000).toLocaleDateString()}</p>
                                 </div>
                             ))}
                             </div>
@@ -231,7 +227,7 @@ export default function AdminDashboardPage() {
                 <CardDescription>A summary of student performance and activity.</CardDescription>
             </CardHeader>
             <CardContent>
-                {isLoading ? (
+                {areStudentsLoading ? (
                     <div className="space-y-2">
                         {[...Array(5)].map((_, i) => <Skeleton key={i} className="h-14 w-full" />)}
                     </div>
@@ -246,7 +242,7 @@ export default function AdminDashboardPage() {
                     </TableRow>
                     </TableHeader>
                     <TableBody>
-                    {students.map((student) => (
+                    {students && students.map((student) => (
                         <TableRow key={student.id}>
                         <TableCell>
                             <div className="flex items-center gap-4">
@@ -261,15 +257,15 @@ export default function AdminDashboardPage() {
                             </div>
                         </TableCell>
                         <TableCell>
-                            <Badge variant={student.disability === 'N/A' ? "secondary" : "outline"}>{student.disability}</Badge>
+                            <Badge variant={!student.disability || student.disability === 'N/A' ? "secondary" : "outline"}>{student.disability || 'N/A'}</Badge>
                         </TableCell>
                          <TableCell>
                             <Badge variant="outline">{student.gradeLevel}</Badge>
                         </TableCell>
                         <TableCell className='text-right'>
                             <div className="flex items-center justify-end gap-2">
-                                <span className="text-sm text-muted-foreground font-medium">{student.progress.toFixed(0)}%</span>
-                                <Progress value={student.progress} className="w-24 bg-muted h-2" />
+                                <span className="text-sm text-muted-foreground font-medium">{student.progress?.toFixed(0) || 0}%</span>
+                                <Progress value={student.progress || 0} className="w-24 bg-muted h-2" />
                             </div>
                         </TableCell>
                         </TableRow>
@@ -282,5 +278,3 @@ export default function AdminDashboardPage() {
     </div>
   );
 }
-
-    

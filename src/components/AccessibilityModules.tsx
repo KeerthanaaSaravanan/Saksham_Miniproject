@@ -1,3 +1,4 @@
+
 'use client';
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
@@ -14,8 +15,8 @@ export default function AccessibilityModules({ userProfile, onSettingsUpdate }: 
   
   // Load initial state from user profile
   useEffect(() => {
-    if (userProfile?.accessibility_profile) {
-      const profile = userProfile.accessibility_profile;
+    if (userProfile) {
+      const profile = userProfile;
       
       const newSettings: { [key: string]: boolean } = {};
       accessibilityModules.forEach(module => {

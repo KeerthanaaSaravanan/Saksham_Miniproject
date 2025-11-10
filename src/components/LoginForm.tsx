@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useRouter } from 'next/navigation';
-import { useAuth } from '@/firebase';
+import { useAuth, useFirestore, setDocumentNonBlocking } from '@/firebase';
 import {
   createUserWithEmailAndPassword,
   signInWithEmailAndPassword,
@@ -19,6 +19,7 @@ import Link from 'next/link';
 import StudentDetailsForm from './StudentDetailsForm';
 import { useVoiceControl } from './voice-control-provider';
 import { avatars } from '@/lib/avatars';
+import { doc, setDoc } from 'firebase/firestore';
 
 export default function LoginForm() {
   const [email, setEmail] = useState('');
@@ -28,6 +29,7 @@ export default function LoginForm() {
   const [newUser, setNewUser] = useState<User | null>(null);
   const router = useRouter();
   const auth = useAuth();
+  const firestore = useFirestore();
   const { toast } = useToast();
 
   useEffect(() => {
@@ -115,8 +117,8 @@ export default function LoginForm() {
   };
 
   const onDetailsComplete = async (details: {name: string, gradeLevel: string, stream: string}) => {
-    if (!newUser) {
-        toast({ variant: 'destructive', title: 'Error', description: 'User not available.' });
+    if (!newUser || !firestore) {
+        toast({ variant: 'destructive', title: 'Error', description: 'User or database not available.' });
         return;
     }
     setIsLoading(true);
@@ -128,7 +130,7 @@ export default function LoginForm() {
             photoURL: defaultAvatar,
         });
         
-        // Save details to local storage instead of Firestore
+        const userRef = doc(firestore, 'users', newUser.uid);
         const profileData = {
             displayName: details.name,
             email: newUser.email,
@@ -137,7 +139,14 @@ export default function LoginForm() {
             photoURL: defaultAvatar,
             role: 'student',
         };
-        localStorage.setItem(`profile_data_${newUser.uid}`, JSON.stringify(profileData));
+        
+        setDocumentNonBlocking(userRef, profileData, { merge: true });
+
+        // Also create accessibility profile
+        const accessibilityRef = doc(firestore, `users/${newUser.uid}/accessibility_profile`, 'settings');
+        setDocumentNonBlocking(accessibilityRef, {
+            largeText: 'normal',
+        }, { merge: true });
 
         toast({
             title: 'Profile Complete!',
@@ -213,5 +222,3 @@ export default function LoginForm() {
     </div>
   );
 }
-
-    

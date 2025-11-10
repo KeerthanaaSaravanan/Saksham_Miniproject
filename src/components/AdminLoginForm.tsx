@@ -8,8 +8,9 @@ import { Label } from '@/components/ui/label';
 import { useRouter } from 'next/navigation';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2, KeyRound, AtSign, Eye, EyeOff } from 'lucide-react';
-import { useAuth } from '@/firebase';
-import { signInWithEmailAndPassword, createUserWithEmailAndPassword } from 'firebase/auth';
+import { useAuth, useFirestore } from '@/firebase';
+import { signInWithEmailAndPassword, createUserWithEmailAndPassword, updateProfile } from 'firebase/auth';
+import { doc, setDoc } from 'firebase/firestore';
 
 export function AdminLoginForm() {
   const [email, setEmail] = useState('dakshata@gmail.com');
@@ -19,12 +20,13 @@ export function AdminLoginForm() {
   const router = useRouter();
   const { toast } = useToast();
   const auth = useAuth();
+  const firestore = useFirestore();
 
   const handleAdminLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
 
-    if (!auth) {
+    if (!auth || !firestore) {
       toast({
         variant: 'destructive',
         title: 'Error',
@@ -44,12 +46,22 @@ export function AdminLoginForm() {
 
     } catch (error: any) {
         if (error.code === 'auth/user-not-found' || error.code === 'auth/invalid-credential') {
-            // If user does not exist, create them
             try {
                 const newUserCredential = await createUserWithEmailAndPassword(auth, email, password);
+                const user = newUserCredential.user;
                 
-                // You might want to update the profile here if needed, e.g., displayName
-                // await updateProfile(newUserCredential.user, { displayName: "Dakshata G" });
+                await updateProfile(user, { displayName: "Dakshata G" });
+
+                // Create a user profile document in Firestore
+                const userRef = doc(firestore, 'users', user.uid);
+                await setDoc(userRef, {
+                    displayName: "Dakshata G",
+                    email: user.email,
+                    role: 'faculty',
+                    photoURL: user.photoURL,
+                    handledGrades: [],
+                    handledSubjects: []
+                });
 
                 toast({
                     title: 'Faculty Account Created',
@@ -64,7 +76,6 @@ export function AdminLoginForm() {
                 });
             }
         } else {
-            // Handle other authentication errors
             let description = 'An unexpected error occurred.';
             if (error.code === 'auth/wrong-password') {
                 description = 'Invalid email or password for faculty account.';
@@ -153,5 +164,3 @@ export function AdminLoginForm() {
     </div>
   );
 }
-
-    

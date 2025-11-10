@@ -23,7 +23,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { useUser } from '@/firebase';
+import { useUser, useFirestore, useDoc, useMemoFirebase, updateDocumentNonBlocking } from '@/firebase';
 import { updateProfile } from 'firebase/auth';
 import { Skeleton } from '@/components/ui/skeleton';
 import { avatars } from '@/lib/avatars';
@@ -31,6 +31,7 @@ import { AvatarSelector } from '@/components/AvatarSelector';
 import { Checkbox } from '@/components/ui/checkbox';
 import { usePathname } from 'next/navigation';
 import { gradeSubjectMap } from '@/lib/subjects';
+import { doc, setDoc } from 'firebase/firestore';
 
 const gradeConfig = {
   'Class 6': { subjects: true },
@@ -60,8 +61,12 @@ const uniqueFacultySubjects = [...new Set(allSubjects)];
 
 export default function ProfileSettingsPage() {
   const { user, isUserLoading } = useUser();
+  const firestore = useFirestore();
   const pathname = usePathname();
   const isFaculty = useMemo(() => pathname.includes('/admin'), [pathname]);
+
+  const userProfileRef = useMemoFirebase(() => user && firestore && doc(firestore, 'users', user.uid), [user, firestore]);
+  const { data: userProfile, isLoading: isProfileLoading } = useDoc<any>(userProfileRef);
 
   const [name, setName] = useState('');
   const [currentAvatarUrl, setCurrentAvatarUrl] = useState(avatars[0].url);
@@ -74,38 +79,24 @@ export default function ProfileSettingsPage() {
 
   const [isSaving, setIsSaving] = useState(false);
   const [isPhotoSaving, setIsPhotoSaving] = useState(false);
-  const [isProfileLoading, setIsProfileLoading] = useState(true);
 
   const { toast } = useToast();
 
   useEffect(() => {
-    if (!isUserLoading && user) {
-        setIsProfileLoading(true);
+    if (user) {
         setName(user.displayName || '');
         setCurrentAvatarUrl(user.photoURL || avatars[0].url);
-        
-        // Simulate loading profile data from localStorage
-        try {
-            const profileDataStr = localStorage.getItem(`profile_data_${user.uid}`);
-            if (profileDataStr) {
-                const profileData = JSON.parse(profileDataStr);
-                 if(isFaculty) {
-                    setHandledGrades(profileData.handledGrades || []);
-                    setHandledSubjects(profileData.handledSubjects || []);
-                  } else {
-                    setGradeLevel(profileData.gradeLevel || '');
-                    setStream(profileData.stream || '');
-                  }
-            }
-        } catch (e) {
-            console.error("Could not load profile from localStorage", e);
-        } finally {
-            setIsProfileLoading(false);
-        }
-    } else if (!isUserLoading) {
-        setIsProfileLoading(false);
     }
-  }, [user, isUserLoading, isFaculty]);
+    if (userProfile) {
+        if(isFaculty) {
+          setHandledGrades(userProfile.handledGrades || []);
+          setHandledSubjects(userProfile.handledSubjects || []);
+        } else {
+          setGradeLevel(userProfile.gradeLevel || '');
+          setStream(userProfile.stream || '');
+        }
+    }
+  }, [user, userProfile, isFaculty]);
 
 
   const selectedGradeConfig = gradeConfig[gradeLevel as keyof typeof gradeConfig];
@@ -113,7 +104,7 @@ export default function ProfileSettingsPage() {
   const userInitial = name.split(' ').map((n) => n[0]).join('') || (isFaculty ? 'F' : 'U');
 
   const handleSaveChanges = async () => {
-    if (!user) {
+    if (!user || !userProfileRef) {
       toast({ variant: 'destructive', title: 'Not authenticated' });
       return;
     }
@@ -130,29 +121,24 @@ export default function ProfileSettingsPage() {
       }
     }
 
-    // Save other details to localStorage
-    let dataToSave: any = { displayName: name };
+    let dataToSave: any = { displayName: name, email: user.email, photoURL: currentAvatarUrl };
     if (isFaculty) {
         dataToSave = { ...dataToSave, handledGrades, handledSubjects, role: 'faculty' };
     } else {
         dataToSave = { ...dataToSave, gradeLevel, stream, role: 'student' };
     }
     
-    try {
-        localStorage.setItem(`profile_data_${user.uid}`, JSON.stringify(dataToSave));
-        toast({
-          title: 'Profile Updated (Locally)',
-          description: 'Your personal information has been saved.',
-        });
-    } catch(e) {
-        toast({ variant: 'destructive', title: 'Save Failed', description: 'Could not save profile to local storage.' });
-    } finally {
-        setIsSaving(false);
-    }
+    updateDocumentNonBlocking(userProfileRef, dataToSave);
+    toast({
+        title: 'Profile Updated',
+        description: 'Your personal information has been saved.',
+    });
+    
+    setIsSaving(false);
   };
 
   const handleSavePhoto = async () => {
-    if (!user) {
+    if (!user || !userProfileRef) {
         toast({ variant: 'destructive', title: 'Not authenticated' });
         return;
     }
@@ -160,13 +146,7 @@ export default function ProfileSettingsPage() {
 
     try {
         await updateProfile(user, { photoURL: currentAvatarUrl });
-        
-        // Also save to local storage profile data
-        const profileDataStr = localStorage.getItem(`profile_data_${user.uid}`);
-        const profileData = profileDataStr ? JSON.parse(profileDataStr) : {};
-        profileData.photoURL = currentAvatarUrl;
-        localStorage.setItem(`profile_data_${user.uid}`, JSON.stringify(profileData));
-
+        updateDocumentNonBlocking(userProfileRef, { photoURL: currentAvatarUrl });
         toast({ title: 'Avatar Updated!', description: 'Your new profile picture has been saved.' });
     } catch (error: any) {
         toast({ variant: 'destructive', title: 'Avatar Update Failed', description: error.message });
@@ -328,5 +308,3 @@ export default function ProfileSettingsPage() {
     </div>
   );
 }
-
-    

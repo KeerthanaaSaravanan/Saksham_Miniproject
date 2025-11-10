@@ -1,11 +1,12 @@
 
 'use client';
 
-import React, { createContext, useState, useContext, ReactNode, useEffect, useCallback } from 'react';
+import React, { createContext, useState, useContext, ReactNode, useEffect, useCallback, useMemo } from 'react';
 import { AccessibilityFlyout } from './accessibility-flyout';
 import { accessibilityModules } from './modules';
-import { useUser } from '@/firebase';
+import { useUser, useFirestore, useDoc, useMemoFirebase, updateDocumentNonBlocking } from '@/firebase';
 import { useToast } from '@/hooks/use-toast';
+import { doc } from 'firebase/firestore';
 
 export interface AccessibilitySettings {
   textToSpeech?: boolean;
@@ -37,57 +38,26 @@ export function useAccessibilityPanel() {
 
 export function AccessibilityPanelProvider({ children }: { children: ReactNode }) {
   const [openModule, setOpenModule] = useState<string | null>(null);
-  const [userProfile, setUserProfile] = useState<{ accessibility_profile: AccessibilitySettings } | null>({ accessibility_profile: { largeText: 'normal' } });
-  const [isLoading, setIsLoading] = useState(true);
-  const { user } = useUser();
+  const { user, isUserLoading } = useUser();
+  const firestore = useFirestore();
   const { toast } = useToast();
 
-   const loadSettings = useCallback(() => {
-    if (user) {
-        setIsLoading(true);
-        try {
-            const savedSettings = localStorage.getItem(`accessibility_settings_${user.uid}`);
-            if (savedSettings) {
-                setUserProfile({ accessibility_profile: JSON.parse(savedSettings) });
-            } else {
-                setUserProfile({ accessibility_profile: { largeText: 'normal' } });
-            }
-        } catch (e) {
-            setUserProfile({ accessibility_profile: { largeText: 'normal' } });
-        } finally {
-            setIsLoading(false);
-        }
-    } else {
-        // Not logged in, use default
-        setUserProfile({ accessibility_profile: { largeText: 'normal' } });
-        setIsLoading(false);
-    }
-   }, [user]);
+  const profileRef = useMemoFirebase(() => user && firestore && doc(firestore, `users/${user.uid}/accessibility_profile`, 'settings'), [user, firestore]);
+  const { data: accessibilityProfile, isLoading: isProfileLoading } = useDoc<AccessibilitySettings>(profileRef);
 
-   useEffect(() => {
-    loadSettings();
-    // Add a custom event listener to reload settings when they are updated elsewhere
-    window.addEventListener('accessibilitySettingsChanged', loadSettings);
-    return () => {
-      window.removeEventListener('accessibilitySettingsChanged', loadSettings);
-    };
-  }, [loadSettings]);
+  const userProfile = useMemo(() => ({
+    accessibility_profile: accessibilityProfile || { largeText: 'normal' }
+  }), [accessibilityProfile]);
+  
+  const isLoading = isUserLoading || isProfileLoading;
 
   const handleSettingsUpdate = async (settings: any) => {
-    if (!user) {
+    if (!profileRef) {
         toast({ variant: 'destructive', title: 'Error', description: 'You must be logged in to save settings.' });
         return;
     }
-
-    try {
-        localStorage.setItem(`accessibility_settings_${user.uid}`, JSON.stringify(settings));
-        toast({ title: 'Settings Saved (Locally)', description: 'Your accessibility preferences have been updated.' });
-        setUserProfile({ accessibility_profile: settings });
-        // Dispatch an event to notify other components of the change
-        window.dispatchEvent(new Event('accessibilitySettingsChanged'));
-    } catch (e) {
-        toast({ variant: 'destructive', title: 'Error', description: 'Could not save settings locally.' });
-    }
+    updateDocumentNonBlocking(profileRef, settings);
+    toast({ title: 'Settings Saved', description: 'Your accessibility preferences have been updated.' });
   };
 
   const moduleData = openModule ? accessibilityModules.find(m => m.id === openModule) : null;
@@ -107,5 +77,3 @@ export function AccessibilityPanelProvider({ children }: { children: ReactNode }
     </AccessibilityPanelContext.Provider>
   );
 }
-
-    

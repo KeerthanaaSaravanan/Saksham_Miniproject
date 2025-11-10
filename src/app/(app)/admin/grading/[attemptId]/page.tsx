@@ -14,105 +14,124 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
 import { Separator } from '@/components/ui/separator';
+import { useDoc, useCollection, useMemoFirebase, useFirestore, updateDocumentNonBlocking } from '@/firebase';
+import type { WithId } from '@/firebase';
+import { doc, collection, writeBatch } from 'firebase/firestore';
 
-type Question = {
-    id: string;
+type Question = WithId<{
     question: string;
     marks: number;
-};
+}>;
 
-type Answer = {
-    id: string;
+type Answer = WithId<{
     questionId: string;
     answer: string;
-};
+}>;
 
-type Student = {
+type Submission = WithId<{
+    userId: string;
+    studentName: string;
+    examId: string;
+    endTime: { seconds: number; nanoseconds: number };
+    status: 'Pending' | 'Graded';
+    score: number;
+}>;
+
+type UserProfile = WithId<{
     displayName: string;
     photoURL: string;
     email: string;
-};
+}>;
 
-const MOCK_DATA = {
-    exam: { id: 'exam1', title: 'Mid-Term Social Studies', subject: 'Social Studies', gradeLevel: 'Class 8' },
-    student: { displayName: 'Alice', photoURL: 'https://i.pravatar.cc/40?u=user1', email: 'alice@example.com' },
-    attempt: { userId: 's1', examId: 'exam1', endTime: new Date(Date.now() - 10 * 60 * 1000) },
-    questions: [
-        { id: 'q1', question: 'Who was the first President of the United States?', marks: 10 },
-        { id: 'q2', question: 'What is the capital of France?', marks: 5 },
-    ],
-    answers: [
-        { id: 'ans1', questionId: 'q1', answer: 'George Washington' },
-        { id: 'ans2', questionId: 'q2', answer: 'Paris' },
-    ]
-};
+type Exam = WithId<{
+    title: string;
+    subject: string;
+    gradeLevel: string;
+}>;
 
 
 export default function GradingPage() {
-    const { attemptId } = useParams();
+    const params = useParams();
+    const examId = params.examId as string;
+    const submissionId = params.submissionId as string;
     const router = useRouter();
     const { toast } = useToast();
+    const firestore = useFirestore();
     
-    const [isLoading, setIsLoading] = useState(true);
     const [isSaving, setIsSaving] = useState(false);
     
-    const [exam, setExam] = useState<any>(null);
-    const [questions, setQuestions] = useState<Question[]>([]);
-    const [answers, setAnswers] = useState<Answer[]>([]);
-    const [attempt, setAttempt] = useState<any>(null);
-    const [student, setStudent] = useState<Student | null>(null);
+    const submissionRef = useMemoFirebase(() => firestore && submissionId && doc(firestore, `exams/${examId}/submissions`, submissionId), [firestore, examId, submissionId]);
+    const { data: submission, isLoading: isSubmissionLoading } = useDoc<Submission>(submissionRef);
+
+    const examRef = useMemoFirebase(() => firestore && examId && doc(firestore, 'exams', examId), [firestore, examId]);
+    const { data: exam, isLoading: isExamLoading } = useDoc<Exam>(examRef);
+
+    const studentRef = useMemoFirebase(() => firestore && submission?.userId && doc(firestore, 'users', submission.userId), [firestore, submission]);
+    const { data: student, isLoading: isStudentLoading } = useDoc<UserProfile>(studentRef);
+
+    const questionsQuery = useMemoFirebase(() => firestore && examId && collection(firestore, `exams/${examId}/questions`), [firestore, examId]);
+    const { data: questions, isLoading: areQuestionsLoading } = useCollection<Question>(questionsQuery);
+
+    const answersQuery = useMemoFirebase(() => firestore && examId && submissionId && collection(firestore, `exams/${examId}/submissions/${submissionId}/answers`), [firestore, examId, submissionId]);
+    const { data: answers, isLoading: areAnswersLoading } = useCollection<Answer>(answersQuery);
 
     const [scores, setScores] = useState<Record<string, number>>({});
     const [feedback, setFeedback] = useState<Record<string, string>>({});
+    
+    const isLoading = isSubmissionLoading || isExamLoading || isStudentLoading || areQuestionsLoading || areAnswersLoading;
 
     useEffect(() => {
-        if (!attemptId) return;
-
-        const fetchSubmissionData = async () => {
-            setIsLoading(true);
-            // Simulate API delay
-            await new Promise(resolve => setTimeout(resolve, 500));
-            
-            // For this mock, we'll just use the mock data regardless of attemptId
-            setAttempt(MOCK_DATA.attempt);
-            setStudent(MOCK_DATA.student);
-            setExam(MOCK_DATA.exam);
-            setAnswers(MOCK_DATA.answers);
-            setQuestions(MOCK_DATA.questions);
-            
-            // Initialize scores
+        if (questions) {
             const initialScores: Record<string, number> = {};
-            MOCK_DATA.questions.forEach(q => {
+            questions.forEach(q => {
                 initialScores[q.id] = 0;
             });
             setScores(initialScores);
+        }
+    }, [questions]);
 
-            setIsLoading(false);
-        };
-
-        fetchSubmissionData();
-
-    }, [attemptId, router, toast]);
 
     const handleSaveGrade = async () => {
-        if (!attempt) return;
+        if (!submissionRef || !firestore || !questions) return;
         setIsSaving(true);
         
         const totalMarks = questions.reduce((sum, q) => sum + q.marks, 0);
         const obtainedMarks = Object.values(scores).reduce((sum, s) => sum + s, 0);
         const finalScore = totalMarks > 0 ? (obtainedMarks / totalMarks) * 100 : 0;
-        
-        // Simulate saving
-        await new Promise(resolve => setTimeout(resolve, 1000));
 
-        toast({ title: 'Grade Saved!', description: `The submission has been graded with a score of ${finalScore.toFixed(1)}%.` });
-        router.push('/admin/examinations');
+        try {
+            const batch = writeBatch(firestore);
+            
+            // Update the main submission document
+            batch.update(submissionRef, {
+                score: finalScore,
+                status: 'Graded',
+            });
 
-        setIsSaving(false);
+            // Update individual answer documents with scores and feedback
+            answers?.forEach(answer => {
+                const answerRef = doc(firestore, `exams/${examId}/submissions/${submissionId}/answers`, answer.id);
+                batch.update(answerRef, {
+                    score: scores[answer.questionId] || 0,
+                    feedback: feedback[answer.questionId] || ''
+                });
+            });
+
+            await batch.commit();
+
+            toast({ title: 'Grade Saved!', description: `The submission has been graded with a score of ${finalScore.toFixed(1)}%.` });
+            router.push('/admin/examinations');
+
+        } catch (error: any) {
+            console.error("Error saving grade:", error);
+            toast({ variant: 'destructive', title: 'Save Failed', description: error.message });
+        } finally {
+            setIsSaving(false);
+        }
     }
     
     const totalScore = Object.values(scores).reduce((sum, score) => sum + (Number(score) || 0), 0);
-    const maxScore = questions.reduce((sum, q) => sum + (Number(q.marks) || 0), 0);
+    const maxScore = questions?.reduce((sum, q) => sum + (Number(q.marks) || 0), 0) || 0;
 
     if (isLoading) {
         return (
@@ -125,7 +144,7 @@ export default function GradingPage() {
         )
     }
 
-    if (!attempt) {
+    if (!submission) {
         return <div>Submission not found.</div>;
     }
 
@@ -161,15 +180,15 @@ export default function GradingPage() {
                     </div>
                 </CardHeader>
                 <CardContent className="grid grid-cols-3 gap-4">
-                    <div><Badge variant="outline">Submitted: {attempt.endTime.toLocaleString()}</Badge></div>
+                    <div><Badge variant="outline">Submitted: {new Date(submission.endTime.seconds * 1000).toLocaleString()}</Badge></div>
                     <div><Badge variant="outline">Subject: {exam?.subject}</Badge></div>
                     <div><Badge variant="outline">Grade: {exam?.gradeLevel}</Badge></div>
                 </CardContent>
             </Card>
 
             <div className="space-y-6">
-                {questions.map((q, index) => {
-                    const studentAnswer = answers.find(a => a.questionId === q.id);
+                {questions?.map((q, index) => {
+                    const studentAnswer = answers?.find(a => a.questionId === q.id);
                     return (
                         <Card key={q.id}>
                             <CardHeader>
@@ -224,5 +243,3 @@ export default function GradingPage() {
         </div>
     );
 }
-
-    
