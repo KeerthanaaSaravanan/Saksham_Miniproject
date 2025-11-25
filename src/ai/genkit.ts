@@ -7,7 +7,7 @@ import { config } from 'dotenv';
 config();
 
 // Directly using the provided API key to ensure it is fetched correctly.
-const apiKey = "AIzaSyC6p3wySiFx-eyr36X0Fsz5_tTbbH6daaU";
+const apiKey = "AIzaSyBfADt4sycISz-SMa3IIohtNLc3H3PQujA";
 
 export const ai = genkit({
   plugins: [googleAI({apiKey: apiKey})],
