@@ -234,20 +234,20 @@ export default function DashboardPage() {
   return (
     <div className="space-y-8 text-foreground">
       <main>
-        <div className="bg-gradient-to-r from-primary/80 to-accent/80 p-8 rounded-xl relative overflow-hidden text-primary-foreground shadow-lg">
-           <div className="absolute -right-10 -top-10 w-48 h-48 bg-white/10 rounded-full opacity-50 blur-3xl"></div>
-           <div className="absolute -left-20 bottom-0 w-64 h-64 bg-white/10 rounded-full opacity-50 blur-3xl"></div>
-          <div className="relative z-10 flex justify-between items-center">
+        <div className="bg-gradient-to-br from-primary to-accent p-8 rounded-xl relative overflow-hidden text-primary-foreground shadow-lg shadow-primary/20">
+           <div className="absolute -right-20 -top-20 w-64 h-64 bg-white/10 rounded-full opacity-50 blur-3xl"></div>
+           <div className="absolute -left-20 -bottom-20 w-64 h-64 bg-white/5 rounded-full opacity-50 blur-3xl"></div>
+          <div className="relative z-10 flex justify-between items-start">
             <div>
                 <div className="flex items-center gap-4">
                 {isLoading ? (
-                    <Skeleton className="h-16 w-64 rounded-md" />
+                    <Skeleton className="h-16 w-64 rounded-md bg-white/20" />
                 ) : (
                     <>
                     <div className="text-5xl">👋</div>
                     <div>
-                        <h2 className="text-3xl font-bold">Welcome back, {userName}!</h2>
-                        <p className="opacity-80 max-w-lg">
+                        <h2 className="text-4xl font-bold font-headline">Welcome, {userName}!</h2>
+                        <p className="opacity-80 max-w-lg mt-1">
                             {welcomeMessage}
                         </p>
                     </div>
@@ -256,12 +256,12 @@ export default function DashboardPage() {
                 </div>
                 { !isUserLoading && !isProfileLoading && gradeLevel &&
                     <div className="mt-6 flex gap-2">
-                        <Badge variant="secondary" className="bg-white/20 text-white border-white/30">
+                        <Badge variant="secondary" className="bg-white/20 text-white border-white/30 backdrop-blur-sm">
                             <GraduationCap className="w-4 h-4 mr-2" />
                             {gradeLevel}
                         </Badge>
                         {stream && (
-                            <Badge variant="secondary" className="bg-white/20 text-white border-white/30">
+                            <Badge variant="secondary" className="bg-white/20 text-white border-white/30 backdrop-blur-sm">
                             {stream}
                             </Badge>
                         )}
@@ -278,7 +278,7 @@ export default function DashboardPage() {
         </div>
 
         <section className="mt-8">
-          <h3 className="text-xl font-bold mb-4 text-foreground">My Subjects</h3>
+          <h3 className="text-2xl font-bold mb-4 text-foreground font-headline">My Subjects</h3>
           {isProfileLoading ? (
              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 <Skeleton className="h-48 w-full rounded-lg" />
@@ -292,11 +292,11 @@ export default function DashboardPage() {
                     <h4 className="text-lg font-semibold mb-3 text-muted-foreground">{category.category}</h4>
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                         {category.subjects.map((subject) => (
-                            <Card key={subject.id} className="bg-card/80 border flex flex-col hover:border-primary transition-all duration-200 group">
-                            <CardHeader className="relative h-28 p-0 overflow-hidden rounded-t-lg">
-                                <Image src={getSubjectImage(subject.id)} alt={subject.name} fill style={{ objectFit: 'cover' }} data-ai-hint={`${subject.id} abstract`} />
-                                <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
-                                <CardTitle className="absolute bottom-4 left-4 text-primary-foreground">{subject.name}</CardTitle>
+                            <Card key={subject.id} className="bg-card border flex flex-col hover:border-primary transition-all duration-300 group hover:shadow-xl hover:shadow-primary/10 hover:-translate-y-1">
+                            <CardHeader className="relative h-32 p-0 overflow-hidden rounded-t-lg">
+                                <Image src={getSubjectImage(subject.id)} alt={subject.name} fill style={{ objectFit: 'cover' }} data-ai-hint={`${subject.id} abstract`} className="group-hover:scale-105 transition-transform duration-500" />
+                                <div className="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent" />
+                                <CardTitle className="absolute bottom-4 left-4 text-xl text-primary-foreground font-headline">{subject.name}</CardTitle>
                             </CardHeader>
                             <CardContent className="pt-4 flex-1">
                                 <h4 className="text-sm font-semibold mb-2">Upcoming Exams</h4>
@@ -347,9 +347,9 @@ export default function DashboardPage() {
         </section>
 
         <section className="mt-8">
-          <h3 className="text-xl font-bold text-foreground mb-4">Progress &amp; Improvement</h3>
+          <h3 className="text-2xl font-bold text-foreground mb-4 font-headline">Progress &amp; Improvement</h3>
            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                <Card className="lg:col-span-2 bg-card/80 border">
+                <Card className="lg:col-span-2 bg-card border">
                     <CardHeader>
                         <CardTitle>Recent Performance</CardTitle>
                         <CardDescription>Your scores from the last {recentChartData.length} assessments.</CardDescription>
@@ -380,7 +380,7 @@ export default function DashboardPage() {
                     </CardContent>
                 </Card>
                  <div className="space-y-6">
-                    <Card className="bg-card/80 border">
+                    <Card className="bg-card border">
                         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                             <CardTitle className="text-sm font-medium">Average Score</CardTitle>
                             <TrendingUp className="h-4 w-4 text-muted-foreground" />
@@ -396,7 +396,7 @@ export default function DashboardPage() {
                             )}
                         </CardContent>
                     </Card>
-                    <Card className="bg-card/80 border">
+                    <Card className="bg-card border">
                         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                             <CardTitle className="text-sm font-medium">Improvement Areas</CardTitle>
                             <Brain className="h-4 w-4 text-muted-foreground" />
@@ -420,5 +420,3 @@ export default function DashboardPage() {
     </div>
   );
 }
-
-    
