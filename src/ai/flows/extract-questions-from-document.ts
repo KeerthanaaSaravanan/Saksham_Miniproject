@@ -17,18 +17,22 @@ const ExtractQuestionsInputSchema = z.object({
     .describe(
       "The exam document as a data URI that must include a MIME type and use Base64 encoding. Expected format: 'data:<mimetype>;base64,<encoded_data>'."
     ),
-  subject: z.string().describe('The subject of the exam.'),
-  gradeLevel: z.string().describe('The grade level for the exam.'),
-  examType: z.string().optional().describe('The type of exam (e.g., Mid-Term, Final).'),
+  file_type: z.enum(['pdf', 'docx', 'doc', 'txt']).describe("The file type of the document."),
 });
 export type ExtractQuestionsInput = z.infer<typeof ExtractQuestionsInputSchema>;
 
 
 const questionSchema = z.object({
-    question: z.string().describe("The text of the question."),
-    type: z.enum(['mcq', 'fillup', 'short-answer', 'long-answer']).describe("The type of the question."),
-    options: z.array(z.string()).optional().describe("A list of multiple-choice options. Required only for 'mcq' type."),
-    marks: z.number().optional().describe("The marks allocated to the question.")
+    id: z.string().describe("A unique identifier for the question, e.g., 'q_001'."),
+    type: z.enum(['mcq', 'short_answer', 'long_answer']).describe("The detected type of the question."),
+    stem: z.string().describe("The main text of the question."),
+    options: z.array(z.string()).nullable().describe("An array of options if the question is an MCQ, otherwise null."),
+    images: z.array(z.object({
+        id: z.string().describe("The placeholder tag for the image, e.g., '[FIG_1]'."),
+        caption: z.string().describe("The caption for the image, or 'MISSING' if not found."),
+    })).nullable().describe("An array of image objects, or null if no images are referenced."),
+    source_page: z.number().int().describe("The page number in the document where the question was found."),
+    ambiguous: z.boolean().describe("Set to true if the content is unclear or cannot be confidently parsed."),
 });
 
 const ExtractQuestionsOutputSchema = z.object({
@@ -45,66 +49,34 @@ const extractQuestionsPrompt = ai.definePrompt({
   name: 'extractQuestionsFromDocumentPrompt',
   input: {schema: ExtractQuestionsInputSchema},
   output: {schema: ExtractQuestionsOutputSchema},
-  system: `You are an expert AI assistant that extracts and structures examination questions from an uploaded document.
-  Your task is to parse the provided document and identify all questions.
-  
-  For each question, you must extract:
-  - The full question text.
-  - The question type, classified as 'mcq', 'fillup', 'short-answer', or 'long-answer'.
-  - For MCQs, extract all the options into an array.
-  - The marks for the question. If marks are not specified, distribute them logically based on the exam type.
+  system: `INTENT: "extract_questions"
+INSTRUCTIONS:
+You are an expert AI assistant that extracts and structures examination questions from a document.
+1. Detect numbered question blocks and parse them.
+2. For each question, determine its type: 'mcq', 'short_answer', or 'long_answer'.
+3. Extract the question text into the 'stem'.
+4. For MCQs, extract the options into the 'options' array. If not an MCQ, 'options' must be null.
+5. Identify image placeholder tags (e.g., "[FIG_1]", "[Image 1]") and map them to the 'images' array. If no caption is present, set it to "MISSING".
+6. If the structure or content of a question is unclear, set 'ambiguous' to true.
+7. Return a valid JSON object containing a "questions" array.
 
-  You MUST NOT include a 'correctAnswer' field in your output.
-  Your output MUST be a valid JSON object matching the required schema.
+FEW-SHOT EXAMPLES:
+[Example 1: MCQ]
+Document Text: "1. What is the capital of France? (a) Berlin (b) Madrid (c) Paris (d) Rome"
+Your JSON for this item: { "id": "q_001", "type": "mcq", "stem": "What is the capital of France?", "options": ["Berlin", "Madrid", "Paris", "Rome"], "images": null, "source_page": 1, "ambiguous": false }
 
-  Here is an example of the expected interaction:
-
-  [DOCUMENT CONTENT]
-  Mid-Term Exam - Physics
-  
-  Q1. What is the SI unit of force? (2 marks)
-  a) Watt
-  b) Newton
-  c) Joule
-  
-  Q2. The rate of change of velocity is called ____. (1 mark)
-  
-  [YOUR JSON OUTPUT]
-  {
-    "questions": [
-      {
-        "question": "What is the SI unit of force?",
-        "type": "mcq",
-        "options": ["Watt", "Newton", "Joule"],
-        "marks": 2
-      },
-      {
-        "question": "The rate of change of velocity is called ____.",
-        "type": "fillup",
-        "marks": 1
-      }
-    ]
-  }
-  `,
-  prompt: `Parse the following document for a {{subject}} exam for {{gradeLevel}}.
-  {{#if examType}}
-  This is a {{examType}} exam.
-  {{/if}}
-  
-  {{#if (includes examType 'Annual Exam')}}
-  The exam should be for a total of 100 marks and a duration of 3 hours.
-  {{else if (includes examType 'Half Yearly')}}
-  The exam should be for a total of 100 marks and a duration of 3 hours.
-  {{else}}
-  The exam should be for a total of 50 marks and a duration of 1.5 hours.
-  {{/if}}
-  
-  Document Content:
-  {{media url=documentDataUri}}
-  `,
+[Example 2: Short Answer]
+Document Text: "2. Who wrote the play 'Hamlet'?"
+Your JSON for this item: { "id": "q_002", "type": "short_answer", "stem": "Who wrote the play 'Hamlet'?", "options": null, "images": null, "source_page": 1, "ambiguous": false }
+`,
+  prompt: `CONTEXT:
+{
+    "document_text": "{{media url=documentDataUri}}",
+    "file_type": "{{file_type}}"
+}`,
   config: {
     temperature: 0.0,
-    maxOutputTokens: 1024,
+    maxOutputTokens: 2048,
   },
 });
 
@@ -117,8 +89,7 @@ const validationPrompt = ai.definePrompt({
   Do not add any commentary or explanation. Your entire response must be the JSON object.`,
   prompt: `Original Input:
   - Document Data URI: {{media url=originalInput.documentDataUri}}
-  - Subject: {{originalInput.subject}}
-  - Grade: {{originalInput.gradeLevel}}
+  - File Type: {{originalInput.file_type}}
 
   Invalid output that you provided:
   {{{invalidOutput}}}
@@ -127,7 +98,7 @@ const validationPrompt = ai.definePrompt({
   `,
   config: {
     temperature: 0.0,
-    maxOutputTokens: 1024,
+    maxOutputTokens: 2048,
   },
 });
 
@@ -137,34 +108,28 @@ const extractQuestionsFlow = ai.defineFlow(
     inputSchema: ExtractQuestionsInputSchema,
     outputSchema: ExtractQuestionsOutputSchema,
   },
-  async (input, streamingCallback) => {
+  async (input) => {
     let result: ExtractQuestionsOutput | null = null;
     let attempts = 0;
     const maxAttempts = 2;
     let lastError: any = null;
 
-    // Helper for Handlebars template
-    const includes = (str: string | undefined, substr: string) => str?.includes(substr);
-    const handlebarsOptions = { helpers: { includes } };
-
     while (attempts < maxAttempts) {
       attempts++;
-      const { text: rawOutput, output } = await extractQuestionsPrompt(input, handlebarsOptions);
+      const { text: rawOutput, output } = await extractQuestionsPrompt(input);
 
       try {
-        // Zod parsing will automatically happen on the 'output' field.
-        // If it succeeds, 'output' will be valid.
-        result = output!;
-        ExtractQuestionsOutputSchema.parse(result); // Explicitly parse to be sure
+        // Zod parsing is automatically handled by the 'output' field if schema is provided.
+        // We explicitly parse here to be absolutely sure and catch the error for retry.
+        result = ExtractQuestionsOutputSchema.parse(output!);
         return result;
       } catch (e: any) {
         lastError = e;
         console.warn(`Attempt ${attempts} failed schema validation. Retrying...`);
         if (attempts < maxAttempts) {
-            const { output: retryOutput } = await validationPrompt({ originalInput: input, invalidOutput: rawOutput });
             try {
-                result = retryOutput!;
-                ExtractQuestionsOutputSchema.parse(result);
+                const { output: retryOutput } = await validationPrompt({ originalInput: input, invalidOutput: rawOutput });
+                result = ExtractQuestionsOutputSchema.parse(retryOutput!);
                 return result;
             } catch (retryError) {
                 lastError = retryError;
