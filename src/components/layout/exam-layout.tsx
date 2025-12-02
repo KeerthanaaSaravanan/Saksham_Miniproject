@@ -421,5 +421,3 @@ export function ExamLayout({ exam, onTimeUp, isSubmitting }: ExamLayoutProps) {
         </div>
     );
 }
-
-    

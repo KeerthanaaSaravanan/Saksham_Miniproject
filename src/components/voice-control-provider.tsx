@@ -315,6 +315,16 @@ export function VoiceControlProvider({ children }: { children: ReactNode }) {
     };
   }, [isListening, startListener]);
 
+  // Logic to initiate voice guidance on app load
+  useEffect(() => {
+    const isFirstVisit = !sessionStorage.getItem('visited');
+    if (pathname === '/' && isFirstVisit) {
+      sessionStorage.setItem('visited', 'true');
+      setIsListening(true);
+      setLoginStep('ask-mode');
+      speak("Welcome to Saksham. To begin, would you like to use voice guidance or manual control?");
+    }
+  }, [pathname, speak]);
 
   return (
     <VoiceControlContext.Provider value={{ isListening, toggleListening, isLoading, processLoginCommand }}>
@@ -323,5 +333,3 @@ export function VoiceControlProvider({ children }: { children: ReactNode }) {
     </VoiceControlContext.Provider>
   );
 }
-
-    
