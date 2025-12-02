@@ -12,6 +12,7 @@ import {
   Zap,
   HelpCircle,
   Info,
+  Route,
 } from 'lucide-react';
 import { useExamMode } from '@/hooks/use-exam-mode';
 import { cn } from '@/lib/utils';
@@ -61,6 +62,11 @@ export default function StudentSidebar({ student }: { student?: any }) {
       icon: HelpCircle,
       label: 'Help & Guidance',
       href: '/help',
+    },
+    {
+      icon: Route,
+      label: 'Application Flow',
+      href: '/flow',
     },
   ];
 
