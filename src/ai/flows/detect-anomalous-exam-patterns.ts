@@ -1,3 +1,4 @@
+
 'use server';
 /**
  * @fileOverview Detects anomalous patterns during exams, such as background speech or rapid screen changes.
@@ -48,21 +49,22 @@ const prompt = ai.definePrompt({
   name: 'detectAnomalousExamPatternsPrompt',
   input: {schema: DetectAnomalousExamPatternsInputSchema},
   output: {schema: DetectAnomalousExamPatternsOutputSchema},
-  prompt: `You are an AI assistant designed to detect anomalous patterns during online exams.
-
+  system: `You are an AI assistant designed to detect anomalous patterns during online exams.
   Based on the provided data, determine if there are any indications of academic dishonesty.
-
   Consider the following:
   - Audio data: Analyze for background speech or unusual noises.
   - Screen activity data: Look for rapid screen changes or suspicious patterns.
-
+  Your output MUST be in valid JSON format matching the provided schema.`,
+  prompt: `
   Exam Details: {{{examDetails}}}
   Student Details: {{{studentDetails}}}
   {{#if audioDataUri}}Audio Data: {{media url=audioDataUri}}{{/if}}
   {{#if screenActivityData}}Screen Activity Data: {{{screenActivityData}}}{{/if}}
-
-  Based on your analysis, set the anomalousPatternsDetected field to true if you suspect academic dishonesty, and provide a detailed explanation.
 `,
+  config: {
+    temperature: 0.2,
+    maxOutputTokens: 512,
+  },
 });
 
 const detectAnomalousExamPatternsFlow = ai.defineFlow(

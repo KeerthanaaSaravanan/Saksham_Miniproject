@@ -1,3 +1,4 @@
+
 'use server';
 
 /**
@@ -38,19 +39,19 @@ const prompt = ai.definePrompt({
   name: 'generateCustomizedAssessmentsPrompt',
   input: {schema: GenerateCustomizedAssessmentsInputSchema},
   output: {schema: GenerateCustomizedAssessmentsOutputSchema},
-  prompt: `You are an expert assessment generator for students with learning disabilities.
-
-You will generate an assessment suited to the students specific learning needs, in the subject and grade level specified.
-
-The assessment should be in JSON format containing an array of questions. Each question should include the question text, answer options, and the correct answer.
-
-Learning Needs: {{{learningNeeds}}}
+  system: `You are an expert assessment generator for students with learning disabilities.
+  You will generate an assessment suited to the students specific learning needs, in the subject and grade level specified.
+  The assessment should be in JSON format containing an array of questions. Each question should include the question text, answer options, and the correct answer.
+  Your output MUST be valid JSON.`,
+  prompt: `Learning Needs: {{{learningNeeds}}}
 Subject: {{{subject}}}
 Grade Level: {{{gradeLevel}}}
 Exam Length (minutes): {{{examLengthMinutes}}}
-
-Your output MUST be valid JSON.
 `,
+  config: {
+    temperature: 0.2,
+    maxOutputTokens: 1024,
+  },
 });
 
 const generateCustomizedAssessmentsFlow = ai.defineFlow(

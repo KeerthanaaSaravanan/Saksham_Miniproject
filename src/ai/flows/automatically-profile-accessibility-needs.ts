@@ -38,17 +38,16 @@ const automaticallyProfileAccessibilityNeedsPrompt = ai.definePrompt({
   name: 'automaticallyProfileAccessibilityNeedsPrompt',
   input: {schema: AutomaticallyProfileAccessibilityNeedsInputSchema},
   output: {schema: AutomaticallyProfileAccessibilityNeedsOutputSchema},
-  prompt: `You are an AI assistant that analyzes webcam input to automatically profile a user's accessibility needs.
-
-  Analyze the webcam input to determine if the user has any visual or specific learning disabilities (SLD). 
+  system: `You are an AI assistant that analyzes webcam input to automatically profile a user's accessibility needs.
+  Analyze the webcam input to determine if the user has any visual or specific learning disabilities (SLD).
   Consider factors such as the user's environment, any assistive devices they may be using, and any observable difficulties they may be experiencing.
-
   Based on your analysis, generate an accessibility needs profile for the user, setting the appropriate boolean flags (visualImpairment, sld) to true or false. Also provide any additional notes on the user's accessibility needs in additionalNotes field.
-
-  Webcam Input: {{media url=webcamDataUri}}
-
-  Output the accessibility needs profile in JSON format.
-  `,
+  Your output MUST be in valid JSON format matching the provided schema.`,
+  prompt: `Webcam Input: {{media url=webcamDataUri}}`,
+  config: {
+    temperature: 0.2,
+    maxOutputTokens: 512,
+  },
 });
 
 const automaticallyProfileAccessibilityNeedsFlow = ai.defineFlow(
