@@ -128,43 +128,54 @@ export function VoiceControlProvider({ children }: { children: ReactNode }) {
              await speak("I didn't catch that. Please say 'voice guidance' or 'manual control'.");
          }
          return true;
+
       case 'ask-email':
-        // Dispatch event to update UI
-        window.dispatchEvent(new CustomEvent('voice-input', { detail: { field: 'email', value: command } }));
-        await speak(`I heard ${command.split('').join(' ')}. Is that correct?`, () => {
+        const capturedEmail = command;
+        setLoginCredentials(prev => ({...prev, email: capturedEmail }));
+        window.dispatchEvent(new CustomEvent('voice-input', { detail: { field: 'email', value: capturedEmail } }));
+        await speak(`I heard ${capturedEmail.split('').join(' ')}. Is that correct?`, () => {
             setLoginStep('confirm-email');
         });
         return true;
+
       case 'confirm-email':
-        if (lowerCaseCommand === 'yes' || lowerCaseCommand === 'correct') {
+        if (lowerCaseCommand.includes('yes') || lowerCaseCommand.includes('correct')) {
           await speak("Great. Now, please say your password.", () => {
               setLoginStep('ask-password');
           });
         } else {
+          setLoginCredentials(prev => ({...prev, email: '' }));
+          window.dispatchEvent(new CustomEvent('voice-input', { detail: { field: 'email', value: '' } }));
           await speak("My mistake. Let's try again. What is your email address?", () => {
               setLoginStep('ask-email');
           });
         }
         return true;
+
       case 'ask-password':
-        // Dispatch event to update UI
-         window.dispatchEvent(new CustomEvent('voice-input', { detail: { field: 'password', value: command } }));
-        await speak(`I have your password. It has ${command.length} characters. Should I proceed with login?`, () => {
+        const capturedPassword = command;
+        setLoginCredentials(prev => ({...prev, password: capturedPassword }));
+        window.dispatchEvent(new CustomEvent('voice-input', { detail: { field: 'password', value: capturedPassword } }));
+        await speak(`I have your password. It has ${capturedPassword.length} characters. Should I proceed with login?`, () => {
             setLoginStep('confirm-password');
         });
         return true;
+
       case 'confirm-password':
-        if (lowerCaseCommand === 'yes' || lowerCaseCommand === 'proceed') {
-            await speak("Attempting to log you in now.");
-            setLoginStep('submitting');
-            // Dispatch event to trigger form submission
-            window.dispatchEvent(new CustomEvent('voice-submit'));
+        if (lowerCaseCommand.includes('yes') || lowerCaseCommand.includes('proceed') || lowerCaseCommand.includes('login')) {
+            await speak("Attempting to log you in now.", () => {
+              setLoginStep('submitting');
+              window.dispatchEvent(new CustomEvent('voice-submit'));
+            });
         } else {
+            setLoginCredentials(prev => ({...prev, password: '' }));
+            window.dispatchEvent(new CustomEvent('voice-input', { detail: { field: 'password', value: '' } }));
             await speak("Okay, let's try the password again. Please say your password.", () => {
                 setLoginStep('ask-password');
             });
         }
         return true;
+
       default:
         return false;
     }
