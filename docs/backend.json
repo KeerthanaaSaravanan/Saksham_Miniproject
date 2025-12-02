@@ -1,3 +1,4 @@
+
 {
   "entities": {
     "UserProfile": {
@@ -51,21 +52,9 @@
           "type": "boolean",
           "description": "Indicates if the user has a visual impairment."
         },
-        "hearingImpairment": {
-          "type": "boolean",
-          "description": "Indicates if the user has a hearing impairment."
-        },
-        "motorImpairment": {
-          "type": "boolean",
-          "description": "Indicates if the user has a motor impairment."
-        },
         "sld": {
           "type": "boolean",
           "description": "Indicates if the user has a Specific Learning Disability (SLD)."
-        },
-        "cognitiveImpairment": {
-          "type": "boolean",
-          "description": "Indicates if the user has a cognitive impairment."
         },
         "preferredLearningFormat": {
           "type": "string",
@@ -76,10 +65,7 @@
       "required": [
         "id",
         "visualImpairment",
-        "hearingImpairment",
-        "motorImpairment",
         "sld",
-        "cognitiveImpairment",
         "preferredLearningFormat"
       ]
     },

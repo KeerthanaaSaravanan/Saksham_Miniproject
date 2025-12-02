@@ -43,32 +43,6 @@ export const accessibilityModules: AccessibilityModule[] = [
       ]
     },
     {
-      id: 'hearing',
-      title: 'Hearing Disability',
-      subtitle: 'Deaf / Hard of Hearing',
-      icon: Ear,
-      iconColor: 'text-purple-500',
-      features: [
-          { key: 'realtimeCaptions', label: 'Real-time Captions (Coming Soon)', description: 'Displays synchronized captions for any audio or video content.', icon: MessageSquare, type: 'boolean', defaultValue: false },
-          { key: 'visualAlerts', label: 'Visual Alerts (Coming Soon)', description: 'Replaces sound notifications with on-screen visual cues.', icon: Presentation, type: 'boolean', defaultValue: false },
-          { key: 'islAvatar', label: 'AI Sign Language Avatar (Coming Soon)', description: 'Interprets questions in Indian Sign Language (ISL).', icon: Video, type: 'boolean', defaultValue: false },
-          { key: 'textOnlyChat', label: 'Text-based Chatbot Help (Coming Soon)', description: 'Access help through a real-time text chat instead of audio calls.', icon: Bot, type: 'boolean', defaultValue: false },
-      ]
-    },
-    {
-      id: 'motor',
-      title: 'Motor Disability',
-      subtitle: 'Hands-free Interaction',
-      icon: Hand,
-      iconColor: 'text-orange-500',
-      features: [
-          { key: 'voiceCommandNav', label: 'Voice Command Navigation (Coming Soon)', description: 'Control all aspects of the exam interface using your voice.', icon: Mic, type: 'boolean', defaultValue: false },
-          { key: 'eyeTracking', label: 'Eye-tracking Control (Coming Soon)', description: 'Use your gaze to select options and navigate.', icon: MousePointer, type: 'boolean', defaultValue: false },
-          { key: 'gestureRecognition', label: 'AI Gesture Recognition (Coming Soon)', description: 'Use simple head or hand gestures to control the interface.', icon: Hand, type: 'boolean', defaultValue: false },
-          { key: 'autoSave', label: 'Auto-save Answers (Coming Soon)', description: 'Automatically saves your progress as you go.', icon: Save, type: 'boolean', defaultValue: false },
-      ]
-    },
-    {
       id: 'sld',
       title: 'Specific Learning Disability',
       subtitle: 'Reading / Writing Aids',
@@ -80,19 +54,6 @@ export const accessibilityModules: AccessibilityModule[] = [
           { key: 'handwritingMode', label: 'Handwriting Mode (Coming Soon)', description: 'Use a digital pen to write answers, which are converted to text.', icon: PenTool, type: 'boolean', defaultValue: false },
           { key: 'wordHighlighting', label: 'Word Highlighting (Coming Soon)', description: 'Focus on one word or line at a time as it\'s read aloud.', icon: TextSelect, type: 'boolean', defaultValue: false },
           { key: 'aiSpellCheck', label: 'AI Spell-check (Coming Soon)', description: 'Understands phonetic and dyslexic spelling patterns.', icon: SpellCheck, type: 'boolean', defaultValue: false },
-      ]
-    },
-    {
-      id: 'cognitive',
-      title: 'Cognitive Disability',
-      subtitle: 'Focus & Calm Experience',
-      icon: Brain,
-      iconColor: 'text-sky-500',
-      features: [
-          { key: 'focusMode', label: 'Focus Mode (Calm Visuals) (Coming Soon)', description: 'Removes all non-essential UI elements to help you focus.', icon: Focus, type: 'boolean', defaultValue: false },
-          { key: 'stepByStep', label: 'Step-by-step Guidance (Coming Soon)', description: 'Breaks the exam into a one-question-at-a-time flow.', icon: Layout, type: 'boolean', defaultValue: false },
-          { key: 'gentleTimeReminders', label: 'Gentle Time Reminders (Coming Soon)', description: 'Provides soft, non-intrusive reminders about remaining time.', icon: Clock, type: 'boolean', defaultValue: false },
-          { key: 'simplifiedLanguage', label: 'Simplified Language (Coming Soon)', description: 'Uses simpler instructions and a cleaner interface.', icon: Heart, type: 'boolean', defaultValue: false },
       ]
     }
 ];

@@ -1,3 +1,4 @@
+
 'use server';
 
 /**
@@ -23,9 +24,6 @@ export type AutomaticallyProfileAccessibilityNeedsInput = z.infer<typeof Automat
 const AutomaticallyProfileAccessibilityNeedsOutputSchema = z.object({
   needsProfile: z.object({
     visualImpairment: z.boolean().describe('Whether the user has a visual impairment.'),
-    auditoryImpairment: z.boolean().describe('Whether the user has an auditory impairment.'),
-    cognitiveImpairment: z.boolean().describe('Whether the user has a cognitive impairment.'),
-    motorImpairment: z.boolean().describe('Whether the user has a motor impairment.'),
     sld: z.boolean().describe('Whether the user has a Specific Learning Disability.'),
     additionalNotes: z.string().describe('Any additional notes about the user\'s accessibility needs.'),
   }).describe('The accessibility needs profile of the user based on the webcam input.'),
@@ -42,10 +40,10 @@ const automaticallyProfileAccessibilityNeedsPrompt = ai.definePrompt({
   output: {schema: AutomaticallyProfileAccessibilityNeedsOutputSchema},
   prompt: `You are an AI assistant that analyzes webcam input to automatically profile a user's accessibility needs.
 
-  Analyze the webcam input to determine if the user has any visual, auditory, cognitive, motor, or specific learning disabilities (SLD). 
+  Analyze the webcam input to determine if the user has any visual or specific learning disabilities (SLD). 
   Consider factors such as the user's environment, any assistive devices they may be using, and any observable difficulties they may be experiencing.
 
-  Based on your analysis, generate an accessibility needs profile for the user, setting the appropriate boolean flags (visualImpairment, auditoryImpairment, cognitiveImpairment, motorImpairment, sld) to true or false. Also provide any additional notes on the user's accessibility needs in additionalNotes field.
+  Based on your analysis, generate an accessibility needs profile for the user, setting the appropriate boolean flags (visualImpairment, sld) to true or false. Also provide any additional notes on the user's accessibility needs in additionalNotes field.
 
   Webcam Input: {{media url=webcamDataUri}}
 

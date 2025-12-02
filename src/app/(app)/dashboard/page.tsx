@@ -115,17 +115,8 @@ const getPersonalizedGreeting = (name: string, profile?: AccessibilityProfile): 
     if (profile.visual) {
         return "We’ve fine-tuned your view and added enhanced voice guidance for a smoother experience.";
     }
-    if (profile.hearing) {
-        return "We’ve made sure everything you need is clearly on-screen with visual alerts ready for you.";
-    }
-    if (profile.motor) {
-        return "We’ve made your controls hands-free and easier to navigate — just speak or move naturally.";
-    }
     if (profile.sld) {
         return "We’ve made your screen simpler and your reading experience smoother for better focus.";
-    }
-    if (profile.cognitive) {
-        return "We’ve set up a calm, step-by-step exam view to help you stay relaxed and focused.";
     }
     return `Here's what's on your schedule. Let's get started.`;
 };
