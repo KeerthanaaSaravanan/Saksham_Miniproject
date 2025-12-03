@@ -1,4 +1,3 @@
-
 /**
  * @file This file defines the shared TypeScript types and Zod schemas for the inputs
  * and outputs of the Cloud Functions. This ensures type safety and validation
@@ -27,7 +26,7 @@ export const CaptureVoiceAnswerInputSchema = GenkitCaptureVoice;
 
 // Special schema for the document extraction function, which takes a file path
 export const ExtractQuestionsInputSchema = z.object({
-  filePath: z.string().startsWith('gs://', { message: 'File path must be a valid gs:// URI' }),
+  filePath: z.string().startsWith('uploads/', { message: 'File path must be a valid path in the storage bucket.' }),
   fileType: z.enum(['pdf', 'docx']),
 });
 

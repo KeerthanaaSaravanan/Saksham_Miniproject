@@ -1,30 +1,28 @@
 'use server';
 
-import { extractQuestionsFromDocument as extractQuestionsFlow, ExtractQuestionsInput } from "@/ai/flows/extract-questions-from-document";
+import { getFunctions, httpsCallable } from 'firebase/functions';
+import { getApp } from 'firebase/app';
+import type { ExtractQuestionsInput, ExtractQuestionsOutput } from '@/functions/src/types';
 
-const parseExtractedQuestions = (questions: any[]) => {
-    // The AI might return a stringified JSON inside the array.
-    if (Array.isArray(questions)) {
-        return questions.map(q => {
-            if (typeof q === 'string') {
-                try { return JSON.parse(q); } catch { return q; }
-            }
-            return q;
-        }).flat();
-    }
-    return questions;
+type FlowOutput<T> = {
+  data: T;
+};
+
+// Lazily initialize functions to ensure Firebase app is ready.
+const getFunctionsInstance = () => {
+    const app = getApp();
+    return getFunctions(app, 'us-central1'); // Specify region
 }
-
 
 export async function extractQuestionsFromDocument(
     input: ExtractQuestionsInput
-): Promise<{ questions: any[] } | { error: string }> {
+): Promise<ExtractQuestionsOutput | { error: string }> {
   try {
-    const result = await extractQuestionsFlow(input);
-    const parsedQuestions = parseExtractedQuestions(result.questions);
-    return { questions: parsedQuestions };
+    const extractFunc = httpsCallable<ExtractQuestionsInput, FlowOutput<ExtractQuestionsOutput>>(getFunctionsInstance(), 'extractQuestionsFromDocumentFunc');
+    const result = await extractFunc(input);
+    return result.data.data;
   } catch (e: any) {
-    console.error("Document parsing error:", e);
+    console.error("Document parsing action error:", e);
     return { error: e.message || 'An unknown error occurred while parsing the document.' };
   }
 }

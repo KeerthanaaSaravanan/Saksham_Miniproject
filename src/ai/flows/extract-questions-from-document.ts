@@ -118,7 +118,7 @@ const extractQuestionsFlow = ai.defineFlow(
         return result;
       } catch (e: any) {
         lastError = e;
-        console.warn(`Attempt ${'${attempts}'} failed schema validation. Retrying...`);
+        console.warn(`Attempt ${attempts} failed schema validation. Retrying...`);
         if (attempts < maxAttempts) {
             try {
                 const { output: retryOutput } = await validationPrompt({ originalInput: input, invalidOutput: rawOutput });
@@ -126,12 +126,12 @@ const extractQuestionsFlow = ai.defineFlow(
                 return result;
             } catch (retryError) {
                 lastError = retryError;
-                console.warn(`Retry attempt ${'${attempts}'} also failed validation.`);
+                console.warn(`Retry attempt ${attempts} also failed validation.`);
             }
         }
       }
     }
 
-    throw new Error(`Failed to extract valid questions after ${'${maxAttempts}'} attempts. Last error: ${'${lastError.message}'}`);
+    throw new Error(`Failed to extract valid questions after ${maxAttempts} attempts. Last error: ${lastError.message}`);
   }
 );
