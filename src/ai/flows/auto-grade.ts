@@ -16,6 +16,7 @@ const AutoGradeInputSchema = z.object({
   correctAnswer: z.string().describe("The reference correct answer key."),
   studentAnswer: z.string().describe("The student's submitted answer."),
   rubric: z.string().optional().describe("An optional grading rubric provided by the faculty."),
+  maxScore: z.number().describe("The maximum score this question is worth."),
 });
 export type AutoGradeInput = z.infer<typeof AutoGradeInputSchema>;
 
