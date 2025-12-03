@@ -1,4 +1,3 @@
-
 /**
  * @file This file contains server actions for interacting with AI chatbot and TTS flows.
  * It acts as a bridge between the client-side components and the backend Genkit flows,
@@ -10,28 +9,29 @@
 
 'use client';
 
-import { getFunctions, httpsCallable } from 'firebase/functions';
+import { getFunctions, httpsCallable, getApp } from 'firebase/functions';
 import {
   ParseVoiceCommandInput,
   ParseVoiceCommandOutput,
   TextToSpeechInput,
   TextToSpeechOutput,
-} from '../../functions/src/types'; // Corrected import path
+} from '../../functions/src/types';
 
 type FlowOutput<T> = {
   data: T;
 };
 
-// Create references to the callable functions
-const functions = getFunctions();
-const parseVoiceCommandFunc = httpsCallable<ParseVoiceCommandInput, FlowOutput<ParseVoiceCommandOutput>>('parseVoiceCommandFunc');
-const textToSpeechFunc = httpsCallable<TextToSpeechInput, FlowOutput<TextToSpeechOutput>>('textToSpeechFunc');
-
+// Lazily initialize functions to ensure Firebase app is ready.
+const getFunctionsInstance = () => {
+    const app = getApp(); // Assumes Firebase is initialized elsewhere, e.g., in FirebaseClientProvider
+    return getFunctions(app);
+}
 
 export async function parseVoiceCommand(
   input: ParseVoiceCommandInput
 ): Promise<ParseVoiceCommandOutput | { error: string }> {
   try {
+    const parseVoiceCommandFunc = httpsCallable<ParseVoiceCommandInput, FlowOutput<ParseVoiceCommandOutput>>(getFunctionsInstance(), 'parseVoiceCommandFunc');
     const result = await parseVoiceCommandFunc(input);
     return result.data.data;
   } catch (e: any) {
@@ -44,6 +44,7 @@ export async function getTTS(
   text: string
 ): Promise<{ media: string } | { error: string }> {
   try {
+    const textToSpeechFunc = httpsCallable<TextToSpeechInput, FlowOutput<TextToSpeechOutput>>(getFunctionsInstance(), 'textToSpeechFunc');
     const result = await textToSpeechFunc(text);
     return result.data.data;
   } catch (e: any) {
