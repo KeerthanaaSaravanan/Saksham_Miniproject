@@ -11,7 +11,7 @@
 import {ai} from '@/ai/genkit';
 import {z} from 'genkit';
 
-const DetectAnomalousExamPatternsInputSchema = z.object({
+export const DetectAnomalousExamPatternsInputSchema = z.object({
   event_type: z.enum(['focus_lost', 'multiple_faces_detected', 'background_noise']),
   details: z.object({
       timestamp: z.string().describe("The ISO 8601 timestamp of when the event occurred."),
@@ -20,13 +20,13 @@ const DetectAnomalousExamPatternsInputSchema = z.object({
 });
 export type DetectAnomalousExamPatternsInput = z.infer<typeof DetectAnomalousExamPatternsInputSchema>;
 
-const DetectAnomalousExamPatternsOutputSchema = z.object({
+export const DetectAnomalousExamPatternsOutputSchema = z.object({
   severity: z.enum(['low', 'medium', 'high']).describe("The assessed severity of the event."),
   tts_text: z.string().describe("A short, human-friendly notification to be read aloud to the student."),
   incident_record: z.object({
     id: z.string().describe("A unique identifier for this incident record."),
     timestamp: z.string().describe("The ISO 8601 timestamp for the incident."),
-    metadata: z.record(z.any()).optional().describe("A structured log of the event details."),
+    metadata: z.record(zany()).optional().describe("A structured log of the event details."),
   }).describe("A structured record of the detected incident for logging and faculty review.")
 });
 export type DetectAnomalousExamPatternsOutput = z.infer<typeof DetectAnomalousExamPatternsOutputSchema>;
@@ -66,7 +66,9 @@ const detectAnomalousExamPatternsFlow = ai.defineFlow(
   async input => {
     const {output} = await prompt(input);
     // Add a unique ID to the incident record
-    output!.incident_record.id = `inc_${Date.now()}`;
+    if (output) {
+        output.incident_record.id = `inc_${Date.now()}`;
+    }
     return output!;
   }
 );

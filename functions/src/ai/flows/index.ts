@@ -11,3 +11,4 @@ export * from '../../../../src/ai/flows/simplify-text-for-sld';
 export * from '../../../../src/ai/flows/text-to-speech';
 export * from '../../../../src/ai/flows/capture-voice-answer';
 export * from '../../../../src/ai/flows/recognize-handwriting';
+export * from '../../../../src/ai/flows/detect-anomalous-exam-patterns';

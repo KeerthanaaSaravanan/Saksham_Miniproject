@@ -31,6 +31,7 @@ import { simplifyTextForSLD } from '../../src/ai/flows/simplify-text-for-sld';
 import { textToSpeech } from '../../src/ai/flows/text-to-speech';
 import { captureVoiceAnswer } from '../../src/ai/flows/capture-voice-answer';
 import { recognizeHandwriting } from '../../src/ai/flows/recognize-handwriting';
+import { detectAnomalousExamPatterns } from '../../src/ai/flows/detect-anomalous-exam-patterns';
 
 
 // Local types
@@ -43,6 +44,7 @@ import {
   TextToSpeechInputSchema,
   CaptureVoiceAnswerInputSchema,
   RecognizeHandwritingInputSchema,
+  DetectAnomalousExamPatternsInputSchema,
   CallableFunction,
   FlowOutput,
 } from './types';
@@ -155,6 +157,7 @@ export const simplifyTextForSLDFunc = createAIEndpoint(simplifyTextForSLD, Simpl
 export const textToSpeechFunc = createAIEndpoint(textToSpeech, TextToSpeechInputSchema, 'textToSpeech');
 export const captureVoiceAnswerFunc = createAIEndpoint(captureVoiceAnswer, CaptureVoiceAnswerInputSchema, 'captureVoiceAnswer');
 export const recognizeHandwritingFunc = createAIEndpoint(recognizeHandwriting, RecognizeHandwritingInputSchema, 'recognizeHandwriting');
+export const detectAnomalousExamPatternsFunc = createAIEndpoint(detectAnomalousExamPatterns, DetectAnomalousExamPatternsInputSchema, 'detectAnomalousExamPatterns');
 
 
 /**
