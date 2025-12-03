@@ -84,9 +84,15 @@ export function ExamLayout({ exam, onTimeUp, isSubmitting }: ExamLayoutProps) {
 
     const readQuestionAndOptions = useCallback(() => {
         const questionText = `Question ${activeQuestionIndex + 1}. ${activeQuestion.question}`;
-        const optionsText = activeQuestion.options?.map((opt, i) => `Option ${String.fromCharCode(65 + i)}: ${opt}`).join('. ');
         
-        playTTS(`${questionText}. ${optionsText || ''}`);
+        let optionsText = "";
+        if (activeQuestion.type === 'mcq' && activeQuestion.options) {
+            optionsText = activeQuestion.options.map((opt, i) => `Option ${String.fromCharCode(65 + i)}: ${opt}`).join('. ');
+        }
+        
+        const fullText = `${questionText}. ${optionsText} Say 'Repeat' to hear it again.`;
+
+        playTTS(fullText);
     }, [activeQuestion, activeQuestionIndex, playTTS]);
 
     useEffect(() => {
@@ -288,16 +294,13 @@ export function ExamLayout({ exam, onTimeUp, isSubmitting }: ExamLayoutProps) {
             toggleReviewFlag(activeQuestion.id);
         } else if (lower.includes('submit exam') || lower.includes('finish exam')) {
             onTimeUp(answers);
-        } else if (lower.includes('read question')) {
-            playTTS(activeQuestion.question);
-        } else if (lower.includes('read options')) {
-            const optionsText = activeQuestion.options?.map((opt, i) => `Option ${String.fromCharCode(65 + i)}: ${opt}`).join('. ');
-            playTTS(optionsText || 'There are no options for this question.');
+        } else if (lower.includes('repeat')) {
+            readQuestionAndOptions();
         } else if(isSpeechToTextEnabled && (lower.startsWith('answer') || lower.startsWith('my answer is'))) {
             const spokenAnswer = command.substring(command.indexOf(' ') + 1);
             handleAnswerChange(activeQuestion.id, spokenAnswer);
         }
-    }, [activeQuestion, exam.questions.length, onTimeUp, answers, isVoiceNavigationEnabled, playTTS, isSpeechToTextEnabled]);
+    }, [activeQuestion, exam.questions.length, onTimeUp, answers, isVoiceNavigationEnabled, readQuestionAndOptions, isSpeechToTextEnabled]);
 
     useEffect(() => {
         // This is a simplified listener for global voice commands during an exam.
