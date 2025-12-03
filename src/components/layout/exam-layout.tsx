@@ -19,7 +19,7 @@ import { Textarea } from '../ui/textarea';
 import { useAccessibilityPanel } from '../accessibility/accessibility-panel-provider';
 import { textToSpeech } from "@/ai/flows/text-to-speech";
 import { useVoiceControl } from '../voice-control-provider';
-import { captureVoiceAnswer } from '@/ai/flows/capture-voice-answer';
+import { captureVoiceAnswer } from '@/lib/actions/voice-answer';
 
 interface ExamLayoutProps {
     exam: SelectedExamDetails;
