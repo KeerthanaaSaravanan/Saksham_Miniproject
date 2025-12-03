@@ -156,7 +156,7 @@ export function VoiceControlProvider({ children }: { children: ReactNode }) {
         const capturedPassword = command;
         setLoginCredentials(prev => ({...prev, password: capturedPassword }));
         window.dispatchEvent(new CustomEvent('voice-input', { detail: { field: 'password', value: capturedPassword } }));
-        await speak(`I have your password. It has ${capturedPassword.length} characters. Should I proceed with login?`, () => {
+        await speak(`Password captured. It has ${capturedPassword.length} characters. Should I proceed with login?`, () => {
             setLoginStep('confirm-password');
         });
         return true;
@@ -344,5 +344,3 @@ export function VoiceControlProvider({ children }: { children: ReactNode }) {
     </VoiceControlContext.Provider>
   );
 }
-
-    
