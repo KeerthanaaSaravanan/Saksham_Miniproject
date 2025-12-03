@@ -16,7 +16,6 @@ export function AccessibilityWrapper({ children }: { children: React.ReactNode }
       : accessibility.highContrast === 'yellow-on-black' ? 'hc-yellow-on-black'
       : '';
       
-    // Create a dynamic style for the font size
     const fontSizeStyle = accessibility.textSize ? { fontSize: `${accessibility.textSize}px` } : {};
 
     if(isLoading) {
