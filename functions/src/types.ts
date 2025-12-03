@@ -12,6 +12,7 @@ import {
     ParseVoiceCommandInputSchema as GenkitParseVoice,
     SimplifyTextForSLDInputSchema as GenkitSimplifyText,
     TextToSpeechInputSchema as GenkitTextToSpeech,
+    CaptureVoiceAnswerInputSchema as GenkitCaptureVoice,
 } from '../../src/ai/flows'; // Adjust path based on your final structure
 
 // Re-export Zod schemas for validation in the cloud function
@@ -20,6 +21,7 @@ export const AutoGradeInputSchema = GenkitAutoGrade;
 export const ParseVoiceCommandInputSchema = GenkitParseVoice;
 export const SimplifyTextForSLDInputSchema = GenkitSimplifyText;
 export const TextToSpeechInputSchema = GenkitTextToSpeech;
+export const CaptureVoiceAnswerInputSchema = GenkitCaptureVoice;
 
 
 // Special schema for the document extraction function, which takes a file path
@@ -41,6 +43,8 @@ export type {
     SimplifyTextForSLDOutput,
     TextToSpeechInput,
     TextToSpeechOutput,
+    CaptureVoiceAnswerInput,
+    CaptureVoiceAnswerOutput,
 } from '../../src/ai/flows';
 
 export type ExtractQuestionsInput = z.infer<typeof ExtractQuestionsInputSchema>;
@@ -62,4 +66,5 @@ export type CallableFunction =
   | 'autoGradeAnswer'
   | 'parseVoiceCommand'
   | 'simplifyTextForSLD'
-  | 'textToSpeech';
+  | 'textToSpeech'
+  | 'captureVoiceAnswer';

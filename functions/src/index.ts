@@ -29,6 +29,8 @@ import { autoGradeAnswer } from '../../src/ai/flows/auto-grade';
 import { parseVoiceCommand } from '../../src/ai/flows/parse-voice-command';
 import { simplifyTextForSLD } from '../../src/ai/flows/simplify-text-for-sld';
 import { textToSpeech } from '../../src/ai/flows/text-to-speech';
+import { captureVoiceAnswer } from '../../src/ai/flows/capture-voice-answer';
+
 
 // Local types
 import {
@@ -38,6 +40,7 @@ import {
   ParseVoiceCommandInputSchema,
   SimplifyTextForSLDInputSchema,
   TextToSpeechInputSchema,
+  CaptureVoiceAnswerInputSchema,
   CallableFunction,
   FlowOutput,
 } from './types';
@@ -148,6 +151,8 @@ export const autoGradeAnswerFunc = createAIEndpoint(autoGradeAnswer, AutoGradeIn
 export const parseVoiceCommandFunc = createAIEndpoint(parseVoiceCommand, ParseVoiceCommandInputSchema, 'parseVoiceCommand');
 export const simplifyTextForSLDFunc = createAIEndpoint(simplifyTextForSLD, SimplifyTextForSLDInputSchema, 'simplifyTextForSLD');
 export const textToSpeechFunc = createAIEndpoint(textToSpeech, TextToSpeechInputSchema, 'textToSpeech');
+export const captureVoiceAnswerFunc = createAIEndpoint(captureVoiceAnswer, CaptureVoiceAnswerInputSchema, 'captureVoiceAnswer');
+
 
 /**
  * A specialized callable function for extracting questions from a document stored in Cloud Storage.
