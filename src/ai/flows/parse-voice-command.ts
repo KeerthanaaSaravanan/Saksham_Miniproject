@@ -4,8 +4,8 @@
  * @fileOverview An AI chatbot that provides accessibility-first assistance by mapping spoken language to structured commands.
  *
  * - parseVoiceCommand - A function that handles chatbot interactions.
- * - ChatbotInput - The input type for the parseVoiceCommand function.
- * - ChatbotOutput - The return type for the parseVoiceCommand function.
+ * - ParseVoiceCommandInput - The input type for the parseVoiceCommand function.
+ * - ParseVoiceCommandOutput - The return type for the parseVoiceCommand function.
  */
 
 import {ai} from '@/ai/genkit';
@@ -19,6 +19,7 @@ export type ParseVoiceCommandInput = z.infer<typeof ParseVoiceCommandInputSchema
 
 const ParseVoiceCommandOutputSchema = z.object({
   intent: z.enum([
+      "open_dashboard",
       "open_exams",
       "open_practice",
       "open_profile",

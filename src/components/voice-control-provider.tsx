@@ -4,11 +4,12 @@
 import React, { createContext, useState, useContext, ReactNode, useEffect, useRef, useCallback } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
-import { provideAccessibilityFirstAIChatbotAssistance } from "@/ai/flows/provide-accessibility-first-ai-chatbot-assistance";
+import { parseVoiceCommand } from "@/lib/actions/chatbot";
 import { textToSpeech } from "@/ai/flows/text-to-speech";
 import { usePathname } from 'next/navigation';
 import { useExamMode } from '@/hooks/use-exam-mode';
 import { useAccessibilityPanel } from './accessibility/accessibility-panel-provider';
+import type { ParseVoiceCommandOutput } from '@/ai/flows/parse-voice-command';
 
 interface VoiceControlContextType {
   isListening: boolean;
@@ -206,45 +207,41 @@ export function VoiceControlProvider({ children }: { children: ReactNode }) {
         return;
     }
 
-    const lowerCaseCommand = command.toLowerCase();
+    const res: ParseVoiceCommandOutput | { error: string } = await parseVoiceCommand({
+      transcript: command,
+      pageContext: pathname,
+    });
 
-    if (lowerCaseCommand.includes('navigate to') || lowerCaseCommand.includes('go to') || lowerCaseCommand.includes('open')) {
-      let path = '';
-      if(lowerCaseCommand.includes('dashboard')) path = '/dashboard';
-      else if (lowerCaseCommand.includes('assessment') || lowerCaseCommand.includes('my exams')) path = '/assessment';
-      else if (lowerCaseCommand.includes('practice')) path = '/practice';
-      else if (lowerCaseCommand.includes('results')) path = '/results';
-      else if (lowerCaseCommand.includes('profile')) path = '/settings/profile';
-      else if (lowerCaseCommand.includes('accessibility')) path = '/settings/accessibility';
-      else if (lowerCaseCommand.includes('help')) path = '/help';
-      else if (lowerCaseCommand.includes('admin')) path = '/admin/dashboard';
-      
-      if (path) {
-          handleNavigation(path);
-          const pageName = path.split('/').pop() || 'page';
-          toast({ title: 'Navigating', description: `Going to ${pageName}` });
-          await speak(`Navigating to ${pageName}.`);
-      } else {
-           const failedPage = lowerCaseCommand.replace(/navigate to|go to|open/g, '').trim();
-           toast({ variant: 'destructive', title: 'Unknown Page', description: `Could not find page: "${failedPage}"` });
-           await speak(`Sorry, I can't find a page called ${failedPage}.`);
-      }
-    } else {
-        // Fallback to chatbot
-        const prompt = getPagePrompt(pathname);
-        const res = await provideAccessibilityFirstAIChatbotAssistance({
-          user_id: "session_abc123", // Example user_id
-          current_page: pathname,
-          spoken_text: command,
-          accessibility: userProfile?.accessibility_profile,
-        });
-
-        if ('tts_text' in res) {
-          await speak(res.tts_text);
-        } else if ('error' in res) {
-          await speak(`I encountered an error: ${res.error}`);
-        }
+    if ('error' in res) {
+      toast({ variant: 'destructive', title: 'AI Error', description: res.error });
+      await speak(`I had trouble understanding that. Please try again.`);
+      return;
     }
+
+    if(res.clarify) {
+        await speak(res.tts_text);
+        // We'd need more logic here to handle the confirmation (yes/no)
+        // For now, we just speak the clarifying question.
+        return;
+    }
+    
+    let path = '';
+    switch(res.intent) {
+        case 'open_dashboard': path = '/dashboard'; break;
+        case 'open_exams': path = '/assessment'; break;
+        case 'open_practice': path = '/practice'; break;
+        case 'open_profile': path = '/settings/profile'; break;
+        default: break;
+    }
+
+    if (path) {
+        handleNavigation(path);
+        await speak(res.tts_text);
+    } else {
+        // Fallback to chatbot-like behavior if no navigation is triggered
+        await speak(res.tts_text);
+    }
+
   }, [handleNavigation, toast, speak, processLoginCommand, loginStep, isExamMode, pathname, userProfile]);
 
   const startListener = useCallback(() => {

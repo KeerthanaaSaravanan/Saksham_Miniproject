@@ -1,3 +1,4 @@
+
 /**
  * @file This file defines the shared TypeScript types and Zod schemas for the inputs
  * and outputs of the Cloud Functions. This ensures type safety and validation
@@ -13,7 +14,7 @@ import {
     SimplifyTextForSLDInputSchema as GenkitSimplifyText,
     TextToSpeechInputSchema as GenkitTextToSpeech,
     CaptureVoiceAnswerInputSchema as GenkitCaptureVoice,
-} from '../../src/ai/flows'; // Adjust path based on your final structure
+} from './ai/flows'; // Adjust path based on your final structure
 
 // Re-export Zod schemas for validation in the cloud function
 export const GeneratePracticeExamInputSchema = GenkitGeneratePracticeExam;
@@ -45,10 +46,10 @@ export type {
     TextToSpeechOutput,
     CaptureVoiceAnswerInput,
     CaptureVoiceAnswerOutput,
-} from '../../src/ai/flows';
+} from './ai/flows';
 
 export type ExtractQuestionsInput = z.infer<typeof ExtractQuestionsInputSchema>;
-export type { ExtractQuestionsOutput } from '../../src/ai/flows';
+export type { ExtractQuestionsOutput } from './ai/flows';
 
 // A generic wrapper for the output of all callable functions
 export type FlowOutput<T> = {

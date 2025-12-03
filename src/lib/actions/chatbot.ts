@@ -1,3 +1,4 @@
+
 /**
  * @file This file contains server actions for interacting with AI chatbot and TTS flows.
  * It acts as a bridge between the client-side components and the backend Genkit flows,
@@ -15,7 +16,7 @@ import {
   ParseVoiceCommandOutput,
   TextToSpeechInput,
   TextToSpeechOutput,
-} from '@/ai/flows';
+} from '../../functions/src/types'; // Corrected import path
 
 type FlowOutput<T> = {
   data: T;
@@ -27,7 +28,7 @@ const parseVoiceCommandFunc = httpsCallable<ParseVoiceCommandInput, FlowOutput<P
 const textToSpeechFunc = httpsCallable<TextToSpeechInput, FlowOutput<TextToSpeechOutput>>('textToSpeechFunc');
 
 
-export async function getChatbotResponse(
+export async function parseVoiceCommand(
   input: ParseVoiceCommandInput
 ): Promise<ParseVoiceCommandOutput | { error: string }> {
   try {
