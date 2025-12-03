@@ -6,18 +6,21 @@ import { useParams, useRouter } from 'next/navigation';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Loader2, ArrowLeft, Save } from 'lucide-react';
+import { Loader2, ArrowLeft, Save, Sparkles, AlertCircle } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
+import { runAutoGrader } from '@/lib/actions/grading';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 
 type Question = {
     id: string;
     question: string;
     marks: number;
+    correctAnswer: string;
 };
 
 type Answer = {
@@ -67,8 +70,8 @@ const MOCK_STUDENTS: Record<string, UserProfile> = {
 
 const MOCK_QUESTIONS: Record<string, Question[]> = {
     'exam1': [
-        { id: 'q1', question: 'Who was the first President of India?', marks: 10 },
-        { id: 'q2', question: 'What is the capital of France?', marks: 10 },
+        { id: 'q1', question: 'Who was the first President of India?', marks: 10, correctAnswer: 'Dr. Rajendra Prasad' },
+        { id: 'q2', question: 'What is the capital of France?', marks: 10, correctAnswer: 'Paris' },
     ]
 };
 
@@ -92,6 +95,7 @@ export default function GradingPage() {
     const { toast } = useToast();
     
     const [isSaving, setIsSaving] = useState(false);
+    const [isAutoGrading, setIsAutoGrading] = useState<Record<string, boolean>>({});
     
     const [submission, setSubmission] = useState<Submission | null>(null);
     const [exam, setExam] = useState<Exam | null>(null);
@@ -103,6 +107,7 @@ export default function GradingPage() {
 
     const [scores, setScores] = useState<Record<string, number>>({});
     const [feedback, setFeedback] = useState<Record<string, string>>({});
+    const [needsHumanReview, setNeedsHumanReview] = useState<Record<string, boolean>>({});
 
     useEffect(() => {
         setIsLoading(true);
@@ -129,6 +134,34 @@ export default function GradingPage() {
             setScores(initialScores);
         }
     }, [questions]);
+    
+    const handleAutoGrade = async (question: Question) => {
+        const studentAnswer = answers?.find(a => a.questionId === question.id)?.answer;
+        if (!studentAnswer) {
+            toast({ variant: 'destructive', title: 'No Answer', description: 'Student did not provide an answer for this question.' });
+            return;
+        }
+
+        setIsAutoGrading(prev => ({...prev, [question.id]: true}));
+        
+        const result = await runAutoGrader({
+            question: question.question,
+            correctAnswer: question.correctAnswer,
+            studentResponse: studentAnswer,
+            maxScore: question.marks,
+        });
+        
+        setIsAutoGrading(prev => ({...prev, [question.id]: false}));
+
+        if ('error' in result) {
+            toast({ variant: 'destructive', title: 'Auto-Grade Failed', description: result.error });
+        } else {
+            setScores(prev => ({...prev, [question.id]: result.score}));
+            setFeedback(prev => ({...prev, [question.id]: result.justification}));
+            setNeedsHumanReview(prev => ({...prev, [question.id]: result.human_review}));
+            toast({ title: 'AI Grading Complete', description: `Suggested score: ${result.score}/${result.max_score}.`});
+        }
+    }
 
 
     const handleSaveGrade = async () => {
@@ -213,6 +246,8 @@ export default function GradingPage() {
             <div className="space-y-6">
                 {questions?.map((q, index) => {
                     const studentAnswer = answers?.find(a => a.questionId === q.id);
+                    const isQuestionAutoGrading = isAutoGrading[q.id];
+
                     return (
                         <Card key={q.id}>
                             <CardHeader>
@@ -228,29 +263,44 @@ export default function GradingPage() {
                                     <p className="mt-1 text-foreground">{studentAnswer?.answer || "No answer provided."}</p>
                                 </div>
                             </CardContent>
-                            <CardFooter className="flex flex-col sm:flex-row items-start gap-4 bg-muted/50 p-4">
-                                <div className="flex-1 w-full space-y-2">
-                                    <Label htmlFor={`feedback-${q.id}`}>Feedback (Optional)</Label>
-                                    <Textarea 
-                                        id={`feedback-${q.id}`}
-                                        placeholder="Provide constructive feedback..."
-                                        value={feedback[q.id] || ''}
-                                        onChange={(e) => setFeedback(prev => ({...prev, [q.id]: e.target.value}))}
-                                    />
-                                </div>
-                                <div className="w-full sm:w-40 space-y-2">
-                                     <Label htmlFor={`score-${q.id}`}>Score Awarded</Label>
-                                     <Input
-                                        id={`score-${q.id}`}
-                                        type="number"
-                                        max={q.marks}
-                                        min={0}
-                                        value={scores[q.id] || 0}
-                                        onChange={(e) => {
-                                            const newScore = Math.min(q.marks, Math.max(0, Number(e.target.value)));
-                                            setScores(prev => ({ ...prev, [q.id]: newScore }))
-                                        }}
-                                     />
+                            <CardFooter className="flex flex-col items-start gap-4 bg-muted/50 p-4">
+                                {needsHumanReview[q.id] && (
+                                    <Alert variant="destructive" className="w-full">
+                                        <AlertCircle className="h-4 w-4" />
+                                        <AlertTitle>Human Review Recommended</AlertTitle>
+                                        <AlertDescription>The AI was not confident in its assessment. Please review this answer carefully.</AlertDescription>
+                                    </Alert>
+                                )}
+
+                                <div className="flex items-start gap-4 w-full flex-col sm:flex-row">
+                                    <div className="flex-1 w-full space-y-2">
+                                        <Label htmlFor={`feedback-${q.id}`}>Feedback (AI-Assisted)</Label>
+                                        <Textarea 
+                                            id={`feedback-${q.id}`}
+                                            placeholder="Provide constructive feedback..."
+                                            value={feedback[q.id] || ''}
+                                            onChange={(e) => setFeedback(prev => ({...prev, [q.id]: e.target.value}))}
+                                        />
+                                    </div>
+                                    <div className="w-full sm:w-56 space-y-2">
+                                        <Label htmlFor={`score-${q.id}`}>Score Awarded</Label>
+                                        <div className="flex gap-2">
+                                            <Input
+                                                id={`score-${q.id}`}
+                                                type="number"
+                                                max={q.marks}
+                                                min={0}
+                                                value={scores[q.id] || 0}
+                                                onChange={(e) => {
+                                                    const newScore = Math.min(q.marks, Math.max(0, Number(e.target.value)));
+                                                    setScores(prev => ({ ...prev, [q.id]: newScore }))
+                                                }}
+                                            />
+                                            <Button variant="outline" size="icon" onClick={() => handleAutoGrade(q)} disabled={isQuestionAutoGrading}>
+                                                {isQuestionAutoGrading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
+                                            </Button>
+                                        </div>
+                                    </div>
                                 </div>
                             </CardFooter>
                         </Card>
