@@ -1,33 +1,54 @@
-'use server';
+/**
+ * @file This file contains server actions for interacting with AI chatbot and TTS flows.
+ * It acts as a bridge between the client-side components and the backend Genkit flows,
+ * using Firebase Callable Functions.
+ *
+ * - getChatbotResponse: Gets a response from the main conversational AI.
+ * - getTTS: Converts text to speech audio.
+ */
 
-import { provideAccessibilityFirstAIChatbotAssistance, ChatbotInput, ChatbotOutput } from "@/ai/flows/provide-accessibility-first-ai-chatbot-assistance";
-import { textToSpeech } from "@/ai/flows/text-to-speech";
+'use client';
+
+import { getFunctions, httpsCallable } from 'firebase/functions';
+import {
+  ParseVoiceCommandInput,
+  ParseVoiceCommandOutput,
+  TextToSpeechInput,
+  TextToSpeechOutput,
+} from '@/ai/flows';
+
+type FlowOutput<T> = {
+  data: T;
+};
+
+// Create references to the callable functions
+const functions = getFunctions();
+const parseVoiceCommandFunc = httpsCallable<ParseVoiceCommandInput, FlowOutput<ParseVoiceCommandOutput>>('parseVoiceCommandFunc');
+const textToSpeechFunc = httpsCallable<TextToSpeechInput, FlowOutput<TextToSpeechOutput>>('textToSpeechFunc');
+
 
 export async function getChatbotResponse(
-  input: ChatbotInput
-): Promise<ChatbotOutput | { error: string }> {
+  input: ParseVoiceCommandInput
+): Promise<ParseVoiceCommandOutput | { error: string }> {
   try {
-    const result = await provideAccessibilityFirstAIChatbotAssistance(input);
-    if(input.modality === 'voice') {
-        const ttsResult = await textToSpeech(result.response);
-        return { ...result, response: ttsResult.media };
-    }
-    return result;
+    const result = await parseVoiceCommandFunc(input);
+    return result.data.data;
   } catch (e: any) {
-    console.error(e);
+    console.error('Chatbot Action Error:', e);
     return { error: e.message || 'An unknown error occurred in the chatbot.' };
   }
 }
 
-
 export async function getTTS(
-  input: string
+  text: string
 ): Promise<{ media: string } | { error: string }> {
   try {
-    const result = await textToSpeech(input);
-    return result;
+    const result = await textToSpeechFunc(text);
+    return result.data.data;
   } catch (e: any) {
-    console.error(e);
-    return { error: e.message || 'An unknown error occurred during TTS processing.' };
+    console.error('TTS Action Error:', e);
+    return {
+      error: e.message || 'An unknown error occurred during TTS processing.',
+    };
   }
 }

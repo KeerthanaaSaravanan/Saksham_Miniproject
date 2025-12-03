@@ -10,7 +10,8 @@ import {
     ExtractQuestionsInputSchema as GenkitExtractQuestions,
     AutoGradeInputSchema as GenkitAutoGrade,
     ParseVoiceCommandInputSchema as GenkitParseVoice,
-    SimplifyTextForSLDInputSchema as GenkitSimplifyText
+    SimplifyTextForSLDInputSchema as GenkitSimplifyText,
+    TextToSpeechInputSchema as GenkitTextToSpeech,
 } from '../../src/ai/flows'; // Adjust path based on your final structure
 
 // Re-export Zod schemas for validation in the cloud function
@@ -18,6 +19,8 @@ export const GeneratePracticeExamInputSchema = GenkitGeneratePracticeExam;
 export const AutoGradeInputSchema = GenkitAutoGrade;
 export const ParseVoiceCommandInputSchema = GenkitParseVoice;
 export const SimplifyTextForSLDInputSchema = GenkitSimplifyText;
+export const TextToSpeechInputSchema = GenkitTextToSpeech;
+
 
 // Special schema for the document extraction function, which takes a file path
 export const ExtractQuestionsInputSchema = z.object({
@@ -36,6 +39,8 @@ export type {
     ParseVoiceCommandOutput,
     SimplifyTextForSLDInput,
     SimplifyTextForSLDOutput,
+    TextToSpeechInput,
+    TextToSpeechOutput,
 } from '../../src/ai/flows';
 
 export type ExtractQuestionsInput = z.infer<typeof ExtractQuestionsInputSchema>;
@@ -56,4 +61,5 @@ export type CallableFunction =
   | 'extractQuestionsFromDocument'
   | 'autoGradeAnswer'
   | 'parseVoiceCommand'
-  | 'simplifyTextForSLD';
+  | 'simplifyTextForSLD'
+  | 'textToSpeech';

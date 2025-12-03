@@ -8,3 +8,4 @@ export * from '../../../../src/ai/flows/extract-questions-from-document';
 export * from '../../../../src/ai/flows/auto-grade';
 export * from '../../../../src/ai/flows/parse-voice-command';
 export * from '../../../../src/ai/flows/simplify-text-for-sld';
+export * from '../../../../src/ai/flows/text-to-speech';
