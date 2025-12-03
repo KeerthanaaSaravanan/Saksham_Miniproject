@@ -9,7 +9,8 @@
 
 'use client';
 
-import { getFunctions, httpsCallable, getApp } from 'firebase/functions';
+import { getFunctions, httpsCallable } from 'firebase/functions';
+import { getApp } from 'firebase/app';
 import {
   ParseVoiceCommandInput,
   ParseVoiceCommandOutput,
@@ -24,7 +25,7 @@ type FlowOutput<T> = {
 // Lazily initialize functions to ensure Firebase app is ready.
 const getFunctionsInstance = () => {
     const app = getApp(); // Assumes Firebase is initialized elsewhere, e.g., in FirebaseClientProvider
-    return getFunctions(app);
+    return getFunctions(app, 'us-central1');
 }
 
 export async function parseVoiceCommand(

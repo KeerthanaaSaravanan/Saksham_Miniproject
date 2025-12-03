@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import {
   Accordion,
@@ -27,41 +27,26 @@ import { MoreHorizontal, Edit, Loader2, Trash2 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { useToast } from '@/hooks/use-toast';
+import { useFirestore, useCollection, useMemoFirebase } from '@/firebase';
+import { collection, query, where, orderBy, doc, deleteDoc } from 'firebase/firestore';
 
 type Exam = {
     id: string;
     title: string;
     subject: string;
     gradeLevel: string;
-    startTime: Date;
-    endTime: Date;
+    startTime: { toDate: () => Date };
+    endTime: { toDate: () => Date };
     durationMinutes?: number;
 };
 
 type Submission = {
     id: string;
     studentId: string;
-    studentName: string;
-    submittedAt: Date;
-    status: 'Pending' | 'Graded';
-    score: number;
-};
-
-const MOCK_EXAMS: Exam[] = [
-    { id: 'exam1', title: 'Mid-Term Social Studies', subject: 'Social Studies', gradeLevel: 'Class 8', startTime: new Date('2024-07-20T10:00:00'), endTime: new Date('2024-07-20T11:30:00'), durationMinutes: 90 },
-    { id: 'exam2', title: 'Annual Physics Exam', subject: 'Physics', gradeLevel: 'Class 11', startTime: new Date('2024-07-25T09:00:00'), endTime: new Date('2024-07-25T12:00:00'), durationMinutes: 180 },
-    { id: 'exam3', title: 'Live Math Test', subject: 'Mathematics', gradeLevel: 'Class 8', startTime: new Date(Date.now() - 30 * 60 * 1000), endTime: new Date(Date.now() + 30 * 60 * 1000), durationMinutes: 60 }
-];
-
-const MOCK_SUBMISSIONS: { [examId: string]: Submission[] } = {
-    'exam1': [
-        { id: 'sub1', studentId: 'user1', studentName: 'Rohan Mehta', submittedAt: new Date('2024-07-20T11:25:00'), status: 'Graded', score: 88 },
-        { id: 'sub2', studentId: 'user2', studentName: 'Sania Mirza', submittedAt: new Date('2024-07-20T11:28:00'), status: 'Pending', score: 0 },
-    ],
-    'exam2': [],
-    'exam3': [
-         { id: 'sub3', studentId: 'user3', studentName: 'Aditya Rao', submittedAt: new Date(), status: 'Pending', score: 0 }
-    ],
+    studentName?: string;
+    submittedAt: { toDate: () => Date };
+    status: 'in_progress' | 'submitted' | 'graded';
+    score?: number;
 };
 
 const getExamStatus = (startTime: Date, endTime: Date): { text: string; variant: "default" | "secondary" | "destructive" | "outline" } => {
@@ -77,17 +62,10 @@ const getExamStatus = (startTime: Date, endTime: Date): { text: string; variant:
 
 const ExamSubmissions = ({ examId }: { examId: string }) => {
     const router = useRouter();
-    const [submissions, setSubmissions] = useState<Submission[]>([]);
-    const [isLoading, setIsLoading] = useState(true);
-
-    useEffect(() => {
-        setIsLoading(true);
-        setTimeout(() => {
-            setSubmissions(MOCK_SUBMISSIONS[examId] || []);
-            setIsLoading(false);
-        }, 500);
-    }, [examId]);
-
+    const db = useFirestore();
+    
+    const submissionsQuery = useMemoFirebase(() => db ? query(collection(db, 'submissions'), where('examId', '==', examId)) : null, [db, examId]);
+    const { data: submissions, isLoading } = useCollection<Submission>(submissionsQuery);
 
     if (isLoading) {
         return <div className="flex justify-center p-8"><Loader2 className="animate-spin" /></div>;
@@ -113,10 +91,10 @@ const ExamSubmissions = ({ examId }: { examId: string }) => {
                     <TableBody>
                         {submissions.map(sub => (
                             <TableRow key={sub.id}>
-                                <TableCell className="font-medium">{sub.studentName}</TableCell>
-                                <TableCell>{sub.submittedAt.toLocaleString()}</TableCell>
-                                <TableCell>{sub.status === 'Graded' ? `${sub.score.toFixed(1)}%` : 'N/A'}</TableCell>
-                                <TableCell><Badge variant={sub.status === 'Graded' ? 'secondary' : 'default'}>{sub.status}</Badge></TableCell>
+                                <TableCell className="font-medium">{sub.studentName || sub.studentId}</TableCell>
+                                <TableCell>{sub.submittedAt.toDate().toLocaleString()}</TableCell>
+                                <TableCell>{sub.status === 'graded' ? `${sub.score?.toFixed(1) || 'N/A'}%` : 'N/A'}</TableCell>
+                                <TableCell><Badge variant={sub.status === 'graded' ? 'secondary' : 'default'}>{sub.status}</Badge></TableCell>
                                 <TableCell className="text-right">
                                    <DropdownMenu>
                                         <DropdownMenuTrigger asChild>
@@ -125,7 +103,7 @@ const ExamSubmissions = ({ examId }: { examId: string }) => {
                                             </Button>
                                         </DropdownMenuTrigger>
                                         <DropdownMenuContent align="end">
-                                            <DropdownMenuItem onClick={() => router.push(`/admin/grading/${examId}/${sub.id}`)}>
+                                            <DropdownMenuItem onClick={() => router.push(`/admin/grading/${sub.id}`)}>
                                                 View & Grade Submission
                                             </DropdownMenuItem>
                                         </DropdownMenuContent>
@@ -144,27 +122,20 @@ const ExamSubmissions = ({ examId }: { examId: string }) => {
 export default function ExaminationsPage() {
     const router = useRouter();
     const { toast } = useToast();
+    const db = useFirestore();
     
-    const [exams, setExams] = useState<Exam[]>([]);
-    const [areExamsLoading, setAreExamsLoading] = useState(true);
+    const examsQuery = useMemoFirebase(() => db ? query(collection(db, 'exams'), orderBy('startTime', 'desc')) : null, [db]);
+    const { data: exams, isLoading: areExamsLoading } = useCollection<Exam>(examsQuery);
     
     const [examToDelete, setExamToDelete] = useState<Exam | null>(null);
 
-    useEffect(() => {
-        setAreExamsLoading(true);
-        setTimeout(() => {
-            setExams(MOCK_EXAMS.sort((a,b) => b.startTime.getTime() - a.startTime.getTime()));
-            setAreExamsLoading(false);
-        }, 800);
-    }, []);
-
     const handleDeleteExam = async () => {
-        if (!examToDelete) return;
+        if (!examToDelete || !db) return;
 
-        console.log("Mock deleting exam:", examToDelete.id);
-        
         try {
-            setExams(prev => prev.filter(e => e.id !== examToDelete.id));
+            await deleteDoc(doc(db, 'exams', examToDelete.id));
+            // In a real app, you'd also delete all subcollections (questions) and related submissions.
+            // This requires a Cloud Function for cascading deletes.
 
             toast({
                 title: "Exam Deleted",
@@ -210,7 +181,7 @@ export default function ExaminationsPage() {
             ) : (
                 <Accordion type="single" collapsible className="w-full space-y-4">
                     {exams.map(exam => {
-                        const status = getExamStatus(exam.startTime, exam.endTime);
+                        const status = getExamStatus(exam.startTime.toDate(), exam.endTime.toDate());
                         return (
                             <AccordionItem key={exam.id} value={exam.id} className="border-b-0">
                                 <Card className="overflow-hidden">
@@ -221,7 +192,7 @@ export default function ExaminationsPage() {
                                                 <CardDescription className="mt-1 flex items-center gap-2">
                                                     <span>{exam.subject}</span>
                                                     <Badge variant="outline">{exam.gradeLevel}</Badge>
-                                                    <span>Starts: {exam.startTime.toLocaleString()}</span>
+                                                    <span>Starts: {exam.startTime.toDate().toLocaleString()}</span>
                                                 </CardDescription>
                                             </div>
                                             <Badge variant={status.variant} className="h-6">{status.text}</Badge>

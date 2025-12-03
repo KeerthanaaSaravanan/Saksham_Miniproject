@@ -4,10 +4,11 @@
 import { useToast } from '@/hooks/use-toast';
 import { Loader2 } from 'lucide-react';
 import { useState, useEffect, useCallback, useMemo } from 'react';
-import { useUser } from '@/firebase';
+import { useUser, useFirestore, useDoc, useMemoFirebase } from '@/firebase';
 import { ExamLayout } from '@/components/layout/exam-layout';
-import { useParams } from 'next/navigation';
+import { useParams, useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
+import { doc, setDoc, serverTimestamp, getDoc, collection } from 'firebase/firestore';
 
 export type AssessmentQuestion = {
   id: string;
@@ -25,28 +26,10 @@ export type SelectedExamDetails = {
     title: string;
     subject: string;
     gradeLevel: string;
-    startTime: Date;
-    endTime: Date;
+    startTime: { toDate: () => Date };
+    endTime: { toDate: () => Date };
     durationMinutes?: number;
     questions: AssessmentQuestion[];
-};
-
-const MOCK_EXAMS: Record<string, SelectedExamDetails> = {
-    'exam1': {
-        id: 'exam1',
-        title: 'Mid-Term Social Studies',
-        subject: 'Social Studies',
-        gradeLevel: 'Class 8',
-        startTime: new Date(),
-        endTime: new Date(Date.now() + 60 * 60 * 1000),
-        durationMinutes: 60,
-        questions: [
-            { id: 'q1', question: 'Who was the first Mughal emperor of India, and what was his primary military innovation?', options: ['Babur, gunpowder', 'Akbar, composite bows', 'Humayun, war elephants', 'Shah Jahan, siege cannons'], type: 'mcq', correctAnswer: 'Babur, gunpowder', simplifiedStem: 'Who was India\'s first Mughal emperor?' },
-            { id: 'q2', question: 'The French Revolution, a period of radical social and political upheaval in France, began in the year ____.', type: 'fillup', correctAnswer: '1789', simplifiedStem: 'When did the French Revolution start?' },
-            { id: 'q3', question: 'Explain the primary causes of World War I, including the alliance systems, imperialism, militarism, and nationalism.', type: 'long-answer', options: [], correctAnswer: 'WW1 causes include MAIN: Militarism, Alliances, Imperialism, Nationalism. Assassination of Archduke Ferdinand was the trigger.', simplifiedStem: 'Why did World War 1 happen?', stepByStepHints: ['Mention the four MAIN long-term causes.', 'What was the immediate trigger for the war?'] },
-            { id: 'q4', question: 'Draw the structure of a water molecule (H2O) and label the atoms and the bond angle.', type: 'handwriting', options: [], correctAnswer: 'A diagram showing one Oxygen atom bonded to two Hydrogen atoms with an angle of approximately 104.5 degrees.', simplifiedStem: 'Draw a water molecule.' },
-        ]
-    }
 };
 
 export default function AssessmentPage() {
@@ -56,30 +39,26 @@ export default function AssessmentPage() {
 
   const { toast } = useToast();
   const params = useParams();
+  const router = useRouter();
   const examId = params.examId as string;
   
   const { user } = useUser();
-  
-  const [selectedExam, setSelectedExam] = useState<SelectedExamDetails | null>(null);
-  const [isLoadingExam, setIsLoadingExam] = useState(true);
+  const db = useFirestore();
+
+  const examRef = useMemoFirebase(() => db ? doc(db, 'exams', examId) : null, [db, examId]);
+  const { data: selectedExam, isLoading: isLoadingExam } = useDoc<SelectedExamDetails>(examRef);
 
   useEffect(() => {
-    setIsLoadingExam(true);
-    setError(null);
-    setTimeout(() => {
-        const exam = MOCK_EXAMS[examId];
-        if(exam) {
-            setSelectedExam(exam);
-        } else {
-            setError("The requested exam could not be found.");
-        }
-        setIsLoadingExam(false);
-    }, 1000);
-  }, [examId]);
-  
-  useEffect(() => {
     const handleFullscreenChange = () => {
-        setIsFullScreen(!!document.fullscreenElement);
+        const isCurrentlyFullscreen = !!document.fullscreenElement;
+        setIsFullScreen(isCurrentlyFullscreen);
+        if (!isCurrentlyFullscreen && !isSubmitting) {
+             toast({
+                variant: 'destructive',
+                title: 'Fullscreen Required',
+                description: `You have left fullscreen. Please re-enter to continue the exam.`
+            });
+        }
     };
     document.addEventListener('fullscreenchange', handleFullscreenChange);
     
@@ -89,30 +68,43 @@ export default function AssessmentPage() {
             document.exitFullscreen();
         }
     }
-  }, []);
+  }, [isSubmitting, toast]);
 
   const handleSubmitExam = useCallback(async (answers: Record<string, string>) => {
-    if (isSubmitting || !selectedExam || !user) return;
+    if (isSubmitting || !selectedExam || !user || !db) return;
 
     setIsSubmitting(true);
     toast({ title: 'Submitting Exam...', description: 'Please wait while we process your submission.' });
 
-    // Mock submission
-    console.log("Mock submitting exam:", {
+    const submissionRef = doc(collection(db, 'submissions'));
+    const submissionData = {
         examId: selectedExam.id,
-        userId: user.uid,
-        answers
-    });
+        studentId: user.uid,
+        submittedAt: serverTimestamp(),
+        status: 'submitted',
+        responses: Object.entries(answers).map(([questionId, answer]) => ({ questionId, answer })),
+        // Include student details for easier querying on the admin side
+        studentName: user.displayName,
+        studentEmail: user.email,
+    };
     
-    setTimeout(() => {
+    try {
+        await setDoc(submissionRef, submissionData);
+        if (document.fullscreenElement) {
+            document.exitFullscreen();
+        }
+        // UI will switch to "Submitted" message based on isSubmitting state
+    } catch(err: any) {
+        console.error("Submission error:", err);
         toast({
-            title: "Exam Submitted Successfully!",
-            description: `Your answers have been saved. You can now close this tab.`
+            variant: 'destructive',
+            title: 'Submission Failed',
+            description: `Could not save your answers. ${err.message}`
         });
-        setIsSubmitting(true); // Keep in submitting state to show completion message
-    }, 1500);
+        setIsSubmitting(false); // Allow retry
+    }
     
-  }, [isSubmitting, selectedExam, user, toast]);
+  }, [isSubmitting, selectedExam, user, db, toast]);
   
   const handleEnterFullscreen = async () => {
     try {
@@ -142,6 +134,7 @@ export default function AssessmentPage() {
            <div className="fixed inset-0 bg-background flex flex-col justify-center items-center text-center p-4">
               <h1 className="text-3xl font-bold text-primary">Exam Submitted Successfully!</h1>
               <p className="text-muted-foreground mt-2">Your responses have been recorded. You may now close this window.</p>
+              <Button className="mt-6" onClick={() => router.push('/dashboard')}>Back to Dashboard</Button>
           </div>
       )
   }
@@ -150,11 +143,24 @@ export default function AssessmentPage() {
        return (
            <div className="fixed inset-0 bg-background flex flex-col justify-center items-center text-center p-4">
               <h1 className="text-2xl font-bold text-destructive">Error: Could not load the exam.</h1>
-              <p className="text-muted-foreground mt-2">{error || "Please try again later."}</p>
-              <Button className="mt-4" onClick={() => window.history.back()}>Go Back</Button>
+              <p className="text-muted-foreground mt-2">{error || "Please check the exam ID or try again later."}</p>
+              <Button className="mt-4" onClick={() => router.back()}>Go Back</Button>
           </div>
       )
   }
+  
+  const isExamActive = selectedExam.startTime.toDate() <= new Date() && selectedExam.endTime.toDate() > new Date();
+
+  if (!isExamActive) {
+      return (
+           <div className="fixed inset-0 bg-background flex flex-col justify-center items-center text-center p-4">
+              <h1 className="text-2xl font-bold text-destructive">Exam Not Active</h1>
+              <p className="text-muted-foreground mt-2">This exam is not currently active. Please check the scheduled time.</p>
+              <Button className="mt-4" onClick={() => router.back()}>Go Back</Button>
+          </div>
+      )
+  }
+
 
   if (!isFullScreen) {
       return (

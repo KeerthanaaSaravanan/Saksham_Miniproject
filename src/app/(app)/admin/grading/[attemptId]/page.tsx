@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -15,6 +15,8 @@ import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
 import { runAutoGrader } from '@/lib/actions/grading';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { useFirestore, useDoc, useMemoFirebase } from '@/firebase';
+import { doc, getDoc, collection, updateDoc, writeBatch } from 'firebase/firestore';
 
 type Question = {
     id: string;
@@ -24,7 +26,6 @@ type Question = {
 };
 
 type Answer = {
-    id: string;
     questionId: string;
     answer: string;
 };
@@ -32,11 +33,12 @@ type Answer = {
 type Submission = {
     id: string;
     userId: string;
-    studentName: string;
     examId: string;
-    endTime: Date;
-    status: 'Pending' | 'Graded';
-    score: number;
+    submittedAt: { toDate: () => Date };
+    status: 'in_progress' | 'submitted' | 'graded';
+    score?: number;
+    responses: Answer[];
+    feedback?: Record<string, string>;
 };
 
 type UserProfile = {
@@ -44,6 +46,7 @@ type UserProfile = {
     displayName: string;
     photoURL: string;
     email: string;
+    gradeLevel?: string;
 };
 
 type Exam = {
@@ -53,90 +56,75 @@ type Exam = {
     gradeLevel: string;
 };
 
-// MOCK DATA
-const MOCK_EXAMS: Record<string, Exam> = {
-    'exam1': { id: 'exam1', title: 'Mid-Term Social Studies', subject: 'Social Studies', gradeLevel: 'Class 8' },
-};
-
-const MOCK_SUBMISSIONS: Record<string, Submission> = {
-    'sub1': { id: 'sub1', userId: 'user1', studentName: 'Rohan Mehta', examId: 'exam1', endTime: new Date('2024-07-20T11:25:00'), status: 'Graded', score: 88 },
-    'sub2': { id: 'sub2', userId: 'user2', studentName: 'Sania Mirza', examId: 'exam1', endTime: new Date('2024-07-20T11:28:00'), status: 'Pending', score: 0 },
-};
-
-const MOCK_STUDENTS: Record<string, UserProfile> = {
-    'user1': { id: 'user1', displayName: 'Rohan Mehta', email: 'rohan@example.com', photoURL: 'https://i.pravatar.cc/150?u=user1' },
-    'user2': { id: 'user2', displayName: 'Sania Mirza', email: 'sania@example.com', photoURL: 'https://i.pravatar.cc/150?u=user2' },
-};
-
-const MOCK_QUESTIONS: Record<string, Question[]> = {
-    'exam1': [
-        { id: 'q1', question: 'Who was the first President of India?', marks: 10, correctAnswer: 'Dr. Rajendra Prasad' },
-        { id: 'q2', question: 'What is the capital of France?', marks: 10, correctAnswer: 'Paris' },
-    ]
-};
-
-const MOCK_ANSWERS: Record<string, Answer[]> = {
-    'sub1': [
-        { id: 'ans1', questionId: 'q1', answer: 'Dr. Rajendra Prasad' },
-        { id: 'ans2', questionId: 'q2', answer: 'Paris' },
-    ],
-    'sub2': [
-        { id: 'ans1', questionId: 'q1', answer: 'Jawaharlal Nehru' },
-        { id: 'ans2', questionId: 'q2', answer: 'London' },
-    ]
-};
-
 export default function GradingPage() {
     const params = useParams();
-    // In this mock, we use the attemptId as the submissionId
-    const examId = params.attemptId as string;
-    const submissionId = params.attemptId as string; // This is an issue in the original routing, fixing it here
+    const submissionId = params.attemptId as string;
     const router = useRouter();
     const { toast } = useToast();
+    const db = useFirestore();
     
-    const [isSaving, setIsSaving] = useState(false);
-    const [isAutoGrading, setIsAutoGrading] = useState<Record<string, boolean>>({});
+    const submissionRef = useMemoFirebase(() => db ? doc(db, 'submissions', submissionId) : null, [db, submissionId]);
+    const { data: submission, isLoading: isSubmissionLoading } = useDoc<Submission>(submissionRef);
     
-    const [submission, setSubmission] = useState<Submission | null>(null);
     const [exam, setExam] = useState<Exam | null>(null);
     const [student, setStudent] = useState<UserProfile | null>(null);
     const [questions, setQuestions] = useState<Question[] | null>(null);
-    const [answers, setAnswers] = useState<Answer[] | null>(null);
     
-    const [isLoading, setIsLoading] = useState(true);
+    const [isDependentDataLoading, setIsDependentDataLoading] = useState(true);
+    const [isSaving, setIsSaving] = useState(false);
+    const [isAutoGrading, setIsAutoGrading] = useState<Record<string, boolean>>({});
 
     const [scores, setScores] = useState<Record<string, number>>({});
     const [feedback, setFeedback] = useState<Record<string, string>>({});
     const [needsHumanReview, setNeedsHumanReview] = useState<Record<string, boolean>>({});
 
     useEffect(() => {
-        setIsLoading(true);
-        setTimeout(() => {
-            const currentSubmission = MOCK_SUBMISSIONS[submissionId];
-            if (currentSubmission) {
-                setSubmission(currentSubmission);
-                const currentExam = MOCK_EXAMS[currentSubmission.examId];
-                setExam(currentExam);
-                setStudent(MOCK_STUDENTS[currentSubmission.userId]);
-                setQuestions(MOCK_QUESTIONS[currentSubmission.examId]);
-                setAnswers(MOCK_ANSWERS[submissionId]);
-            }
-            setIsLoading(false);
-        }, 500);
-    }, [submissionId]);
+        if (!submission || !db) return;
 
-    useEffect(() => {
-        if (questions) {
-            const initialScores: Record<string, number> = {};
-            questions.forEach(q => {
-                initialScores[q.id] = 0;
-            });
-            setScores(initialScores);
-        }
-    }, [questions]);
+        const fetchDependentData = async () => {
+            setIsDependentDataLoading(true);
+            try {
+                // Fetch Exam
+                const examRef = doc(db, 'exams', submission.examId);
+                const examSnap = await getDoc(examRef);
+                if (examSnap.exists()) setExam({ id: examSnap.id, ...examSnap.data() } as Exam);
+
+                // Fetch Student
+                const studentRef = doc(db, 'users', submission.userId);
+                const studentSnap = await getDoc(studentRef);
+                if (studentSnap.exists()) setStudent({ id: studentSnap.id, ...studentSnap.data() } as UserProfile);
+                
+                // Fetch Questions (assuming they are in a subcollection of the exam)
+                 const questionsRef = collection(db, 'exams', submission.examId, 'questions');
+                 // In a real app, you'd query this collection. For now, we assume questions are part of the exam doc.
+                 // This part needs adjustment based on actual schema. Let's assume questions are embedded for now.
+                 const examWithQuestionsSnap = await getDoc(examRef);
+                 if (examWithQuestionsSnap.exists()) {
+                     const examData = examWithQuestionsSnap.data() as any;
+                     setQuestions(examData.questions || []);
+                     
+                     // Initialize scores and feedback from submission if they exist
+                     const initialScores: Record<string, number> = {};
+                     const initialFeedback: Record<string, string> = submission.feedback || {};
+                     examData.questions?.forEach((q: Question) => {
+                         initialScores[q.id] = (submission.responses.find(r => r.questionId === q.id) as any)?.score || 0;
+                         if (!initialFeedback[q.id]) initialFeedback[q.id] = '';
+                     });
+                     setScores(initialScores);
+                     setFeedback(initialFeedback);
+                 }
+
+            } catch (error) {
+                console.error("Error fetching dependent data:", error);
+                toast({ variant: 'destructive', title: 'Error', description: 'Could not load submission details.' });
+            }
+            setIsDependentDataLoading(false);
+        };
+        fetchDependentData();
+    }, [submission, db, toast]);
     
     const handleAutoGrade = async (question: Question) => {
-        const studentAnswer = answers?.find(a => a.questionId === question.id)?.answer;
+        const studentAnswer = submission?.responses?.find(a => a.questionId === question.id)?.answer;
         if (!studentAnswer) {
             toast({ variant: 'destructive', title: 'No Answer', description: 'Student did not provide an answer for this question.' });
             return;
@@ -144,37 +132,54 @@ export default function GradingPage() {
 
         setIsAutoGrading(prev => ({...prev, [question.id]: true}));
         
-        const result = await runAutoGrader({
-            question: question.question,
-            correctAnswer: question.correctAnswer,
-            studentResponse: studentAnswer,
-            maxScore: question.marks,
-        });
-        
-        setIsAutoGrading(prev => ({...prev, [question.id]: false}));
-
-        if ('error' in result) {
-            toast({ variant: 'destructive', title: 'Auto-Grade Failed', description: result.error });
-        } else {
+        try {
+            const result = await runAutoGrader({
+                question: question.question,
+                correctAnswer: question.correctAnswer || '',
+                studentResponse: studentAnswer,
+                maxScore: question.marks,
+            });
+            
+            if ('error' in result) {
+                throw new Error(result.error);
+            }
             setScores(prev => ({...prev, [question.id]: result.score}));
             setFeedback(prev => ({...prev, [question.id]: result.justification}));
             setNeedsHumanReview(prev => ({...prev, [question.id]: result.human_review}));
-            toast({ title: 'AI Grading Complete', description: `Suggested score: ${result.score}/${result.max_score}.`});
+            toast({ title: 'AI Grading Complete', description: `Suggested score: ${result.score}/${result.maxScore}.`});
+        
+        } catch (error: any) {
+            toast({ variant: 'destructive', title: 'Auto-Grade Failed', description: error.message });
+        } finally {
+            setIsAutoGrading(prev => ({...prev, [question.id]: false}));
         }
     }
 
 
     const handleSaveGrade = async () => {
-        if (!submission || !questions) return;
+        if (!submission || !questions || !submissionRef || !db) return;
         setIsSaving(true);
         
         const totalMarks = questions.reduce((sum, q) => sum + q.marks, 0);
         const obtainedMarks = Object.values(scores).reduce((sum, s) => sum + s, 0);
         const finalScore = totalMarks > 0 ? (obtainedMarks / totalMarks) * 100 : 0;
 
+        const updatedResponses = submission.responses.map(response => ({
+            ...response,
+            score: scores[response.questionId] || 0,
+        }));
+
         try {
-            // Mock saving data
-            console.log("Mock saving grade:", { submissionId, finalScore, scores, feedback });
+            const batch = writeBatch(db);
+            
+            batch.update(submissionRef, {
+                status: 'graded',
+                score: finalScore,
+                responses: updatedResponses,
+                feedback: feedback,
+            });
+
+            await batch.commit();
 
             toast({ title: 'Grade Saved!', description: `The submission has been graded with a score of ${finalScore.toFixed(1)}%.` });
             router.push('/admin/examinations');
@@ -189,6 +194,8 @@ export default function GradingPage() {
     
     const totalScore = Object.values(scores).reduce((sum, score) => sum + (Number(score) || 0), 0);
     const maxScore = questions?.reduce((sum, q) => sum + (Number(q.marks) || 0), 0) || 0;
+    
+    const isLoading = isSubmissionLoading || isDependentDataLoading;
 
     if (isLoading) {
         return (
@@ -237,7 +244,7 @@ export default function GradingPage() {
                     </div>
                 </CardHeader>
                 <CardContent className="grid grid-cols-3 gap-4">
-                    <div><Badge variant="outline">Submitted: {submission.endTime.toLocaleString()}</Badge></div>
+                    <div><Badge variant="outline">Submitted: {submission.submittedAt.toDate().toLocaleString()}</Badge></div>
                     <div><Badge variant="outline">Subject: {exam?.subject}</Badge></div>
                     <div><Badge variant="outline">Grade: {exam?.gradeLevel}</Badge></div>
                 </CardContent>
@@ -245,7 +252,7 @@ export default function GradingPage() {
 
             <div className="space-y-6">
                 {questions?.map((q, index) => {
-                    const studentAnswer = answers?.find(a => a.questionId === q.id);
+                    const studentAnswer = submission?.responses?.find(a => a.questionId === q.id);
                     const isQuestionAutoGrading = isAutoGrading[q.id];
 
                     return (

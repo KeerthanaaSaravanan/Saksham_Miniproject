@@ -18,25 +18,24 @@ import {
 } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { MoreHorizontal, Users, FilePlus, Clock, BookOpen, Activity } from 'lucide-react';
+import { Users, FilePlus, Clock, BookOpen, Activity } from 'lucide-react';
 import { Progress } from '@/components/ui/progress';
 import { ChartConfig, ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart';
 import { Bar, BarChart, ResponsiveContainer, XAxis, YAxis } from "recharts";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
-import { useUser } from '@/firebase';
+import { useUser, useFirestore, useCollection, useMemoFirebase } from '@/firebase';
 import { Skeleton } from '@/components/ui/skeleton';
-import { useState, useEffect } from 'react';
-import Link from 'next/link';
+import { collection, query, where, getDocs, limit } from 'firebase/firestore';
+import { useState, useEffect, useMemo } from 'react';
 
-type Student = {
+type UserProfile = {
     id: string;
     name: string;
     email: string;
-    progress: number;
-    disability: string;
-    avatar: string;
-    gradeLevel: string;
-    role: 'student';
+    progress?: number;
+    disability?: string;
+    photoURL?: string;
+    gradeLevel?: string;
+    role: 'student' | 'faculty';
 };
 
 type Exam = {
@@ -44,7 +43,7 @@ type Exam = {
     title: string;
     subject: string;
     gradeLevel: string;
-    startTime: Date;
+    startTime: { toDate: () => Date; };
 };
 
 type SubjectPerformance = {
@@ -52,62 +51,58 @@ type SubjectPerformance = {
     score: number;
 };
 
-const MOCK_PERFORMANCE: SubjectPerformance[] = [
-    { subject: 'Math', score: 85 },
-    { subject: 'Science', score: 78 },
-    { subject: 'History', score: 92 },
-    { subject: 'English', score: 81 },
-    { subject: 'Physics', score: 72 },
-];
-
-const MOCK_STUDENTS: Student[] = [
-    { id: '1', name: 'Ravi Kumar', email: 'ravi@example.com', progress: 75, disability: 'Dyslexia', avatar: 'https://i.pravatar.cc/150?u=a042581f4e29026704d', gradeLevel: 'Class 8', role: 'student' },
-    { id: '2', name: 'Priya Sharma', email: 'priya@example.com', progress: 90, disability: 'N/A', avatar: 'https://i.pravatar.cc/150?u=a042581f4e29026704e', gradeLevel: 'Class 8', role: 'student' },
-    { id: '3', name: 'Amit Singh', email: 'amit@example.com', progress: 60, disability: 'Low Vision', avatar: 'https://i.pravatar.cc/150?u=a042581f4e29026704f', gradeLevel: 'Class 9', role: 'student' },
-];
-
-const MOCK_EXAMS: Exam[] = [
-    { id: 'exam1', title: 'Mid-Term Social Studies', subject: 'Social Studies', gradeLevel: 'Class 8', startTime: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000) },
-    { id: 'exam2', title: 'Annual Physics Exam', subject: 'Physics', gradeLevel: 'Class 11', startTime: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000) },
-];
+type Submission = {
+    id: string;
+    status: 'in_progress' | 'submitted' | 'graded';
+};
 
 
 export default function AdminDashboardPage() {
     const { user, isUserLoading } = useUser();
+    const db = useFirestore();
+
+    const studentsQuery = useMemoFirebase(() => db ? query(collection(db, 'users'), where('role', '==', 'student'), limit(10)) : null, [db]);
+    const { data: students, isLoading: areStudentsLoading } = useCollection<UserProfile>(studentsQuery);
     
-    const [students, setStudents] = useState<Student[]>([]);
-    const [exams, setExams] = useState<Exam[]>([]);
-    const [areStudentsLoading, setAreStudentsLoading] = useState(true);
-    const [areExamsLoading, setAreExamsLoading] = useState(true);
+    const examsQuery = useMemoFirebase(() => db ? query(collection(db, 'exams'), limit(5)) : null, [db]);
+    const { data: exams, isLoading: areExamsLoading } = useCollection<Exam>(examsQuery);
     
+    const submissionsQuery = useMemoFirebase(() => db ? collection(db, 'submissions') : null, [db]);
+    const { data: submissions, isLoading: areSubmissionsLoading } = useCollection<Submission>(submissionsQuery);
+
     const [subjectPerformance, setSubjectPerformance] = useState<SubjectPerformance[]>([]);
-    const [stats, setStats] = useState({ totalStudents: 0, assessmentsCreated: 0, pendingReviews: 8, activeExams: 0 });
-    const [isLoading, setIsLoading] = useState(true);
-    
+    const [isPerfLoading, setIsPerfLoading] = useState(true);
+
     const facultyName = user?.displayName || 'Faculty';
     
+    // In a real app, this would be a complex aggregation. Here, we mock it.
     useEffect(() => {
-        setIsLoading(true);
-        setAreStudentsLoading(true);
-        setAreExamsLoading(true);
-        
+        setIsPerfLoading(true);
         setTimeout(() => {
-            setSubjectPerformance(MOCK_PERFORMANCE);
-            setStudents(MOCK_STUDENTS);
-            setExams(MOCK_EXAMS);
-            
-            setStats({
-                totalStudents: MOCK_STUDENTS.length,
-                assessmentsCreated: MOCK_EXAMS.length,
-                pendingReviews: 8,
-                activeExams: 1, // Mock value
-            });
-
-            setIsLoading(false);
-            setAreStudentsLoading(false);
-            setAreExamsLoading(false);
+            setSubjectPerformance([
+                { subject: 'Math', score: 85 },
+                { subject: 'Science', score: 78 },
+                { subject: 'History', score: 92 },
+                { subject: 'English', score: 81 },
+                { subject: 'Physics', score: 72 },
+            ]);
+            setIsPerfLoading(false);
         }, 1000);
     }, []);
+    
+    const stats = useMemo(() => {
+        const pendingReviews = submissions?.filter(s => s.status === 'submitted').length || 0;
+        const activeExams = exams?.filter(e => e.startTime.toDate() < new Date() && e.startTime.toDate().getTime() + (e as any).durationMinutes * 60000 > new Date().getTime()).length || 0;
+        
+        return {
+            totalStudents: students?.length || 0,
+            assessmentsCreated: exams?.length || 0,
+            pendingReviews: pendingReviews,
+            activeExams: activeExams,
+        }
+    }, [students, exams, submissions]);
+
+    const isLoading = isUserLoading || areStudentsLoading || areExamsLoading || areSubmissionsLoading || isPerfLoading;
     
     const chartConfig = {
       score: {
@@ -152,7 +147,7 @@ export default function AdminDashboardPage() {
                 </CardHeader>
                 <CardContent>
                     {isLoading ? <Skeleton className="h-7 w-20 mt-1" /> : <div className="text-2xl font-bold">{stats.assessmentsCreated}</div>}
-                    <p className="text-xs text-muted-foreground">Total exams uploaded</p>
+                    <p className="text-xs text-muted-foreground">Total exams created</p>
                 </CardContent>
             </Card>
             <Card>
@@ -161,7 +156,7 @@ export default function AdminDashboardPage() {
                     <Clock className="h-4 w-4 text-muted-foreground text-amber-500" />
                 </CardHeader>
                 <CardContent>
-                    <div className="text-2xl font-bold">{stats.pendingReviews}</div>
+                    {isLoading ? <Skeleton className="h-7 w-20 mt-1" /> : <div className="text-2xl font-bold">{stats.pendingReviews}</div>}
                     <p className="text-xs text-muted-foreground">Manual grading required</p>
                 </CardContent>
             </Card>
@@ -218,7 +213,7 @@ export default function AdminDashboardPage() {
                                         <p className="font-semibold text-sm">{exam.title}</p>
                                         <p className="text-xs text-muted-foreground">{exam.subject} - {exam.gradeLevel}</p>
                                     </div>
-                                    <p className="text-xs text-muted-foreground font-medium">{exam.startTime.toLocaleDateString()}</p>
+                                    <p className="text-xs text-muted-foreground font-medium">{exam.startTime.toDate().toLocaleDateString()}</p>
                                 </div>
                             ))}
                             </div>
@@ -256,7 +251,7 @@ export default function AdminDashboardPage() {
                         <TableCell>
                             <div className="flex items-center gap-4">
                             <Avatar className="h-9 w-9">
-                                <AvatarImage src={student.avatar} alt="Avatar" />
+                                <AvatarImage src={student.photoURL} alt="Avatar" />
                                 <AvatarFallback>{student.name.charAt(0)}</AvatarFallback>
                             </Avatar>
                             <div className="grid gap-1">
