@@ -3,7 +3,8 @@
 
 import { firebaseConfig } from '@/firebase/config';
 import { initializeApp, getApps, getApp, FirebaseApp } from 'firebase/app';
-import { getAuth } from 'firebase/auth';
+import { getAuth, Auth } from 'firebase/auth';
+import { getFirestore, Firestore } from 'firebase/firestore';
 
 // IMPORTANT: DO NOT MODIFY THIS FUNCTION
 export function initializeFirebase() {
@@ -19,14 +20,14 @@ export function initializeFirebase() {
 export function getSdks(firebaseApp: FirebaseApp) {
   return {
     firebaseApp,
-    auth: getAuth(firebaseApp)
+    auth: getAuth(firebaseApp),
+    db: getFirestore(firebaseApp),
   };
 }
 
 export * from './provider';
 export * from './client-provider';
-export * from './non-blocking-login';
+export * from './auth/use-user';
 export * from './firestore/use-collection';
 export * from './firestore/use-doc';
-export * from './auth/use-user';
 export * from './use-memo-firebase';

@@ -43,7 +43,6 @@
     "embla-carousel-react": "^8.1.7",
     "firebase": "^10.12.4",
     "firebase-admin": "^12.2.0",
-    "genkit": "latest",
     "jose": "^5.6.3",
     "lucide-react": "^0.412.0",
     "next": "14.2.5",
@@ -58,7 +57,11 @@
     "vaul": "^0.9.1",
     "wav": "^1.0.2",
     "zod": "^3.23.8",
-    "zustand": "^4.5.4"
+    "zustand": "^4.5.4",
+    "genkit": "latest"
+  },
+  "resolutions": {
+    "robotjs": "0.6.0"
   },
   "devDependencies": {
     "@electron-forge/cli": "^7.4.0",
