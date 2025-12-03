@@ -17,9 +17,9 @@ import { useExamMode } from '@/hooks/use-exam-mode';
 import { Input } from '../ui/input';
 import { Textarea } from '../ui/textarea';
 import { useAccessibilityPanel } from '../accessibility/accessibility-panel-provider';
-import { getTTS } from '@/lib/actions/chatbot';
+import { textToSpeech } from "@/ai/flows/text-to-speech";
 import { useVoiceControl } from '../voice-control-provider';
-import { captureVoiceAnswer } from '@/lib/actions/voice-answer';
+import { captureVoiceAnswer } from '@/ai/flows/capture-voice-answer';
 
 interface ExamLayoutProps {
     exam: SelectedExamDetails;
@@ -63,7 +63,7 @@ export function ExamLayout({ exam, onTimeUp, isSubmitting }: ExamLayoutProps) {
         if (isTTSSpeaking || !audioRef.current || !isTextToSpeechEnabled) return;
         setIsTTSSpeaking(true);
         try {
-            const result = await getTTS(text);
+            const result = await textToSpeech(text);
             if ('media' in result && audioRef.current) {
                 audioRef.current.src = result.media;
                 audioRef.current.play();
@@ -84,18 +84,18 @@ export function ExamLayout({ exam, onTimeUp, isSubmitting }: ExamLayoutProps) {
 
 
     const readQuestionAndOptions = useCallback(() => {
-        const questionStem = activeQuestion.question.split(' ').slice(0, 12).join(' ');
-        const questionText = `Question ${activeQuestionIndex + 1}. ${questionStem}`;
+        const questionStem = activeQuestion.question;
+        const questionText = `Question ${activeQuestionIndex + 1} of ${exam.questions.length}. ${questionStem}`;
         
         let optionsText = "";
         if (activeQuestion.type === 'mcq' && activeQuestion.options) {
             optionsText = activeQuestion.options.map((opt, i) => `Option ${String.fromCharCode(65 + i)}: ${opt}`).join('. ');
         }
         
-        const fullText = `${questionText}. ${optionsText} Say 'Repeat' to hear it again.`;
+        const fullText = `${questionText}. ${optionsText} Say 'Select A' or 'Repeat' to hear again.`;
 
         playTTS(fullText);
-    }, [activeQuestion, activeQuestionIndex, playTTS]);
+    }, [activeQuestion, activeQuestionIndex, exam.questions.length, playTTS]);
 
     useEffect(() => {
         if (isTextToSpeechEnabled && activeQuestion) {

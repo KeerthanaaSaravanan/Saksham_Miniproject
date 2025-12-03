@@ -4,9 +4,11 @@
 import React, { createContext, useState, useContext, ReactNode, useEffect, useRef, useCallback } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
-import { getChatbotResponse, getTTS } from '@/lib/actions/chatbot';
+import { provideAccessibilityFirstAIChatbotAssistance } from "@/ai/flows/provide-accessibility-first-ai-chatbot-assistance";
+import { textToSpeech } from "@/ai/flows/text-to-speech";
 import { usePathname } from 'next/navigation';
 import { useExamMode } from '@/hooks/use-exam-mode';
+import { useAccessibilityPanel } from './accessibility/accessibility-panel-provider';
 
 interface VoiceControlContextType {
   isListening: boolean;
@@ -61,6 +63,7 @@ export function VoiceControlProvider({ children }: { children: ReactNode }) {
   const [loginCredentials, setLoginCredentials] = useState({ email: '', password: '' });
   const isSpeakingRef = useRef(false);
   const { isExamMode } = useExamMode();
+  const { userProfile } = useAccessibilityPanel();
 
 
   const speak = useCallback(async (text: string, onEnd?: () => void) => {
@@ -72,7 +75,7 @@ export function VoiceControlProvider({ children }: { children: ReactNode }) {
     setIsLoading(true);
     isSpeakingRef.current = true;
     try {
-      const result = await getTTS(text);
+      const result = await textToSpeech(text);
       if ('media' in result && audioRef.current) {
         audioRef.current.src = result.media;
         
@@ -229,17 +232,20 @@ export function VoiceControlProvider({ children }: { children: ReactNode }) {
     } else {
         // Fallback to chatbot
         const prompt = getPagePrompt(pathname);
-        const res = await getChatbotResponse({
-          userMessage: `${prompt} The user said: ${command}`,
-          modality: 'voice',
+        const res = await provideAccessibilityFirstAIChatbotAssistance({
+          user_id: "session_abc123", // Example user_id
+          current_page: pathname,
+          spoken_text: command,
+          accessibility: userProfile?.accessibility_profile,
         });
-        if ('response' in res && res.modality === 'voice') {
-          await speak(res.response);
+
+        if ('tts_text' in res) {
+          await speak(res.tts_text);
         } else if ('error' in res) {
           await speak(`I encountered an error: ${res.error}`);
         }
     }
-  }, [handleNavigation, toast, speak, processLoginCommand, loginStep, isExamMode, pathname]);
+  }, [handleNavigation, toast, speak, processLoginCommand, loginStep, isExamMode, pathname, userProfile]);
 
   const startListener = useCallback(() => {
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;

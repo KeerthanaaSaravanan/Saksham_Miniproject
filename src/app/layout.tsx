@@ -33,13 +33,13 @@ export default function RootLayout({
         <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
           <FirebaseClientProvider>
             <ExamModeProvider>
-              <VoiceControlProvider>
-                <AccessibilityPanelProvider>
+              <AccessibilityPanelProvider>
+                <VoiceControlProvider>
                   <AccessibilityWrapper>
                     {children}
                   </AccessibilityWrapper>
-                </AccessibilityPanelProvider>
-              </VoiceControlProvider>
+                </VoiceControlProvider>
+              </AccessibilityPanelProvider>
             </ExamModeProvider>
           </FirebaseClientProvider>
           <Toaster />
