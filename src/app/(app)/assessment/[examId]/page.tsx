@@ -16,6 +16,8 @@ export type AssessmentQuestion = {
   type?: 'mcq' | 'fillup' | 'short-answer' | 'long-answer';
   explanation?: string;
   correctAnswer?: string;
+  simplifiedStem?: string;
+  stepByStepHints?: string[];
 };
 
 export type SelectedExamDetails = {
@@ -39,8 +41,9 @@ const MOCK_EXAMS: Record<string, SelectedExamDetails> = {
         endTime: new Date(Date.now() + 60 * 60 * 1000),
         durationMinutes: 60,
         questions: [
-            { id: 'q1', question: 'Who was the first Mughal emperor of India?', options: ['Babur', 'Akbar', 'Humayun', 'Shah Jahan'], type: 'mcq', correctAnswer: 'Babur' },
-            { id: 'q2', question: 'The French Revolution began in the year ____.', type: 'fillup', correctAnswer: '1789' },
+            { id: 'q1', question: 'Who was the first Mughal emperor of India, and what was his primary military innovation?', options: ['Babur, gunpowder', 'Akbar, composite bows', 'Humayun, war elephants', 'Shah Jahan, siege cannons'], type: 'mcq', correctAnswer: 'Babur, gunpowder', simplifiedStem: 'Who was India\'s first Mughal emperor?' },
+            { id: 'q2', question: 'The French Revolution, a period of radical social and political upheaval in France, began in the year ____.', type: 'fillup', correctAnswer: '1789', simplifiedStem: 'When did the French Revolution start?' },
+            { id: 'q3', question: 'Explain the primary causes of World War I, including the alliance systems, imperialism, militarism, and nationalism.', type: 'long-answer', options: [], correctAnswer: 'WW1 causes include MAIN: Militarism, Alliances, Imperialism, Nationalism. Assassination of Archduke Ferdinand was the trigger.', simplifiedStem: 'Why did World War 1 happen?', stepByStepHints: ['Mention the four MAIN long-term causes.', 'What was the immediate trigger for the war?'] },
         ]
     }
 };

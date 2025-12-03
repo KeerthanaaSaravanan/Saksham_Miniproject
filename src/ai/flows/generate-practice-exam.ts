@@ -28,6 +28,8 @@ const questionSchema = z.object({
     options: z.array(z.string().nullable()).optional().describe("An array of 4 plausible options for MCQs."),
     answer: z.string().describe("The correct answer to the question."),
     explanation: z.string().describe("A brief explanation of how to arrive at the correct answer (<=30 words)."),
+    simplifiedStem: z.string().describe("An ultra-simplified version of the stem for SLD users, using simple vocabulary (<= 15 words)."),
+    stepByStepHints: z.array(z.string()).optional().describe("For long-answer questions, a list of small hints or steps to guide the student."),
 });
 
 const GeneratePracticeExamOutputSchema = z.object({
@@ -47,24 +49,27 @@ const prompt = ai.definePrompt({
   output: { schema: GeneratePracticeExamOutputSchema },
   system: `INTENT: "generate_practice_exam"
 INSTRUCTIONS:
-You are an expert AI for creating practice exams. Create exactly the specified 'num_questions' based on the user's context.
-1. For each question, include a 'type' label, a 'difficulty' (easy/medium/hard), and a unique 'id' (e.g., "q_001").
-2. For "mcq" type, provide exactly 4 options. Include distractors that are plausible but clearly incorrect.
-3. The 'answer' must be the full text of the correct answer, not the letter. For MCQs, it must exactly match one of the provided options.
+You are an expert AI for creating practice exams with a focus on accessibility. Create exactly the specified 'num_questions' based on the user's context.
+1. For each question, include a 'type', 'difficulty', and a unique 'id'.
+2. For "mcq" type, provide exactly 4 plausible options.
+3. The 'answer' must be the full text of the correct answer, exactly matching one of the options for MCQs.
 4. Provide a concise 'explanation' (<=30 words) for every question.
-5. Use simple, dyslexia-friendly phrasing. Keep the question 'stem' length to 20 words or less for audio clarity.
-6. Avoid negative phrasing in question stems (e.g., "Which of these is NOT...").
-7. Your final response must be a valid JSON object containing a "questions" array.
+5. Use simple, dyslexia-friendly phrasing. Keep the question 'stem' length to 20 words or less. Avoid negative phrasing (e.g., "Which is NOT...").
+6. CRITICAL FOR SLD: For EVERY question, you MUST generate a 'simplifiedStem'. This should be an even simpler version of the question, using basic vocabulary, active voice, and be 15 words or less.
+7. CRITICAL FOR SLD: For 'long-answer' questions, you MUST provide 'stepByStepHints' as an array of short, guiding sentences to help the student structure their answer. For other question types, this field can be omitted.
+8. Your final response must be a valid JSON object containing a "questions" array.
 
 EXAMPLE (1 item):
 {
  "id":"q_001",
  "type":"mcq",
  "difficulty":"easy",
- "stem":"What is pressure?",
- "options":["Force per unit area","Weight of object","Speed of object","Distance moved"],
+ "stem":"What is the definition of pressure in physics?",
+ "options":["Force per unit area","The weight of an object","The speed of an object","The distance an object moved"],
  "answer":"Force per unit area",
- "explanation":"Pressure is defined as the force applied perpendicular to the surface of an object per unit area."
+ "explanation":"Pressure is defined as the force applied perpendicular to the surface of an object per unit area.",
+ "simplifiedStem":"What is pressure?",
+ "stepByStepHints": []
 }`,
   prompt: `CONTEXT:
 {

@@ -10,7 +10,7 @@ import { Timer } from '@/components/Timer';
 import { useProctoring } from '@/hooks/use-proctoring';
 import { useToast } from '@/hooks/use-toast';
 import type { SelectedExamDetails, AssessmentQuestion } from '@/app/(app)/assessment/[examId]/page';
-import { Flag, Loader2, Volume2, Mic, MicOff, ChevronRight, ChevronLeft, HelpCircle } from 'lucide-react';
+import { Flag, Loader2, Volume2, Mic, MicOff, ChevronRight, ChevronLeft, HelpCircle, Lightbulb } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { RightSidebar } from './right-sidebar';
 import { useExamMode } from '@/hooks/use-exam-mode';
@@ -20,6 +20,7 @@ import { useAccessibilityPanel } from '../accessibility/accessibility-panel-prov
 import { getTTS } from "@/lib/actions/chatbot";
 import { useVoiceControl } from '../voice-control-provider';
 import { captureVoiceAnswer } from '@/lib/actions/voice-answer';
+import { Switch } from '../ui/switch';
 
 interface ExamLayoutProps {
     exam: SelectedExamDetails;
@@ -41,6 +42,10 @@ export function ExamLayout({ exam, onTimeUp, isSubmitting }: ExamLayoutProps) {
     const recognitionRef = useRef<any>(null);
     const audioRef = useRef<HTMLAudioElement | null>(null);
     const examLayoutRef = useRef<HTMLDivElement>(null);
+    
+    // SLD state
+    const [isSimplifiedMode, setIsSimplifiedMode] = useState(false);
+    const [showOriginal, setShowOriginal] = useState(false);
 
 
     const accessibility = userProfile?.accessibility_profile || {};
@@ -49,6 +54,13 @@ export function ExamLayout({ exam, onTimeUp, isSubmitting }: ExamLayoutProps) {
     const isVoiceNavigationEnabled = accessibility.voiceNavigation;
     const useFocusMode = accessibility.focusMode || accessibility.simplifiedLayout;
     const textSizeClass = accessibility.largeText === 'large' ? 'text-lg' : accessibility.largeText === 'xlarge' ? 'text-xl' : '';
+
+    // Automatically enable simplified mode if the profile has the setting.
+    useEffect(() => {
+        if(accessibility.textSimplifier && accessibility.textSimplifier !== 'off') {
+            setIsSimplifiedMode(true);
+        }
+    }, [accessibility.textSimplifier]);
 
     useEffect(() => {
         setIsExamMode(true);
@@ -85,7 +97,7 @@ export function ExamLayout({ exam, onTimeUp, isSubmitting }: ExamLayoutProps) {
 
 
     const readQuestionAndOptions = useCallback(() => {
-        const questionStem = activeQuestion.question;
+        const questionStem = isSimplifiedMode ? activeQuestion.simplifiedStem || activeQuestion.question : activeQuestion.question;
         const questionText = `Question ${activeQuestionIndex + 1} of ${exam.questions.length}. ${questionStem}`;
         
         let optionsText = "";
@@ -96,7 +108,7 @@ export function ExamLayout({ exam, onTimeUp, isSubmitting }: ExamLayoutProps) {
         const fullText = `${questionText}. ${optionsText} Say 'Select A' or 'Repeat' to hear again.`;
 
         playTTS(fullText);
-    }, [activeQuestion, activeQuestionIndex, exam.questions.length, playTTS]);
+    }, [activeQuestion, activeQuestionIndex, exam.questions.length, playTTS, isSimplifiedMode]);
 
     useEffect(() => {
         if (isTextToSpeechEnabled && activeQuestion) {
@@ -368,6 +380,9 @@ export function ExamLayout({ exam, onTimeUp, isSubmitting }: ExamLayoutProps) {
     
     const answeredCount = Object.keys(answers).filter(key => answers[key] && answers[key].trim() !== '').length;
     const reviewedCount = Object.keys(reviewFlags).filter(k => reviewFlags[k]).length;
+    
+    const displayStem = isSimplifiedMode && !showOriginal ? activeQuestion.simplifiedStem || activeQuestion.question : activeQuestion.question;
+    const canShowSimplified = isSimplifiedMode && activeQuestion.simplifiedStem && activeQuestion.simplifiedStem !== activeQuestion.question;
 
     return (
         <div ref={examLayoutRef} className={cn(
@@ -422,24 +437,26 @@ export function ExamLayout({ exam, onTimeUp, isSubmitting }: ExamLayoutProps) {
                         <h1 className={cn("text-xl font-bold", textSizeClass)}>{exam.title}</h1>
                         <p className={cn("text-sm text-muted-foreground", textSizeClass)}>{exam.subject}</p>
                     </div>
-                     {isTextToSpeechEnabled && (
-                        <div className="flex gap-2">
-                             <Button size="icon" variant="outline" onClick={() => playTTS(activeQuestion.question)} disabled={isTTSSpeaking} aria-label="Read Question Aloud">
-                                <Volume2 />
-                            </Button>
-                             {activeQuestion.options && activeQuestion.options.length > 0 && (
-                                 <Button size="icon" variant="outline" onClick={() => playTTS(activeQuestion.options.map((opt, i) => `Option ${String.fromCharCode(65 + i)}: ${opt}`).join('. '))} disabled={isTTSSpeaking} aria-label="Read Options Aloud">
-                                    <HelpCircle />
+                     <div className="flex items-center gap-4">
+                        {isTextToSpeechEnabled && (
+                            <div className="flex gap-2">
+                                <Button size="icon" variant="outline" onClick={() => playTTS(activeQuestion.question)} disabled={isTTSSpeaking} aria-label="Read Question Aloud">
+                                    <Volume2 />
                                 </Button>
-                             )}
-                        </div>
-                    )}
-                    {exam.durationMinutes && (
-                        <Timer
-                            durationInMinutes={exam.durationMinutes}
-                            onTimeUp={() => onTimeUp(answers)}
-                        />
-                    )}
+                                {activeQuestion.options && activeQuestion.options.length > 0 && (
+                                    <Button size="icon" variant="outline" onClick={() => playTTS(activeQuestion.options.map((opt, i) => `Option ${String.fromCharCode(65 + i)}: ${opt}`).join('. '))} disabled={isTTSSpeaking} aria-label="Read Options Aloud">
+                                        <HelpCircle />
+                                    </Button>
+                                )}
+                            </div>
+                        )}
+                        {exam.durationMinutes && (
+                            <Timer
+                                durationInMinutes={exam.durationMinutes}
+                                onTimeUp={() => onTimeUp(answers)}
+                            />
+                        )}
+                     </div>
                 </header>
                 <ScrollArea className="flex-1">
                     <div className="p-8">
@@ -447,8 +464,24 @@ export function ExamLayout({ exam, onTimeUp, isSubmitting }: ExamLayoutProps) {
                             <div>
                                 <div className="flex items-center justify-between mb-6">
                                     <h2 className={cn("text-lg font-semibold", textSizeClass)}>Question {activeQuestionIndex + 1} of {exam.questions.length}</h2>
+                                    {isSimplifiedMode && (
+                                        <div className="flex items-center space-x-2">
+                                            <Label htmlFor="show-original">Show Original</Label>
+                                            <Switch id="show-original" checked={showOriginal} onCheckedChange={setShowOriginal} />
+                                        </div>
+                                    )}
                                 </div>
-                                <p className={cn("text-xl mb-6", textSizeClass)}>{activeQuestion.question}</p>
+                                <p className={cn("text-xl mb-6", textSizeClass)}>{displayStem}</p>
+                                
+                                {isSimplifiedMode && activeQuestion.stepByStepHints && activeQuestion.stepByStepHints.length > 0 && (
+                                    <div className="mb-6 p-4 bg-accent/10 border border-accent/20 rounded-lg space-y-2">
+                                        <h4 className="font-semibold flex items-center gap-2 text-accent"><Lightbulb className="h-4 w-4" /> Step-by-Step Hints</h4>
+                                        <ul className="list-disc list-inside text-muted-foreground text-sm space-y-1">
+                                            {activeQuestion.stepByStepHints.map((hint, i) => <li key={i}>{hint}</li>)}
+                                        </ul>
+                                    </div>
+                                )}
+
                                 {renderQuestionInput(activeQuestion)}
                             </div>
                         )}
