@@ -12,3 +12,4 @@ import '@/ai/flows/generate-practice-exam.ts';
 import '@/ai/flows/extract-questions-from-document.ts';
 import '@/ai/flows/capture-voice-answer.ts';
 import '@/ai/flows/auto-grade.ts';
+import '@/ai/flows/detect-anomalous-exam-patterns.ts';

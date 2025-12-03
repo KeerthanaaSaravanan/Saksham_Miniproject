@@ -104,12 +104,10 @@ export function ExamLayout({ exam, onTimeUp, isSubmitting }: ExamLayoutProps) {
     }, [activeQuestion, isTextToSpeechEnabled, readQuestionAndOptions]);
 
     const proctoringCallbacks = useMemo(() => ({
-        onLeave: () => {
-          toast({
-            variant: 'destructive',
-            title: 'Warning: Left Exam Tab',
-            description: 'This is your only warning. Leaving again will automatically submit your exam.',
-          });
+        onLeave: (reason: 'visibility' | 'fullscreen', ttsText: string) => {
+          if (isTextToSpeechEnabled) {
+            playTTS(ttsText);
+          }
         },
         onViolationLimitReached: () => {
           toast({
@@ -119,7 +117,7 @@ export function ExamLayout({ exam, onTimeUp, isSubmitting }: ExamLayoutProps) {
           });
           onTimeUp(answers);
         }
-    }), [toast, onTimeUp, answers]);
+    }), [toast, onTimeUp, answers, isTextToSpeechEnabled, playTTS]);
 
     useProctoring({
         isActive: true,

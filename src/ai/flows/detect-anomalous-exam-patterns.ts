@@ -12,32 +12,25 @@ import {ai} from '@/ai/genkit';
 import {z} from 'genkit';
 
 const DetectAnomalousExamPatternsInputSchema = z.object({
-  audioDataUri: z
-    .string()
-    .optional()
-    .describe(
-      "Audio data during the exam, as a data URI that must include a MIME type and use Base64 encoding. Expected format: 'data:<mimetype>;base64,<encoded_data>'."
-    ),
-  screenActivityData: z
-    .string()
-    .optional()
-    .describe(
-      'Log of screen activity during the exam (e.g., rapid changes), as a JSON stringified array.'
-    ),
-  examDetails: z.string().describe('Details about the exam, such as subject and difficulty.'),
-  studentDetails: z.string().describe('Details about the student taking the exam.'),
+  event_type: z.enum(['focus_lost', 'multiple_faces_detected', 'background_noise']),
+  details: z.object({
+      timestamp: z.string().describe("The ISO 8601 timestamp of when the event occurred."),
+      metadata: z.record(z.any()).optional().describe("Any additional metadata about the event."),
+  }).describe("Detailed information about the proctoring event."),
 });
 export type DetectAnomalousExamPatternsInput = z.infer<typeof DetectAnomalousExamPatternsInputSchema>;
 
 const DetectAnomalousExamPatternsOutputSchema = z.object({
-  anomalousPatternsDetected: z
-    .boolean()
-    .describe('Whether anomalous patterns were detected during the exam.'),
-  explanation: z
-    .string()
-    .describe('Explanation of the detected anomalous patterns and their potential implications.'),
+  severity: z.enum(['low', 'medium', 'high']).describe("The assessed severity of the event."),
+  tts_text: z.string().describe("A short, human-friendly notification to be read aloud to the student."),
+  incident_record: z.object({
+    id: z.string().describe("A unique identifier for this incident record."),
+    timestamp: z.string().describe("The ISO 8601 timestamp for the incident."),
+    metadata: z.record(z.any()).optional().describe("A structured log of the event details."),
+  }).describe("A structured record of the detected incident for logging and faculty review.")
 });
 export type DetectAnomalousExamPatternsOutput = z.infer<typeof DetectAnomalousExamPatternsOutputSchema>;
+
 
 export async function detectAnomalousExamPatterns(
   input: DetectAnomalousExamPatternsInput
@@ -49,21 +42,18 @@ const prompt = ai.definePrompt({
   name: 'detectAnomalousExamPatternsPrompt',
   input: {schema: DetectAnomalousExamPatternsInputSchema},
   output: {schema: DetectAnomalousExamPatternsOutputSchema},
-  system: `You are an AI assistant designed to detect anomalous patterns during online exams.
-  Based on the provided data, determine if there are any indications of academic dishonesty.
-  Consider the following:
-  - Audio data: Analyze for background speech or unusual noises.
-  - Screen activity data: Look for rapid screen changes or suspicious patterns.
-  Your output MUST be in valid JSON format matching the provided schema.`,
-  prompt: `
-  Exam Details: {{{examDetails}}}
-  Student Details: {{{studentDetails}}}
-  {{#if audioDataUri}}Audio Data: {{media url=audioDataUri}}{{/if}}
-  {{#if screenActivityData}}Screen Activity Data: {{{screenActivityData}}}{{/if}}
+  system: `INTENT: "proctor_event"
+INSTRUCTIONS:
+You are an AI proctoring assistant. Your task is to assess a proctoring event and generate a student-friendly notification and a structured incident record.
+1.  Based on the 'event_type', determine the 'severity'. 'focus_lost' is medium, 'background_noise' is low, 'multiple_faces_detected' is high.
+2.  Generate a concise, polite 'tts_text' for the student. For 'focus_lost', gently remind them to stay in the exam window.
+3.  Create a structured 'incident_record' with a unique ID and a timestamp.
+4.  Your response must be a valid JSON object matching the provided schema.
 `,
+  prompt: `CONTEXT:
+{{{json (rootValue)}}}`,
   config: {
-    temperature: 0.2,
-    maxOutputTokens: 512,
+    temperature: 0.1,
   },
 });
 
@@ -75,6 +65,8 @@ const detectAnomalousExamPatternsFlow = ai.defineFlow(
   },
   async input => {
     const {output} = await prompt(input);
+    // Add a unique ID to the incident record
+    output!.incident_record.id = `inc_${Date.now()}`;
     return output!;
   }
 );
