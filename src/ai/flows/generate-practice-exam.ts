@@ -29,7 +29,7 @@ const questionSchema = z.object({
     answer: z.string().describe("The correct answer to the question."),
     explanation: z.string().describe("A brief explanation of how to arrive at the correct answer (<=30 words)."),
     simplifiedStem: z.string().describe("An ultra-simplified version of the stem for SLD users, using simple vocabulary (<= 15 words)."),
-    stepByStepHints: z.array(z.string()).optional().describe("For long-answer questions, a list of small hints or steps to guide the student."),
+    stepByStepHints: z.array(z.string()).optional().describe("For long-answer questions, a list of 2-4 short, guiding sentences to help the student structure their answer. Each hint should be a distinct step."),
 });
 
 const GeneratePracticeExamOutputSchema = z.object({
@@ -56,20 +56,20 @@ You are an expert AI for creating practice exams with a focus on accessibility. 
 4. Provide a concise 'explanation' (<=30 words) for every question.
 5. Use simple, dyslexia-friendly phrasing. Keep the question 'stem' length to 20 words or less. Avoid negative phrasing (e.g., "Which is NOT...").
 6. CRITICAL FOR SLD: For EVERY question, you MUST generate a 'simplifiedStem'. This should be an even simpler version of the question, using basic vocabulary, active voice, and be 15 words or less.
-7. CRITICAL FOR SLD: For 'long-answer' questions, you MUST provide 'stepByStepHints' as an array of short, guiding sentences to help the student structure their answer. For other question types, this field can be omitted.
+7. CRITICAL FOR SLD: For 'long-answer' questions, you MUST provide 'stepByStepHints' as an array of 2-4 short, guiding sentences to help the student structure their answer. For other question types, this field can be omitted.
 8. Your final response must be a valid JSON object containing a "questions" array.
 
 EXAMPLE (1 item):
 {
  "id":"q_001",
- "type":"mcq",
- "difficulty":"easy",
- "stem":"What is the definition of pressure in physics?",
- "options":["Force per unit area","The weight of an object","The speed of an object","The distance an object moved"],
- "answer":"Force per unit area",
- "explanation":"Pressure is defined as the force applied perpendicular to the surface of an object per unit area.",
- "simplifiedStem":"What is pressure?",
- "stepByStepHints": []
+ "type":"long-answer",
+ "difficulty":"medium",
+ "stem":"Explain the process of photosynthesis.",
+ "options": [],
+ "answer":"Photosynthesis is the process used by plants, algae, and some bacteria to convert light energy into chemical energy, through a process that converts carbon dioxide and water into glucose (sugar) and oxygen.",
+ "explanation":"Plants take in CO2 and water, and using sunlight, create sugar for energy and release oxygen.",
+ "simplifiedStem":"How do plants make food?",
+ "stepByStepHints": ["First, what do plants take in from the air and ground?", "Second, what energy source do they use?", "Finally, what two things do they produce?"]
 }`,
   prompt: `CONTEXT:
 {

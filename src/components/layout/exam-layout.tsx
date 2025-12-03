@@ -10,7 +10,7 @@ import { Timer } from '@/components/Timer';
 import { useProctoring } from '@/hooks/use-proctoring';
 import { useToast } from '@/hooks/use-toast';
 import type { SelectedExamDetails, AssessmentQuestion } from '@/app/(app)/assessment/[examId]/page';
-import { Flag, Loader2, Volume2, Mic, MicOff, ChevronRight, ChevronLeft, HelpCircle, Lightbulb } from 'lucide-react';
+import { Flag, Loader2, Volume2, Mic, MicOff, ChevronRight, ChevronLeft, HelpCircle, Lightbulb, Check } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { RightSidebar } from './right-sidebar';
 import { useExamMode } from '@/hooks/use-exam-mode';
@@ -23,6 +23,7 @@ import { captureVoiceAnswer } from '@/lib/actions/voice-answer';
 import { Switch } from '../ui/switch';
 import { HandwritingPad } from '../HandwritingPad';
 import { recognizeHandwritingAction } from '@/lib/actions/handwriting';
+import { Progress } from '../ui/progress';
 
 interface ExamLayoutProps {
     exam: SelectedExamDetails;
@@ -36,6 +37,8 @@ export function ExamLayout({ exam, onTimeUp, isSubmitting }: ExamLayoutProps) {
     const [activeQuestionIndex, setActiveQuestionIndex] = useState(0);
     const [answers, setAnswers] = useState<Record<string, string>>({});
     const [reviewFlags, setReviewFlags] = useState<Record<string, boolean>>({});
+    const [currentStepIndex, setCurrentStepIndex] = useState(0);
+    const [stepAnswers, setStepAnswers] = useState<Record<string, string[]>>({});
     const { toast } = useToast();
     const { setIsExamMode } = useExamMode();
     const { userProfile, isLoading: isProfileLoading } = useAccessibilityPanel();
@@ -50,6 +53,26 @@ export function ExamLayout({ exam, onTimeUp, isSubmitting }: ExamLayoutProps) {
     const [isSimplifiedMode, setIsSimplifiedMode] = useState(false);
     const [showOriginal, setShowOriginal] = useState(false);
 
+    const activeQuestion: AssessmentQuestion = exam.questions[activeQuestionIndex];
+    const isStepwiseQuestion = activeQuestion.type === 'long-answer' && (activeQuestion.stepByStepHints?.length || 0) > 0;
+
+    useEffect(() => {
+        // When question changes, reset the step to the beginning
+        setCurrentStepIndex(0);
+    }, [activeQuestionIndex]);
+
+    const handleStepAnswerChange = (questionId: string, stepIndex: number, value: string) => {
+        const newStepAnswers = { ...stepAnswers };
+        if (!newStepAnswers[questionId]) {
+            newStepAnswers[questionId] = [];
+        }
+        newStepAnswers[questionId][stepIndex] = value;
+        setStepAnswers(newStepAnswers);
+
+        // Auto-combine step answers into the main answer
+        const combinedAnswer = newStepAnswers[questionId].join(' \n\n');
+        setAnswers(prev => ({ ...prev, [questionId]: combinedAnswer }));
+    };
 
     const accessibility = userProfile?.accessibility_profile || {};
     const isTextToSpeechEnabled = accessibility.textToSpeech;
@@ -72,8 +95,6 @@ export function ExamLayout({ exam, onTimeUp, isSubmitting }: ExamLayoutProps) {
         }
         return () => setIsExamMode(false);
     }, [setIsExamMode]);
-
-     const activeQuestion: AssessmentQuestion = exam.questions[activeQuestionIndex];
 
      const playTTS = useCallback(async (text: string, onEnd?: () => void) => {
         if (isTTSSpeaking || !audioRef.current || !isTextToSpeechEnabled) return;
@@ -215,15 +236,15 @@ export function ExamLayout({ exam, onTimeUp, isSubmitting }: ExamLayoutProps) {
         setReviewFlags(prev => ({...prev, [questionId]: !prev[questionId]}));
     }
 
-    const toggleSTT = (questionId: string) => {
+    const toggleSTT = (questionId: string, stepIndex?: number) => {
         if (isSTTRecording) {
             recognitionRef.current?.stop();
         } else {
-            startSTT(questionId);
+            startSTT(questionId, stepIndex);
         }
     };
 
-    const startSTT = (questionId: string) => {
+    const startSTT = (questionId: string, stepIndex?: number) => {
         const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
         if (!SpeechRecognition) {
             toast({ variant: 'destructive', title: "Unsupported", description: "Your browser doesn't support speech recognition."});
@@ -249,14 +270,20 @@ export function ExamLayout({ exam, onTimeUp, isSubmitting }: ExamLayoutProps) {
                 question_type: activeQuestion.type || 'short-answer',
             });
 
-            if('error' in processedResult) {
+            const answerText = ('error' in processedResult || processedResult.requires_clarify) 
+                ? transcript // fallback to raw transcript
+                : processedResult.normalized_text;
+            
+            if (isStepwiseQuestion && stepIndex !== undefined) {
+                handleStepAnswerChange(questionId, stepIndex, answerText);
+            } else {
+                handleAnswerChange(questionId, answerText);
+            }
+
+            if ('error' in processedResult) {
                 toast({ variant: 'destructive', title: "Could not process voice answer", description: processedResult.error });
-                handleAnswerChange(questionId, transcript); // fallback to raw
             } else if (processedResult.requires_clarify) {
                 playTTS("I didn't catch that clearly. Please try again or type your answer.");
-            }
-            else {
-                handleAnswerChange(questionId, processedResult.normalized_text);
             }
         };
 
@@ -273,6 +300,39 @@ export function ExamLayout({ exam, onTimeUp, isSubmitting }: ExamLayoutProps) {
     const renderQuestionInput = (question: AssessmentQuestion) => {
         const questionId = question.id;
         const value = answers[questionId] || '';
+
+        if (isStepwiseQuestion) {
+            const hints = question.stepByStepHints || [];
+            const currentHint = hints[currentStepIndex];
+
+            return (
+                <div className="mt-4 space-y-4">
+                    <div className="p-4 border rounded-lg bg-muted/50">
+                        <p className="font-semibold text-lg">{currentHint}</p>
+                        <Textarea
+                            placeholder={`Your answer for step ${currentStepIndex + 1}...`}
+                            value={stepAnswers[questionId]?.[currentStepIndex] || ''}
+                            onChange={(e) => handleStepAnswerChange(questionId, currentStepIndex, e.target.value)}
+                            className="mt-2 min-h-[120px]"
+                        />
+                    </div>
+                     <div className="flex items-center justify-between">
+                         <div className="flex items-center gap-2">
+                             <span className="text-sm text-muted-foreground">Step {currentStepIndex + 1} of {hints.length}</span>
+                              <Progress value={((currentStepIndex + 1) / hints.length) * 100} className="w-32" />
+                         </div>
+                        <div className="flex gap-2">
+                            <Button variant="outline" onClick={() => setCurrentStepIndex(p => Math.max(0, p - 1))} disabled={currentStepIndex === 0}>
+                                Previous Step
+                            </Button>
+                            <Button onClick={() => setCurrentStepIndex(p => Math.min(hints.length - 1, p + 1))} disabled={currentStepIndex === hints.length - 1}>
+                                Next Step
+                            </Button>
+                        </div>
+                    </div>
+                </div>
+            )
+        }
 
         const sttButton = isSpeechToTextEnabled && ['short-answer', 'long-answer', 'fillup'].includes(question.type || 'mcq') && (
             <Button
@@ -504,7 +564,7 @@ export function ExamLayout({ exam, onTimeUp, isSubmitting }: ExamLayoutProps) {
                                 </div>
                                 <p className={cn("text-xl mb-6", textSizeClass)}>{displayStem}</p>
                                 
-                                {isSimplifiedMode && activeQuestion.stepByStepHints && activeQuestion.stepByStepHints.length > 0 && (
+                                {isSimplifiedMode && !isStepwiseQuestion && activeQuestion.stepByStepHints && activeQuestion.stepByStepHints.length > 0 && (
                                     <div className="mb-6 p-4 bg-accent/10 border border-accent/20 rounded-lg space-y-2">
                                         <h4 className="font-semibold flex items-center gap-2 text-accent"><Lightbulb className="h-4 w-4" /> Step-by-Step Hints</h4>
                                         <ul className="list-disc list-inside text-muted-foreground text-sm space-y-1">
@@ -532,7 +592,7 @@ export function ExamLayout({ exam, onTimeUp, isSubmitting }: ExamLayoutProps) {
                         </Button>
                     </div>
                      <Button onClick={() => onTimeUp(answers)} disabled={isSubmitting}>
-                        {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                        {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Check />}
                         Submit Exam
                     </Button>
                 </footer>
