@@ -1,33 +1,91 @@
-import { BrowserWindow } from 'electron';
+import { app, BrowserWindow, globalShortcut, dialog } from 'electron';
+import path from 'path';
 
-// Using say.js, a cross-platform Text-to-Speech library for Node.js.
-// It has native dependencies that `electron-forge` handles via `auto-unpack-natives`.
-const say = require('say.js');
+const SAKSHAM_WEB_URL = 'https://sakshamapp-71eec.web.app';
+const HOTKEY = 'CommandOrControl+Shift+X';
 
-const READY_MESSAGE = 'Saksham is ready. Say a command.';
+let mainWindow: BrowserWindow | null = null;
 
-/**
- * Plays a Text-to-Speech message to announce that the application is ready.
- * It ensures the window is focused before speaking.
- * 
- * @param win The BrowserWindow that should be focused.
- */
-export function announceReady(win: BrowserWindow) {
-  if (!win || win.isDestroyed()) {
-    console.log('Cannot announce ready: Window not available.');
-    return;
-  }
+const gotTheLock = app.requestSingleInstanceLock();
 
-  // Ensure the window is visible and focused to provide context for the user.
-  if (win.isMinimized()) win.restore();
-  win.focus();
-
-  // Use a short delay to ensure focus has settled before speaking.
-  setTimeout(() => {
-    say.speak(READY_MESSAGE, null, 1.0, (err: any) => {
-      if (err) {
-        console.error('Error speaking TTS message:', err);
-      }
-    });
-  }, 100); // 100ms delay
+if (!gotTheLock) {
+  app.quit();
+} else {
+  app.on('second-instance', () => {
+    if (mainWindow) {
+      if (mainWindow.isMinimized()) mainWindow.restore();
+      mainWindow.focus();
+    }
+  });
 }
+
+function announceReady() {
+    if (mainWindow && !mainWindow.isDestroyed()) {
+        dialog.showMessageBox(mainWindow, {
+            type: 'info',
+            title: 'Saksham Ready',
+            message: 'Saksham is ready. Say a command.',
+            buttons: ['OK']
+        });
+    }
+}
+
+function createOrFocusWindow() {
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    if (mainWindow.isMinimized()) {
+      mainWindow.restore();
+    }
+    mainWindow.focus();
+    announceReady();
+  } else {
+    mainWindow = new BrowserWindow({
+      width: 1200,
+      height: 800,
+      webPreferences: {
+        preload: path.join(__dirname, 'preload.js'),
+        nodeIntegration: false,
+        contextIsolation: true,
+      },
+      icon: path.join(__dirname, '../assets/icon.png'),
+    });
+
+    mainWindow.loadURL(SAKSHAM_WEB_URL);
+
+    mainWindow.webContents.on('did-finish-load', () => {
+      announceReady();
+    });
+
+    mainWindow.on('closed', () => {
+      mainWindow = null;
+    });
+  }
+}
+
+app.on('ready', () => {
+  createOrFocusWindow();
+
+  const ret = globalShortcut.register(HOTKEY, () => {
+    createOrFocusWindow();
+  });
+
+  if (!ret) {
+    console.log('Hotkey registration failed');
+    dialog.showErrorBox('Hotkey Error', `Could not register the global hotkey: ${HOTKEY}. It might be in use by another application.`);
+  }
+});
+
+app.on('window-all-closed', () => {
+  if (process.platform !== 'darwin') {
+    app.quit();
+  }
+});
+
+app.on('activate', () => {
+  if (BrowserWindow.getAllWindows().length === 0) {
+    createOrFocusWindow();
+  }
+});
+
+app.on('will-quit', () => {
+  globalShortcut.unregisterAll();
+});
