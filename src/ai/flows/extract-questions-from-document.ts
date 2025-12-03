@@ -12,12 +12,12 @@ import {ai} from '@/ai/genkit';
 import {z} from 'genkit';
 
 const ExtractQuestionsInputSchema = z.object({
-  documentDataUri: z
+  documentText: z
     .string()
     .describe(
-      "The exam document as a data URI that must include a MIME type and use Base64 encoding. Expected format: 'data:<mimetype>;base64,<encoded_data>'."
+      "The exam document text content."
     ),
-  file_type: z.enum(['pdf', 'docx', 'doc', 'txt']).describe("The file type of the document."),
+  fileType: z.enum(['pdf', 'docx']).describe("The file type of the document."),
 });
 export type ExtractQuestionsInput = z.infer<typeof ExtractQuestionsInputSchema>;
 
@@ -27,11 +27,7 @@ const questionSchema = z.object({
     type: z.enum(['mcq', 'short_answer', 'long_answer']).describe("The detected type of the question."),
     stem: z.string().describe("The main text of the question."),
     options: z.array(z.string()).nullable().describe("An array of options if the question is an MCQ, otherwise null."),
-    images: z.array(z.object({
-        id: z.string().describe("The placeholder tag for the image, e.g., '[FIG_1]'."),
-        caption: z.string().describe("The caption for the image, or 'MISSING' if not found."),
-    })).nullable().describe("An array of image objects, or null if no images are referenced."),
-    source_page: z.number().int().describe("The page number in the document where the question was found."),
+    sourcePage: z.number().int().describe("The page number in the document where the question was found."),
     ambiguous: z.boolean().describe("Set to true if the content is unclear or cannot be confidently parsed."),
 });
 
@@ -51,28 +47,27 @@ const extractQuestionsPrompt = ai.definePrompt({
   output: {schema: ExtractQuestionsOutputSchema},
   system: `INTENT: "extract_questions"
 INSTRUCTIONS:
-You are an expert AI assistant that extracts and structures examination questions from a document.
+You are an expert AI assistant that extracts and structures examination questions from document text.
 1. Detect numbered question blocks and parse them.
 2. For each question, determine its type: 'mcq', 'short_answer', or 'long_answer'.
 3. Extract the question text into the 'stem'.
 4. For MCQs, extract the options into the 'options' array. If not an MCQ, 'options' must be null.
-5. Identify image placeholder tags (e.g., "[FIG_1]", "[Image 1]") and map them to the 'images' array. If no caption is present, set it to "MISSING".
-6. If the structure or content of a question is unclear, set 'ambiguous' to true.
-7. Return a valid JSON object containing a "questions" array.
+5. If the structure or content of a question is unclear, set 'ambiguous' to true.
+6. Return a valid JSON object containing a "questions" array.
 
 FEW-SHOT EXAMPLES:
 [Example 1: MCQ]
 Document Text: "1. What is the capital of France? (a) Berlin (b) Madrid (c) Paris (d) Rome"
-Your JSON for this item: { "id": "q_001", "type": "mcq", "stem": "What is the capital of France?", "options": ["Berlin", "Madrid", "Paris", "Rome"], "images": null, "source_page": 1, "ambiguous": false }
+Your JSON for this item: { "id": "q_001", "type": "mcq", "stem": "What is the capital of France?", "options": ["Berlin", "Madrid", "Paris", "Rome"], "sourcePage": 1, "ambiguous": false }
 
 [Example 2: Short Answer]
 Document Text: "2. Who wrote the play 'Hamlet'?"
-Your JSON for this item: { "id": "q_002", "type": "short_answer", "stem": "Who wrote the play 'Hamlet'?", "options": null, "images": null, "source_page": 1, "ambiguous": false }
+Your JSON for this item: { "id": "q_002", "type": "short_answer", "stem": "Who wrote the play 'Hamlet'?", "options": null, "sourcePage": 1, "ambiguous": false }
 `,
   prompt: `CONTEXT:
 {
-    "document_text": "{{media url=documentDataUri}}",
-    "file_type": "{{file_type}}"
+    "document_text": "{{documentText}}",
+    "file_type": "{{fileType}}"
 }`,
   config: {
     temperature: 0.0,
@@ -88,8 +83,8 @@ const validationPrompt = ai.definePrompt({
   You MUST correct your mistake and return only a valid JSON object matching the schema.
   Do not add any commentary or explanation. Your entire response must be the JSON object.`,
   prompt: `Original Input:
-  - Document Data URI: {{media url=originalInput.documentDataUri}}
-  - File Type: {{originalInput.file_type}}
+  - Document Text: {{originalInput.documentText}}
+  - File Type: {{originalInput.fileType}}
 
   Invalid output that you provided:
   {{{invalidOutput}}}
@@ -119,8 +114,6 @@ const extractQuestionsFlow = ai.defineFlow(
       const { text: rawOutput, output } = await extractQuestionsPrompt(input);
 
       try {
-        // Zod parsing is automatically handled by the 'output' field if schema is provided.
-        // We explicitly parse here to be absolutely sure and catch the error for retry.
         result = ExtractQuestionsOutputSchema.parse(output!);
         return result;
       } catch (e: any) {

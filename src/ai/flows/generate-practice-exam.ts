@@ -12,21 +12,17 @@
 import { ai } from '@/ai/genkit';
 import { z } from 'zod';
 
-const questionTypesEnum = z.enum(['mcq', 'short_answer', 'fillup', 'long-answer']);
-
 const GeneratePracticeExamInputSchema = z.object({
+  level: z.string().describe("The user's grade or level, e.g., 'grade_8'"),
   subject: z.string().describe('The subject for the exam.'),
-  lesson: z.string().describe('The specific lesson or topic within the subject.'),
-  questionTypes: z.array(questionTypesEnum).min(1, 'At least one question type must be selected.'),
-  numberOfQuestions: z.coerce.number().min(1, 'Must be at least 1 question.').max(50, 'Cannot exceed 50 questions.'),
-  duration: z.number().int().min(1).max(180, 'Duration cannot exceed 180 minutes.'),
-  user_level: z.string().describe("The user's grade or level, e.g., 'grade_8'"),
+  topic: z.string().describe('The specific lesson or topic within the subject.'),
+  numQuestions: z.coerce.number().min(1, 'Must be at least 1 question.').max(50, 'Cannot exceed 50 questions.'),
 });
 export type GeneratePracticeExamInput = z.infer<typeof GeneratePracticeExamInputSchema>;
 
 const questionSchema = z.object({
     id: z.string().describe("A unique identifier for the question, e.g., 'q_001'."),
-    type: questionTypesEnum.describe("The type of the question."),
+    type: z.enum(['mcq', 'short_answer', 'fillup', 'long-answer']).describe("The type of the question."),
     difficulty: z.enum(['easy', 'medium', 'hard']).describe("The difficulty level of the question."),
     stem: z.string().describe("The text of the question, phrased simply and without negative phrasing (<= 20 words)."),
     options: z.array(z.string().nullable()).optional().describe("An array of 4 plausible options for MCQs."),
@@ -72,11 +68,10 @@ EXAMPLE (1 item):
 }`,
   prompt: `CONTEXT:
 {
-  "user_level": "{{user_level}}",
+  "user_level": "{{level}}",
   "subject": "{{subject}}",
-  "topic": "{{lesson}}",
-  "num_questions": {{numberOfQuestions}},
-  "format": "{{#each questionTypes}}{{{this}}}{{#unless @last}}, {{/unless}}{{/each}}"
+  "topic": "{{topic}}",
+  "num_questions": {{numQuestions}}
 }`,
   config: {
     temperature: 0.2,
