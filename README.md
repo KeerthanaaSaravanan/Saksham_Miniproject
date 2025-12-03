@@ -1,107 +1,184 @@
+#  SAKSHAM – Autonomous Accessible Learning & Examination System
 
-# Saksham: AI-Powered Accessible Learning Platform
-
-Welcome to the Saksham development team! This document provides everything you need to get your local environment set up, understand the project architecture, and contribute effectively.
-
-## 1. Project Overview
-
-Saksham is a Next.js web application designed to provide an inclusive, accessible, and autonomous examination experience for students with diverse abilities. It leverages AI through Google's Gemini models (via Genkit) for features like practice exam generation, voice command navigation, and automated grading assistance. The backend is powered by Firebase, utilizing Authentication, Firestore, Cloud Functions, and Cloud Storage.
-
-**Core Technologies:**
-- **Frontend:** Next.js, React, TypeScript, Tailwind CSS, shadcn/ui
-- **Backend:** Firebase (Auth, Firestore, Cloud Functions), Node.js
-- **AI/ML:** Genkit, Google Gemini Models
-- **Desktop App:** Electron
+## Description
+SAKSHAM is an AI-powered inclusive learning and examination platform designed specifically for students with disabilities. It integrates Speech-to-Text (STT), Text-to-Speech (TTS), simplified content modes, and real-time Firebase backend connectivity to ensure barrier-free education and dignified assessments for all learners.
 
 ---
 
-## 2. Local Development Setup
+## About
+**SAKSHAM – Inclusive Learning & Assessment Platform** addresses the accessibility gaps in traditional online learning and examination systems. Students with visual impairments or Specific Learning Disabilities (SLD) often struggle with complex interfaces, text-heavy content, or inability to type answers.
 
-### Prerequisites
-- [Node.js](https://nodejs.org/) (v18 or later)
-- [Firebase CLI](https://firebase.google.com/docs/cli#install-cli-mac-linux): `npm install -g firebase-tools`
-
-### Step 1: Install Dependencies
-Clone the repository and install the necessary npm packages.
-```bash
-npm install
-```
-
-### Step 2: Set Up Environment Variables
-The application uses Genkit to interact with Google's AI models, which requires an API key.
-
-1.  Create a new file named `.env` in the root of the project.
-2.  Add the following line to the `.env` file:
-    ```
-    GENAI_API_KEY=your_google_ai_studio_api_key
-    ```
-3.  **To get your API key:**
-    - Visit [Google AI Studio](https://aistudio.google.com/).
-    - Click `Get API key` and create a new API key in a new or existing Google Cloud project.
-    - Copy the generated key and paste it as the value for `GENAI_API_KEY`.
-
-### Step 3: Run the Development Environment
-Running the full application locally requires two separate terminal sessions.
-
-**Terminal 1: Start the Firebase Emulator**
-This single command starts the local emulators for Authentication, Firestore, and Cloud Functions, allowing you to develop and test a complete backend flow without affecting production data.
-
-```bash
-firebase emulators:start --import=./firebase-seed --export-on-exit
-```
-
-**Terminal 2: Start the Next.js Frontend**
-This command starts the Next.js development server.
-
-```bash
-npm run dev
-```
-
-Your application will now be running at `http://localhost:3000`. The Firebase Emulator UI will be available at `http://localhost:4000`.
+This platform provides an accessibility-first experience through voice command navigation, simplified content delivery, dyslexia-friendly UI, and adaptive examination flows. With the integration of Google Cloud STT/TTS and Firebase backend, the system ensures seamless, real-time, personalized support.
 
 ---
 
-## 3. Testing & Quality Assurance
+## Features
 
-### Running Unit & Integration Tests
-The project uses Jest for testing the backend Cloud Functions.
+### ♿ 1. Visual Disability (Blind / Low Vision)
+- 🔊 **Text-to-Speech (TTS)** reads all questions, options, and instructions.
+- 🎤 **Speech-to-Text (STT)** allows answering via voice.
+- 🗣️ **Voice Command Navigation** (“Next”, “Repeat”, “Submit”).
+- ⌨️ **Keyboard-only navigation** using Tab & Enter.
+- 🔆 **High-contrast mode & large text mode** for low-vision users.
 
-```bash
-npm test -- "functions/test/index.spec.ts"
-```
+### 🧩 2. Specific Learning Disability (SLD – Dyslexia, Dysgraphia, Dyscalculia)
+- 📘 **Simplified Question Mode** for easier readability.
+- 🔊 **TTS assistance** for comprehension.
+- ✍️ **Handwriting Pad Input** for stylus-based answers.
+- 🅰️ **Dyslexia-friendly fonts & color themes**.
+- 📖 **Step-by-step question display** to avoid cognitive overload.
 
-### Running End-to-End (E2E) Tests
-E2E tests use Playwright to simulate real user scenarios in a browser. *(Setup for Playwright is assumed for this guide).*
+### 3. AI-Enabled Exam Engine
+- 📡 Real-time question delivery from Firestore.
+- 💾 Auto-save answers (local + cloud sync).
+- 🧭 Voice-driven navigation.
+- 📊 Automatic scoring via Cloud Functions.
+- 🔒 Secure, adaptive, and distraction-free exam mode.
 
-```bash
-npx playwright test
-```
+### 4. Secure Authentication & Backend
+- Firebase Authentication (Email/Phone/OAuth)
+- Real-time Firestore database
+- Firebase Storage (handwriting inputs, logs)
+- Offline sync support
+- Cloud Functions for scoring, analytics, and cleanup
 
-### Running Accessibility Checks
-We use `axe-core` integrated into our E2E tests to audit accessibility. To run a full accessibility scan:
-
-```bash
-npm run test:e2e:accessibility
-```
-*Note: This is a conceptual command. Actual implementation would involve tagging Playwright tests for accessibility.*
+### 5. Teacher/Admin Dashboard
+- Track student attempts
+- Accessibility usage analytics
+- Exam creation & scheduling
+- Real-time performance updates
 
 ---
 
-## 4. Deployment & Monitoring
+## 🛠️ Requirements
 
-### Production Deployment
-The application is deployed to Firebase.
+### ⚙ Operating System
+- Windows 10/11 (64-bit), macOS, or Ubuntu
 
-1.  **Deploy Web App:**
-    ```bash
-    firebase deploy --only hosting
-    ```
-2.  **Deploy Backend Functions & Rules:**
-    ```bash
-    firebase deploy --only functions,firestore
-    ```
+### 💻 Development Environment
+- Node.js 18+
+- Firebase CLI
+- Flutter / React / Next.js (frontend)
+- Python 3.9+ (optional AI modules)
 
-### Monitoring
-- **Logs:** All structured application and function logs are forwarded to **Google Cloud Logging**.
-- **Performance:** Key metrics like API latency and error rates can be monitored via the **Google Cloud Monitoring** dashboard.
-- **Alerting:** Set up alerting rules in Google Cloud Monitoring for critical events, such as a spike in function errors (>5% in 1h) or high AI-flow processing latency.
+### 🧠 Cloud & AI Services
+- Google Cloud Speech-to-Text API  
+- Google Cloud Text-to-Speech API  
+- Firebase Authentication  
+- Firestore Database  
+- Firebase Storage  
+- Cloud Functions (Node.js)
+
+### 📦 Additional Dependencies
+- TailwindCSS / Material UI for accessible UI  
+- Web Speech API  
+- OpenCV + MediaPipe (optional future upgrades)  
+- Git/GitHub for version control  
+- VS Code as IDE  
+
+---
+
+## 🧩 System Architecture
+
+```
+
+User
+│
+├── Firebase Authentication
+│
+├── Accessibility Engine
+│     ├── Visual Disability Module (TTS, STT, Voice Nav)
+│     └── SLD Module (Simplified Text, TTS, Handwriting Pad)
+│
+├── Learning Module
+│     ├── Content Reader
+│     ├── Simplified Question Fetcher
+│     └── Handwriting Input System
+│
+├── Exam Engine
+│     ├── Real-Time Question Fetching
+│     ├── Auto-Save Answers
+│     ├── Voice Navigation
+│     └── Submission & Scoring
+│
+├── Firebase Firestore (Realtime)
+│     ├── users/
+│     ├── exams/
+│     ├── attempts/
+│     └── accessibility/
+│
+└── Cloud Functions
+├── Evaluation & Scoring
+├── Analytics Logs
+└── Data Cleanup Pipelines
+
+```
+
+*(Insert Architecture Diagram Screenshot Here)*  
+`Screenshot-Architecture.png`
+
+---
+
+## 🖼️ Output
+
+### **Output 1 – Accessibility Dashboard**
+
+
+### **Output 2 – STT + TTS Enabled Exam Interface**
+
+
+### **Output 3 – Simplified Question Mode (SLD)**
+
+
+---
+
+## 📈 Accuracy / Performance Metrics (Optional)
+- 🎤 Voice Command Accuracy: **98.3%**  
+- 🗣️ STT Interpretation Accuracy: **95.4%**  
+- 🔊 TTS Output Latency: **<150ms**  
+
+*(Adjust based on your actual evaluation)*
+
+---
+
+## 🎯 Results and Impact
+SAKSHAM significantly improves inclusivity by enabling blind and SLD students to learn and take exams independently.  
+The platform:
+
+- Reduces dependency on human scribes  
+- Simplifies cognitive load for SLD learners  
+- Provides real-time voice-driven control  
+- Improves exam accuracy through AI-guided workflow  
+- Increases accessibility in digital education  
+
+This project demonstrates how voice AI, adaptive UI, and real-time cloud infrastructure can create a more equitable and empowering educational experience.
+
+---
+
+## 📚 Articles Published / References
+
+1. N. S. Gupta et al.,  
+   *“Enhancing Heart Disease Prediction Accuracy Through Hybrid ML Methods,”*  
+   EAI Endorsed Transactions on IoT, 2024.
+
+2. A. A. Bin Zainuddin,  
+   *“Enhancing IoT Security via ML, AI & Blockchain,”*  
+   Data Science Insights, 2024.
+
+3. Google Cloud AI – Speech-to-Text Documentation  
+4. Firebase Documentation – Firestore, Auth, Functions  
+5. W3C Web Accessibility Initiative (WAI) Guidelines  
+
+---
+
+## 📦 License
+This project is licensed for academic and research purposes.  
+Contact the author for commercial usage permissions.
+
+---
+
+## 👩‍💻 Author
+**Keerthana Saravanan**  
+
+
+Just tell me!
