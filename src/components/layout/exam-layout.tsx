@@ -40,6 +40,7 @@ export function ExamLayout({ exam, onTimeUp, isSubmitting }: ExamLayoutProps) {
     const [isSTTRecording, setIsSTTRecording] = useState(false);
     const recognitionRef = useRef<any>(null);
     const audioRef = useRef<HTMLAudioElement | null>(null);
+    const examLayoutRef = useRef<HTMLDivElement>(null);
 
 
     const accessibility = userProfile?.accessibility_profile || {};
@@ -123,6 +124,45 @@ export function ExamLayout({ exam, onTimeUp, isSubmitting }: ExamLayoutProps) {
         isActive: true,
         ...proctoringCallbacks
     });
+
+    useEffect(() => {
+        const handleKeyDown = (e: KeyboardEvent) => {
+            if (!examLayoutRef.current) return;
+            if (e.key === 'Tab') {
+                const focusableElements = Array.from(
+                    examLayoutRef.current.querySelectorAll(
+                        'a[href], button, input, textarea, select, [tabindex]:not([tabindex="-1"])'
+                    )
+                ).filter(el => !(el as HTMLElement).hasAttribute('disabled') && (el as HTMLElement).offsetParent !== null) as HTMLElement[];
+
+                if (focusableElements.length === 0) return;
+
+                const firstElement = focusableElements[0];
+                const lastElement = focusableElements[focusableElements.length - 1];
+
+                if (e.shiftKey) {
+                    // If shift+tab is pressed on the first element, wrap to the last
+                    if (document.activeElement === firstElement) {
+                        e.preventDefault();
+                        lastElement.focus();
+                    }
+                } else {
+                    // If tab is pressed on the last element, wrap to the first
+                    if (document.activeElement === lastElement) {
+                        e.preventDefault();
+                        firstElement.focus();
+                    }
+                }
+            }
+        };
+
+        const currentRef = examLayoutRef.current;
+        currentRef?.addEventListener('keydown', handleKeyDown);
+
+        return () => {
+            currentRef?.removeEventListener('keydown', handleKeyDown);
+        };
+    }, []);
 
     const handleAnswerChange = (questionId: string, value: string) => {
         setAnswers(prev => ({ ...prev, [questionId]: value }));
@@ -330,7 +370,7 @@ export function ExamLayout({ exam, onTimeUp, isSubmitting }: ExamLayoutProps) {
     const reviewedCount = Object.keys(reviewFlags).filter(k => reviewFlags[k]).length;
 
     return (
-        <div className={cn(
+        <div ref={examLayoutRef} className={cn(
             "fixed inset-0 bg-background flex noselect",
             accessibility.dyslexiaFriendlyFont && "font-dyslexic",
             accessibility.highContrast && "dark",
@@ -344,7 +384,7 @@ export function ExamLayout({ exam, onTimeUp, isSubmitting }: ExamLayoutProps) {
                     <h3 className="font-bold text-lg mb-1">Questions</h3>
                     <p className="text-xs text-muted-foreground mb-4">Navigate between questions.</p>
                     <ScrollArea className="flex-1 pr-2">
-                        <div className="grid grid-cols-5 gap-2">
+                        <div className="grid grid-cols-5 gap-2" data-testid="question-palette">
                             {exam.questions.map((q, index) => {
                                 const status = getQuestionStatus(index);
                                 return (
@@ -358,6 +398,7 @@ export function ExamLayout({ exam, onTimeUp, isSubmitting }: ExamLayoutProps) {
                                             'bg-yellow-500/20 border-yellow-500 text-yellow-700 hover:bg-yellow-500/30': status === 'review' && activeQuestionIndex !== index,
                                         })}
                                         aria-label={`Go to question ${index + 1}`}
+                                        data-question-index={index}
                                     >
                                         {index + 1}
                                         {status === 'review' && <Flag className="absolute -top-1 -right-1 h-3 w-3 text-yellow-600 fill-yellow-500" />}
