@@ -9,6 +9,10 @@ import { AutoUnpackNativesPlugin } from '@electron-forge/plugin-auto-unpack-nati
 const config: ForgeConfig = {
   packagerConfig: {
     asar: true,
+    // This should point to the compiled output of your main process entry file
+    // By default, if your entry is `src/main.ts`, the output will be in `.webpack/main`
+    // and the file will be `index.js`.
+    entry: 'src/main.ts',
   },
   rebuildConfig: {},
   makers: [
