@@ -14,3 +14,4 @@ import '@/ai/flows/capture-voice-answer.ts';
 import '@/ai/flows/auto-grade.ts';
 import '@/ai/flows/detect-anomalous-exam-patterns.ts';
 import '@/ai/flows/simplify-text-for-sld.ts';
+import '@/ai/flows/recognize-handwriting.ts';

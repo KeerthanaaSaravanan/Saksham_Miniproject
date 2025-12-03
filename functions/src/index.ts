@@ -30,6 +30,7 @@ import { parseVoiceCommand } from '../../src/ai/flows/parse-voice-command';
 import { simplifyTextForSLD } from '../../src/ai/flows/simplify-text-for-sld';
 import { textToSpeech } from '../../src/ai/flows/text-to-speech';
 import { captureVoiceAnswer } from '../../src/ai/flows/capture-voice-answer';
+import { recognizeHandwriting } from '../../src/ai/flows/recognize-handwriting';
 
 
 // Local types
@@ -41,6 +42,7 @@ import {
   SimplifyTextForSLDInputSchema,
   TextToSpeechInputSchema,
   CaptureVoiceAnswerInputSchema,
+  RecognizeHandwritingInputSchema,
   CallableFunction,
   FlowOutput,
 } from './types';
@@ -152,6 +154,7 @@ export const parseVoiceCommandFunc = createAIEndpoint(parseVoiceCommand, ParseVo
 export const simplifyTextForSLDFunc = createAIEndpoint(simplifyTextForSLD, SimplifyTextForSLDInputSchema, 'simplifyTextForSLD');
 export const textToSpeechFunc = createAIEndpoint(textToSpeech, TextToSpeechInputSchema, 'textToSpeech');
 export const captureVoiceAnswerFunc = createAIEndpoint(captureVoiceAnswer, CaptureVoiceAnswerInputSchema, 'captureVoiceAnswer');
+export const recognizeHandwritingFunc = createAIEndpoint(recognizeHandwriting, RecognizeHandwritingInputSchema, 'recognizeHandwriting');
 
 
 /**

@@ -13,7 +13,7 @@ export type AssessmentQuestion = {
   id: string;
   question: string;
   options: string[];
-  type?: 'mcq' | 'fillup' | 'short-answer' | 'long-answer';
+  type?: 'mcq' | 'fillup' | 'short-answer' | 'long-answer' | 'handwriting';
   explanation?: string;
   correctAnswer?: string;
   simplifiedStem?: string;
@@ -44,6 +44,7 @@ const MOCK_EXAMS: Record<string, SelectedExamDetails> = {
             { id: 'q1', question: 'Who was the first Mughal emperor of India, and what was his primary military innovation?', options: ['Babur, gunpowder', 'Akbar, composite bows', 'Humayun, war elephants', 'Shah Jahan, siege cannons'], type: 'mcq', correctAnswer: 'Babur, gunpowder', simplifiedStem: 'Who was India\'s first Mughal emperor?' },
             { id: 'q2', question: 'The French Revolution, a period of radical social and political upheaval in France, began in the year ____.', type: 'fillup', correctAnswer: '1789', simplifiedStem: 'When did the French Revolution start?' },
             { id: 'q3', question: 'Explain the primary causes of World War I, including the alliance systems, imperialism, militarism, and nationalism.', type: 'long-answer', options: [], correctAnswer: 'WW1 causes include MAIN: Militarism, Alliances, Imperialism, Nationalism. Assassination of Archduke Ferdinand was the trigger.', simplifiedStem: 'Why did World War 1 happen?', stepByStepHints: ['Mention the four MAIN long-term causes.', 'What was the immediate trigger for the war?'] },
+            { id: 'q4', question: 'Draw the structure of a water molecule (H2O) and label the atoms and the bond angle.', type: 'handwriting', options: [], correctAnswer: 'A diagram showing one Oxygen atom bonded to two Hydrogen atoms with an angle of approximately 104.5 degrees.', simplifiedStem: 'Draw a water molecule.' },
         ]
     }
 };

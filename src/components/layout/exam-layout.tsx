@@ -21,6 +21,8 @@ import { getTTS } from "@/lib/actions/chatbot";
 import { useVoiceControl } from '../voice-control-provider';
 import { captureVoiceAnswer } from '@/lib/actions/voice-answer';
 import { Switch } from '../ui/switch';
+import { HandwritingPad } from '../HandwritingPad';
+import { recognizeHandwritingAction } from '@/lib/actions/handwriting';
 
 interface ExamLayoutProps {
     exam: SelectedExamDetails;
@@ -39,6 +41,7 @@ export function ExamLayout({ exam, onTimeUp, isSubmitting }: ExamLayoutProps) {
     const { userProfile, isLoading: isProfileLoading } = useAccessibilityPanel();
     const [isTTSSpeaking, setIsTTSSpeaking] = useState(false);
     const [isSTTRecording, setIsSTTRecording] = useState(false);
+    const [isProcessingHandwriting, setIsProcessingHandwriting] = useState(false);
     const recognitionRef = useRef<any>(null);
     const audioRef = useRef<HTMLAudioElement | null>(null);
     const examLayoutRef = useRef<HTMLDivElement>(null);
@@ -76,7 +79,7 @@ export function ExamLayout({ exam, onTimeUp, isSubmitting }: ExamLayoutProps) {
         if (isTTSSpeaking || !audioRef.current || !isTextToSpeechEnabled) return;
         setIsTTSSpeaking(true);
         try {
-            const result = await getTTS(text);
+            const result = await getTTS({ text, profile: accessibility.ttsProfile || 'normal' });
             if ('media' in result && audioRef.current) {
                 audioRef.current.src = result.media;
                 audioRef.current.play();
@@ -93,7 +96,7 @@ export function ExamLayout({ exam, onTimeUp, isSubmitting }: ExamLayoutProps) {
             setIsTTSSpeaking(false);
             onEnd?.();
         }
-    }, [isTTSSpeaking, isTextToSpeechEnabled]);
+    }, [isTTSSpeaking, isTextToSpeechEnabled, accessibility.ttsProfile]);
 
 
     const readQuestionAndOptions = useCallback(() => {
@@ -193,6 +196,19 @@ export function ExamLayout({ exam, onTimeUp, isSubmitting }: ExamLayoutProps) {
                 playTTS(`You selected: ${value}`);
             }
         }
+    };
+
+    const handleHandwritingConfirm = async (text: string, imageDataUri: string) => {
+        setIsProcessingHandwriting(true);
+        const result = await recognizeHandwritingAction({ imageDataUri });
+        if ('error' in result) {
+            toast({ variant: 'destructive', title: 'Handwriting Recognition Failed', description: result.error });
+            handleAnswerChange(activeQuestion.id, "Error in recognition.");
+        } else {
+            toast({ title: 'Handwriting Recognized', description: `Confidence: ${(result.confidence * 100).toFixed(0)}%` });
+            handleAnswerChange(activeQuestion.id, result.text);
+        }
+        setIsProcessingHandwriting(false);
     };
     
     const toggleReviewFlag = (questionId: string) => {
@@ -312,6 +328,21 @@ export function ExamLayout({ exam, onTimeUp, isSubmitting }: ExamLayoutProps) {
                             onChange={(e) => handleAnswerChange(questionId, e.target.value)}
                         />
                         {sttButton}
+                    </div>
+                );
+            case 'handwriting':
+                return (
+                    <div className="mt-4">
+                        <HandwritingPad 
+                            onConfirm={handleHandwritingConfirm}
+                            isProcessing={isProcessingHandwriting}
+                        />
+                         {value && value !== 'Handwritten answer submitted.' && (
+                            <div className="mt-4 p-4 border rounded-md bg-green-500/10 border-green-500/20">
+                               <p className="text-sm font-semibold text-green-700 dark:text-green-400">Recognized Text:</p>
+                               <p className="font-mono text-foreground">{value}</p>
+                            </div>
+                        )}
                     </div>
                 );
             default:
