@@ -17,7 +17,7 @@ import { useExamMode } from '@/hooks/use-exam-mode';
 import { Input } from '../ui/input';
 import { Textarea } from '../ui/textarea';
 import { useAccessibilityPanel } from '../accessibility/accessibility-panel-provider';
-import { textToSpeech } from "@/ai/flows/text-to-speech";
+import { getTTS } from "@/lib/actions/chatbot";
 import { useVoiceControl } from '../voice-control-provider';
 import { captureVoiceAnswer } from '@/lib/actions/voice-answer';
 
@@ -64,7 +64,7 @@ export function ExamLayout({ exam, onTimeUp, isSubmitting }: ExamLayoutProps) {
         if (isTTSSpeaking || !audioRef.current || !isTextToSpeechEnabled) return;
         setIsTTSSpeaking(true);
         try {
-            const result = await textToSpeech(text);
+            const result = await getTTS(text);
             if ('media' in result && audioRef.current) {
                 audioRef.current.src = result.media;
                 audioRef.current.play();

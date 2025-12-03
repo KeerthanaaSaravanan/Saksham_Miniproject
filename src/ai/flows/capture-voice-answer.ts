@@ -38,7 +38,7 @@ const prompt = ai.definePrompt({
   system: `INTENT: "capture_answer"
 INSTRUCTIONS:
 You are an AI assistant that processes a raw speech-to-text transcript of a student's answer.
-1.  Analyze the 'raw_transcript' to extract the student's actual answer. Clean up any filler words (e.g., "um", "ah", "my answer is"). Place this in 'normalized_text'.
+1.  Analyze the 'raw_transcript' to extract the student's actual answer. Clean up any filler words (e.g., "um", "ah", "my answer is"). Place this in 'normalized_text'. For MCQs, if the user says "Option A", the normalized_text should be the text of option A, not just "A".
 2.  Create a concise 'summary' of the normalized answer, no more than 30 words.
 3.  Estimate the 'stt_confidence' on a scale of 0.0 to 1.0 based on the clarity, coherence, and grammar of the transcript.
 4.  CONFIDENCE RULES: If confidence is high (>= 0.85), set 'requires_clarify' to false. If confidence is medium (0.6-0.85), set 'requires_clarify' to true and suggest confirmation. If confidence is low (< 0.6), set 'requires_clarify' to true and suggest re-stating or spelling the answer.
@@ -59,6 +59,9 @@ const captureVoiceAnswerFlow = ai.defineFlow(
   },
   async input => {
     const {output} = await prompt(input);
+    if (output) {
+      output.raw_text = input.raw_transcript;
+    }
     return output!;
   }
 );
