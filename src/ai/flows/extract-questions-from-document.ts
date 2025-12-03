@@ -11,7 +11,7 @@
 import {ai} from '@/ai/genkit';
 import {z} from 'genkit';
 
-const ExtractQuestionsInputSchema = z.object({
+export const ExtractQuestionsInputSchema = z.object({
   documentText: z
     .string()
     .describe(
@@ -31,7 +31,7 @@ const questionSchema = z.object({
     ambiguous: z.boolean().describe("Set to true if the content is unclear or cannot be confidently parsed."),
 });
 
-const ExtractQuestionsOutputSchema = z.object({
+export const ExtractQuestionsOutputSchema = z.object({
   questions: z.array(questionSchema).describe('An array of extracted exam questions.'),
 });
 export type ExtractQuestionsOutput = z.infer<typeof ExtractQuestionsOutputSchema>;

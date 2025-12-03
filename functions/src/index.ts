@@ -21,6 +21,7 @@ import { HttpsError, onCall, type CallableRequest } from 'firebase-functions/v2/
 import * as logger from 'firebase-functions/logger';
 import { setGlobalOptions } from 'firebase-functions/v2';
 import { adminDb, adminStorage } from './firebaseAdmin';
+import { z } from 'zod';
 
 // Genkit and local flow imports
 import { generatePracticeExam } from '../../src/ai/flows/generate-practice-exam';
@@ -75,11 +76,12 @@ setGlobalOptions({
  */
 const createAIEndpoint = <I, O>(
   flow: (input: I) => Promise<O>,
-  inputSchema: Zod.Schema<I>,
+  inputSchema: z.Schema<I>,
   funcName: CallableFunction
 ): ((request: CallableRequest<any>) => Promise<FlowOutput<O>>) => {
   return onCall(async (request: CallableRequest<any>): Promise<FlowOutput<O>> => {
-    logger.info(`[${funcName}] Invoked by user: ${request.auth?.uid || 'anonymous'}`, { structuredData: true });
+    const userId = request.auth?.uid || 'anonymous';
+    logger.info(`[${funcName}] Invoked by user: ${userId}`, { structuredData: true, input: request.data });
 
     if (!request.auth) {
       throw new HttpsError('unauthenticated', 'You must be logged in to use this feature.');
@@ -87,12 +89,11 @@ const createAIEndpoint = <I, O>(
 
     const validation = inputSchema.safeParse(request.data);
     if (!validation.success) {
-      logger.error(`[${funcName}] Invalid input`, { error: validation.error.format(), input: request.data });
+      logger.error(`[${funcName}] Invalid input for user ${userId}`, { error: validation.error.format(), input: request.data });
       throw new HttpsError('invalid-argument', 'The data provided is invalid.');
     }
 
     const inputData = validation.data;
-    const userId = request.auth.uid;
     const debugMode = request.data.debug === true;
 
     try {
@@ -107,8 +108,9 @@ const createAIEndpoint = <I, O>(
           break; // Success
         } catch (e: any) {
           lastError = e;
+          // Only retry on 'unavailable' Genkit errors, which are often transient.
           if (e.name === 'GenkitError' && e.code === 'unavailable') {
-            logger.warn(`[${funcName}] AI service unavailable, retrying (${i + 1}/${maxRetries})...`);
+            logger.warn(`[${funcName}] AI service unavailable for user ${userId}, retrying (${i + 1}/${maxRetries})...`);
             await new Promise(res => setTimeout(res, 1000 * (i + 1))); // Exponential backoff
           } else {
             throw e; // Non-retryable error
@@ -120,6 +122,7 @@ const createAIEndpoint = <I, O>(
           throw lastError || new Error("AI flow failed after multiple retries.");
       }
 
+      // Log successful event to Firestore for auditing
       await adminDb.collection('events').add({
         userId,
         type: funcName,
@@ -129,7 +132,6 @@ const createAIEndpoint = <I, O>(
       
       const response: FlowOutput<O> = { data: result };
       if (debugMode) {
-          // In a real app, you might get debug info from the flow response.
           response.debugInfo = { rawModelResponse: "Sample debug info." };
       }
       
@@ -137,13 +139,20 @@ const createAIEndpoint = <I, O>(
       return response;
 
     } catch (error: any) {
-      logger.error(`[${funcName}] Execution failed for user ${userId}:`, error);
+      logger.error(`[${funcName}] Execution failed for user ${userId}:`, {
+        errorMessage: error.message,
+        errorStack: error.stack,
+        input: inputData,
+      });
+
+      // Log error event to Firestore
       await adminDb.collection('events').add({
         userId,
         type: 'ai_error',
         payload: { function: funcName, error: error.message, input: inputData },
         createdAt: new Date().toISOString(),
       });
+      
       throw new HttpsError('internal', `An error occurred while running the AI flow: ${error.message}`);
     }
   });
@@ -165,7 +174,8 @@ export const detectAnomalousExamPatternsFunc = createAIEndpoint(detectAnomalousE
  */
 export const extractQuestionsFromDocumentFunc = onCall(async (request: CallableRequest<any>): Promise<FlowOutput<any>> => {
     const funcName: CallableFunction = 'extractQuestionsFromDocument';
-    logger.info(`[${funcName}] Invoked by user: ${request.auth?.uid || 'anonymous'}`, { structuredData: true });
+    const userId = request.auth?.uid || 'anonymous';
+    logger.info(`[${funcName}] Invoked by user: ${userId}`, { structuredData: true });
 
     if (!request.auth) {
         throw new HttpsError('unauthenticated', 'You must be logged in.');
@@ -173,17 +183,22 @@ export const extractQuestionsFromDocumentFunc = onCall(async (request: CallableR
 
     const validation = ExtractQuestionsInputSchema.safeParse(request.data);
     if (!validation.success) {
-        logger.error(`[${funcName}] Invalid input`, { error: validation.error.format(), input: request.data });
+        logger.error(`[${funcName}] Invalid input for user ${userId}`, { error: validation.error.format(), input: request.data });
         throw new HttpsError('invalid-argument', 'The data provided is invalid.');
     }
 
     const { filePath, fileType } = validation.data;
-    const bucket = adminStorage.bucket(process.env.TTS_BUCKET_NAME);
+    const bucketName = process.env.TTS_BUCKET_NAME;
+    if (!bucketName) {
+        logger.error(`[${funcName}] TTS_BUCKET_NAME environment variable not set.`);
+        throw new HttpsError('internal', 'Server configuration error.');
+    }
+    const bucket = adminStorage.bucket(bucketName);
     const tempFilePath = path.join(os.tmpdir(), path.basename(filePath));
 
     try {
         // Download the file from Cloud Storage to a temporary directory
-        logger.info(`[${funcName}] Downloading file from ${filePath}`);
+        logger.info(`[${funcName}] Downloading file from gs://${bucketName}/${filePath} for user ${userId}`);
         await bucket.file(filePath).download({ destination: tempFilePath });
 
         let documentText = '';
@@ -200,7 +215,7 @@ export const extractQuestionsFromDocumentFunc = onCall(async (request: CallableR
 
         fs.unlinkSync(tempFilePath); // Clean up the temp file
         
-        logger.info(`[${funcName}] Extracted text from document. Calling AI flow.`);
+        logger.info(`[${funcName}] Extracted text from document for user ${userId}. Calling AI flow.`);
         const result = await extractQuestionsFromDocument({ documentText, fileType });
         
         await adminDb.collection('events').add({
@@ -217,7 +232,11 @@ export const extractQuestionsFromDocumentFunc = onCall(async (request: CallableR
         if (fs.existsSync(tempFilePath)) {
             fs.unlinkSync(tempFilePath);
         }
-        logger.error(`[${funcName}] Execution failed for user ${request.auth.uid}:`, error);
+        logger.error(`[${funcName}] Execution failed for user ${userId}:`, {
+            errorMessage: error.message,
+            errorStack: error.stack,
+            input: request.data,
+        });
         await adminDb.collection('events').add({
             userId: request.auth.uid,
             type: 'ai_error',
