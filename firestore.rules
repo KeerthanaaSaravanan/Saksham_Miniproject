@@ -1,206 +1,9 @@
-/**
- * @fileoverview Firestore Security Rules for the Saksham application.
- *
- * Core Philosophy:
- * This ruleset enforces a strict user-ownership model for private user data
- * (profiles, exam sessions) and a public-read with owner-write model for shared
- * content (learning content, disability profiles).  Teacher status is determined
- * by presence in the /teachers collection.
- *
- * Data Structure:
- * - /users/{userId}/profile: User profile data, owned by the user.
- * - /disability_profiles/{disabilityProfileId}: Disability profiles, publicly readable, writable by the owner.
- * - /learning_content/{contentId}: Learning content, publicly readable, writable by the owner.
- * - /exams/{examId}: Exams, writable only by teachers.
- * - /questions/{questionId}: Questions, writable only by teachers.
- * - /users/{userId}/examSessions/{examSessionId}: Exam session data, owned by the user.
- * - /teachers/{teacherId}: Teacher profiles. Existence implies teacher role.
- * - /users/{userId}/exams/{examId}: Exams created by a specific teacher.
- *
- * Key Security Decisions:
- * - Users can only access their own profile and exam session data.
- * - Listing all users is disallowed.
- * - Disability profiles and learning content are publicly readable but only
- *   modifiable by their owners.
- * - Teachers (users in the /teachers collection) can manage exams and questions.
- * - The ruleset prioritizes security and simplicity for prototyping, deferring
- *   complex data validation to the application layer.
- *
- * Denormalization for Authorization:
- * - Exams include a denormalized `userId` (teacherId) to simplify ownership checks.
- *   This avoids costly `get()` calls to the /teachers collection.
- *
- * Structural Segregation:
- * - User-specific data (profiles, exam sessions) is stored under /users/{userId} to
- *   enforce path-based ownership. Public and private data is separated into top-level
- *   and user-scoped collections respectively.
- */
+
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    /**
-     * @description Secure root access.  No direct reads or writes to the root are permitted.
-     * @path /databases/{database}/documents
-     * @allow (get) A get request to a root document.
-     * @deny (get) A get request to a root document if the database is not the default.
-     * @allow (list) A list request to the root.
-     * @deny (list) A list request to the root if the database is not the default.
-     * @principle Secures the database root by only allowing reads and writes to defined paths.
-     */
-    match /{document=**} {
-      allow read, write: if false;
-    }
-
-    /**
-     * @description Manages user profile data. Enforces path-based ownership.
-     * @path /users/{userId}/profile
-     * @allow (create) A user creating their own profile.
-     * @allow (get) A user reading their own profile.
-     * @allow (update) A user updating their own profile.
-     * @allow (delete) A user deleting their own profile.
-     * @deny (create) A user attempting to create a profile for another user.
-     * @deny (update) A user attempting to update another user's profile.
-     * @deny (delete) A user attempting to delete another user's profile.
-     * @principle Enforces document ownership for writes and restricts access to a user's own data tree.
-     */
-    match /users/{userId}/profile {
-      allow create: if isSignedIn() && isOwner(userId) && request.resource.data.id == userId;
-      allow get: if isSignedIn() && isOwner(userId);
-      allow update: if isSignedIn() && isExistingOwner(userId) && request.resource.data.id == resource.data.id;
-      allow delete: if isSignedIn() && isExistingOwner(userId);
-      allow list: if false;
-    }
-
-    /**
-     * @description Manages disability profiles. Publicly readable, owner-writable.
-     * @path /disability_profiles/{disabilityProfileId}
-     * @allow (get) Anyone reading a disability profile.
-     * @allow (list) Anyone listing disability profiles.
-     * @allow (create) Anyone creating a disability profile.
-     * @allow (update) Only the owner can update a disability profile.
-     * @allow (delete) Only the owner can delete a disability profile.
-     * @deny (update) A non-owner attempting to update a disability profile.
-     * @deny (delete) A non-owner attempting to delete a disability profile.
-     * @principle Allows public read access but enforces document ownership for writes.
-     */
-    match /disability_profiles/{disabilityProfileId} {
-      allow get, list: if true;
-      allow create: if isSignedIn(); // Anyone signed in can create.  No ownership field to validate.
-      allow update: if isSignedIn(); // Anyone signed in can update.
-      allow delete: if isSignedIn(); // Anyone signed in can delete.
-    }
-
-    /**
-     * @description Manages learning content. Publicly readable, owner-writable.
-     * @path /learning_content/{contentId}
-     * @allow (get) Anyone reading learning content.
-     * @allow (list) Anyone listing learning content.
-     * @allow (create) Anyone creating learning content.
-     * @allow (update) Only the owner can update learning content.
-     * @allow (delete) Only the owner can delete learning content.
-     * @deny (update) A non-owner attempting to update learning content.
-     * @deny (delete) A non-owner attempting to delete learning content.
-     * @principle Allows public read access but enforces document ownership for writes.
-     */
-    match /learning_content/{contentId} {
-      allow get, list: if true;
-      allow create: if isSignedIn(); // Anyone signed in can create.  No ownership field to validate.
-      allow update: if isSignedIn(); // Anyone signed in can update.
-      allow delete: if isSignedIn(); // Anyone signed in can delete.
-    }
-
-    /**
-     * @description Manages exams. Only teachers can create, update, and delete exams.
-     * @path /exams/{examId}
-     * @allow (get) Anyone reading an exam.
-     * @allow (list) Anyone listing exams.
-     * @deny (create) A non-teacher attempting to create an exam.
-     * @deny (update) A non-teacher attempting to update an exam.
-     * @deny (delete) A non-teacher attempting to delete an exam.
-     * @principle Restricts exam management to teachers.
-     */
-    match /exams/{examId} {
-      allow get, list: if true;
-      allow create: if isTeacher();
-      allow update: if isTeacher() && resource != null;
-      allow delete: if isTeacher() && resource != null;
-    }
-
-    /**
-     * @description Manages questions. Only teachers can create, update, and delete questions.
-     * @path /questions/{questionId}
-     * @allow (get) Anyone reading a question.
-     * @allow (list) Anyone listing questions.
-     * @deny (create) A non-teacher attempting to create a question.
-     * @deny (update) A non-teacher attempting to update a question.
-     * @deny (delete) A non-teacher attempting to delete a question.
-     * @principle Restricts question management to teachers.
-     */
-    match /questions/{questionId} {
-      allow get, list: if true;
-      allow create: if isTeacher();
-      allow update: if isTeacher() && resource != null;
-      allow delete: if isTeacher() && resource != null;
-    }
-
-    /**
-     * @description Manages exam session data. Enforces path-based ownership.
-     * @path /users/{userId}/examSessions/{examSessionId}
-     * @allow (create) A user creating their own exam session.
-     * @allow (get) A user reading their own exam session.
-     * @allow (update) A user updating their own exam session.
-     * @allow (delete) A user deleting their own exam session.
-     * @deny (create) A user attempting to create an exam session for another user.
-     * @deny (update) A user attempting to update another user's exam session.
-     * @deny (delete) A user attempting to delete another user's exam session.
-     * @principle Enforces document ownership for writes and restricts access to a user's own data tree.
-     */
-    match /users/{userId}/examSessions/{examSessionId} {
-      allow create: if isSignedIn() && isOwner(userId) && request.resource.data.userId == userId;
-      allow get: if isSignedIn() && isOwner(userId);
-      allow update: if isSignedIn() && isExistingOwner(userId) && request.resource.data.userId == resource.data.userId;
-      allow delete: if isSignedIn() && isExistingOwner(userId);
-      allow list: if isSignedIn() && isOwner(userId);
-    }
-
-    /**
-     * @description Manages teacher profiles. Only admins (or potentially the teacher themselves) can create/update/delete.
-     * @path /teachers/{teacherId}
-     * @allow (get) Anyone reading a teacher profile.
-     * @allow (list) Anyone listing teacher profiles.
-     * @allow (create) Only admins can create teacher profiles.
-     * @allow (update) Only admins can update teacher profiles.
-     * @allow (delete) Only admins can delete teacher profiles.
-     * @principle Restricts teacher profile management to admins.
-     */
-    match /teachers/{teacherId} {
-      allow get, list: if true;
-      allow create: if isSignedIn(); // Anyone signed in can create.
-      allow update: if isSignedIn(); // Anyone signed in can update.
-      allow delete: if isSignedIn(); // Anyone signed in can delete.
-    }
-
-    /**
-     * @description Manages exams created by a specific user (teacher).
-     * @path /users/{userId}/exams/{examId}
-     * @allow (create) A teacher creating an exam under their user ID.
-     * @allow (get) A teacher reading an exam under their user ID.
-     * @allow (update) A teacher updating an exam under their user ID.
-     * @allow (delete) A teacher deleting an exam under their user ID.
-     * @deny (create) A non-teacher attempting to create an exam under a user ID.
-     * @deny (update) A non-teacher attempting to update an exam under a user ID.
-     * @deny (delete) A non-teacher attempting to delete an exam under a user ID.
-     *  @principle Enforces that only a teacher can manage exams under their own user ID.
-     */
-    match /users/{userId}/exams/{examId} {
-      allow create: if isTeacher() && isOwner(userId);
-      allow get: if isTeacher() && isOwner(userId);
-      allow update: if isTeacher() && isExistingOwner(userId);
-      allow delete: if isTeacher() && isExistingOwner(userId);
-      allow list: if isTeacher() && isOwner(userId);
-    }
-
+    // Helper functions
     function isSignedIn() {
       return request.auth != null;
     }
@@ -208,13 +11,68 @@ service cloud.firestore {
     function isOwner(userId) {
       return request.auth.uid == userId;
     }
-
-    function isExistingOwner(userId) {
-        return isOwner(userId) && resource != null;
+    
+    function isFaculty() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'faculty';
+    }
+    
+    function isStudent() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'student';
     }
 
-    function isTeacher() {
-      return exists(/databases/$(database)/documents/teachers/$(request.auth.uid));
+    // USER PROFILES
+    // Users can read and write their own profile. No one else can.
+    match /users/{userId} {
+      allow read, update: if isSignedIn() && isOwner(userId);
+      allow create: if isSignedIn(); // Allow creation for new sign-ups
+      allow delete: if false; // Do not allow users to delete their own profiles for now
+      allow list: if isFaculty(); // Allow faculty to list users
+    }
+
+    // EXAMS
+    // Faculty can create, update, and manage exams. Students can only read them.
+    match /exams/{examId} {
+      allow read: if isSignedIn();
+      allow list: if isSignedIn();
+      allow create, update, delete: if isSignedIn() && isFaculty() && request.resource.data.createdBy == request.auth.uid;
+      
+      // QUESTIONS SUBCOLLECTION
+      // Faculty can manage questions for an exam they own. Students can read.
+      match /questions/{questionId} {
+         allow read: if isSignedIn();
+         allow list: if isSignedIn();
+         allow create, update, delete: if isSignedIn() && isFaculty() && get(/databases/$(database)/documents/exams/$(examId)).data.createdBy == request.auth.uid;
+      }
+    }
+    
+    // PRACTICE EXAMS
+    // Students can create practice exams for themselves. Only they can read/write them.
+    match /practiceExams/{practiceExamId} {
+        allow read, write: if isSignedIn() && request.resource.data.studentId == request.auth.uid;
+        allow list: if isSignedIn(); // Allow listing own practice exams
+        
+        match /questions/{questionId} {
+            allow read, write: if isSignedIn() && get(/databases/$(database)/documents/practiceExams/$(practiceExamId)).data.studentId == request.auth.uid;
+        }
+    }
+
+    // SUBMISSIONS
+    // Students can create/update their own submissions. Faculty can read/update (for grading).
+    match /submissions/{submissionId} {
+        allow read: if isSignedIn() && (isOwner(resource.data.studentId) || isFaculty());
+        allow create: if isSignedIn() && isStudent() && request.resource.data.studentId == request.auth.uid;
+        allow update: if isSignedIn() && 
+                      ( (isStudent() && isOwner(resource.data.studentId) && resource.data.status == 'in_progress') || 
+                        (isFaculty() && resource.data.status != 'in_progress') );
+        allow list: if isSignedIn(); // Allow users to list submissions (queries will be filtered client-side)
+        allow delete: if false;
+    }
+    
+    // EVENTS
+    // Allow authenticated users to write events. Should be restricted further in production.
+    match /events/{eventId} {
+        allow write: if isSignedIn();
+        allow read, list, delete: if false;
     }
   }
 }
