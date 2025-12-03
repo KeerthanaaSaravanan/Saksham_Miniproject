@@ -37,7 +37,7 @@ export const accessibilityModules: AccessibilityModule[] = [
       features: [
         { key: 'textToSpeech', label: 'Text-to-Speech (TTS)', description: 'Reads questions and options aloud.', icon: Volume2, type: 'boolean', defaultValue: false },
         { key: 'speechToText', label: 'Speech-to-Text (STT)', description: 'Answer questions by speaking.', icon: Mic, type: 'boolean', defaultValue: false },
-        { key: 'audioNavigation', label: 'Audio Navigation', description: 'Navigate the exam with voice commands.', icon: Navigation, type: 'boolean', defaultValue: false },
+        { key: 'voiceNavigation', label: 'Audio Navigation', description: 'Navigate the exam with voice commands.', icon: Navigation, type: 'boolean', defaultValue: false },
         { key: 'highContrast', label: 'High Contrast Mode', description: 'Choose a high-contrast theme for better readability.', icon: Palette, type: 'radio', defaultValue: 'off', options: [
             { value: 'off', label: 'Off' },
             { value: 'white-on-black', label: 'White on Black' },
@@ -54,9 +54,13 @@ export const accessibilityModules: AccessibilityModule[] = [
       icon: BookOpen,
       iconColor: 'text-green-500',
       features: [
-          { key: 'textSimplifier', label: 'AI Text Simplifier (Coming Soon)', description: 'Rephrases complex questions into simpler language.', icon: Zap, type: 'boolean', defaultValue: false },
           { key: 'dyslexiaFriendlyFont', label: 'Dyslexia-friendly Font', description: 'Switch to fonts designed for easier reading, like OpenDyslexic.', icon: Type, type: 'boolean', defaultValue: false },
-          { key: 'handwritingMode', label: 'Handwriting Mode (Coming Soon)', description: 'Use a digital pen to write answers, which are converted to text.', icon: PenTool, type: 'boolean', defaultValue: false },
+          { key: 'textSimplifier', label: 'AI Text Simplifier (Coming Soon)', description: 'Rephrases complex questions into simpler language.', icon: Zap, type: 'radio', defaultValue: 'off', options: [
+              { value: 'off', label: 'Off' },
+              { value: 'grade_4', label: 'Grade 4 Level' },
+              { value: 'grade_6', label: 'Grade 6 Level' },
+              { value: 'grade_8', label: 'Grade 8 Level' },
+          ]},
           { key: 'wordHighlighting', label: 'Word Highlighting (Coming Soon)', description: 'Focus on one word or line at a time as it\'s read aloud.', icon: TextSelect, type: 'boolean', defaultValue: false },
           { key: 'aiSpellCheck', label: 'AI Spell-check (Coming Soon)', description: 'Understands phonetic and dyslexic spelling patterns.', icon: SpellCheck, type: 'boolean', defaultValue: false },
       ]
