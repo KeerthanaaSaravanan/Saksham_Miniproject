@@ -270,10 +270,10 @@ export function VoiceControlProvider({ children }: { children: ReactNode }) {
     };
 
     recognition.onerror = (event: any) => {
-      console.error("Speech recognition error:", event.error);
       if (event.error === 'no-speech' || event.error === 'audio-capture' || event.error === 'network') {
         // Ignore and let it restart
       } else if (event.error !== 'aborted') { // Don't show toast for manual stop
+        console.error("Speech recognition error:", event.error);
         toast({ variant: 'destructive', title: 'Voice Error', description: event.error });
       }
     };
@@ -344,3 +344,5 @@ export function VoiceControlProvider({ children }: { children: ReactNode }) {
     </VoiceControlContext.Provider>
   );
 }
+
+    
