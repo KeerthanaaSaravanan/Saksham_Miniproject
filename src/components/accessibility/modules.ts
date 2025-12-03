@@ -1,11 +1,11 @@
 
 import {
   Eye, Ear, Hand, BookOpen, Brain, Volume2, Mic, Navigation, Type, Presentation, Zap, Bot,
-  ScanEye, Save, SpellCheck, Focus, Palette, Layout, Clock, Heart, MousePointer, CaseUpper, PenTool, TextSelect, MessageSquare, Video
+  ScanEye, Save, SpellCheck, Focus, Palette, Layout, Clock, Heart, MousePointer, CaseUpper, PenTool, TextSelect, MessageSquare, Video, FileText
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 
-export type FeatureType = 'boolean' | 'radio';
+export type FeatureType = 'boolean' | 'radio' | 'slider';
 
 export interface AccessibilityFeature {
     key: string;
@@ -13,7 +13,7 @@ export interface AccessibilityFeature {
     description?: string;
     icon: LucideIcon;
     type: FeatureType;
-    defaultValue: string | boolean;
+    defaultValue: string | boolean | number;
     options?: { value: string; label: string }[];
 }
 
@@ -37,9 +37,14 @@ export const accessibilityModules: AccessibilityModule[] = [
       features: [
         { key: 'textToSpeech', label: 'Text-to-Speech (TTS)', description: 'Reads questions and options aloud.', icon: Volume2, type: 'boolean', defaultValue: false },
         { key: 'speechToText', label: 'Speech-to-Text (STT)', description: 'Answer questions by speaking.', icon: Mic, type: 'boolean', defaultValue: false },
-        { key: 'voiceNavigation', label: 'Audio Navigation', description: 'Navigate the exam with voice commands.', icon: Navigation, type: 'boolean', defaultValue: false },
-        { key: 'highContrast', label: 'High Contrast Mode', description: 'Increases text and background contrast.', icon: Palette, type: 'boolean', defaultValue: false },
-        { key: 'largeText', label: 'Text Size', description: 'Makes all text on the screen bigger.', icon: CaseUpper, type: 'radio', defaultValue: 'normal', options: [{value: 'normal', label: 'Normal'}, {value: 'large', label: 'Large'}, {value: 'xlarge', label: 'Extra Large'}] },
+        { key: 'audioNavigation', label: 'Audio Navigation', description: 'Navigate the exam with voice commands.', icon: Navigation, type: 'boolean', defaultValue: false },
+        { key: 'highContrast', label: 'High Contrast Mode', description: 'Choose a high-contrast theme for better readability.', icon: Palette, type: 'radio', defaultValue: 'off', options: [
+            { value: 'off', label: 'Off' },
+            { value: 'white-on-black', label: 'White on Black' },
+            { value: 'black-on-white', label: 'Black on White' },
+            { value: 'yellow-on-black', label: 'Yellow on Black' },
+        ]},
+        { key: 'textSize', label: 'Text Size', description: 'Increase the font size across the application.', icon: CaseUpper, type: 'slider', defaultValue: 16 },
       ]
     },
     {

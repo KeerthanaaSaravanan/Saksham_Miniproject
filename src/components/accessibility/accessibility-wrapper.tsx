@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useAccessibilityPanel } from "./accessibility-panel-provider";
@@ -9,7 +10,14 @@ export function AccessibilityWrapper({ children }: { children: React.ReactNode }
     const { userProfile, isLoading } = useAccessibilityPanel();
     const accessibility = userProfile?.accessibility_profile || {};
 
-    const textSizeClass = accessibility.largeText === 'large' ? 'text-lg' : accessibility.largeText === 'xlarge' ? 'text-xl' : '';
+    const highContrastClass =
+        accessibility.highContrast === 'white-on-black' ? 'hc-white-on-black'
+      : accessibility.highContrast === 'black-on-white' ? 'hc-black-on-white'
+      : accessibility.highContrast === 'yellow-on-black' ? 'hc-yellow-on-black'
+      : '';
+      
+    // Create a dynamic style for the font size
+    const fontSizeStyle = accessibility.textSize ? { fontSize: `${accessibility.textSize}px` } : {};
 
     if(isLoading) {
         return (
@@ -26,9 +34,9 @@ export function AccessibilityWrapper({ children }: { children: React.ReactNode }
     return (
         <div className={cn(
             accessibility.dyslexiaFriendlyFont && "font-dyslexic",
-            accessibility.highContrast && "dark",
-            textSizeClass
-        )}>
+            highContrastClass
+        )}
+        style={fontSizeStyle}>
             {children}
         </div>
     );

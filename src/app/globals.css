@@ -47,6 +47,74 @@
     --input: 215 27.9% 16.9%;
     --ring: 210 90% 55%;
   }
+
+  /* High Contrast Themes */
+  .hc-white-on-black {
+    --background: 0 0% 0%;
+    --foreground: 0 0% 100%;
+    --card: 0 0% 0%;
+    --card-foreground: 0 0% 100%;
+    --popover: 0 0% 0%;
+    --popover-foreground: 0 0% 100%;
+    --primary: 60 100% 50%; /* Yellow */
+    --primary-foreground: 0 0% 0%;
+    --secondary: 0 0% 13%;
+    --secondary-foreground: 0 0% 100%;
+    --muted: 0 0% 13%;
+    --muted-foreground: 0 0% 80%;
+    --accent: 260 100% 70%; /* Purple */
+    --accent-foreground: 0 0% 100%;
+    --destructive: 0 100% 50%; /* Red */
+    --destructive-foreground: 0 0% 100%;
+    --border: 0 0% 40%;
+    --input: 0 0% 13%;
+    --ring: 60 100% 50%;
+  }
+
+  .hc-black-on-white {
+    --background: 0 0% 100%;
+    --foreground: 0 0% 0%;
+    --card: 0 0% 100%;
+    --card-foreground: 0 0% 0%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 0 0% 0%;
+    --primary: 220 100% 50%; /* Blue */
+    --primary-foreground: 0 0% 100%;
+    --secondary: 0 0% 93%;
+    --secondary-foreground: 0 0% 0%;
+    --muted: 0 0% 93%;
+    --muted-foreground: 0 0% 20%;
+    --accent: 340 100% 50%; /* Pink */
+    --accent-foreground: 0 0% 0%;
+    --destructive: 0 100% 50%; /* Red */
+    --destructive-foreground: 0 0% 100%;
+    --border: 0 0% 60%;
+    --input: 0 0% 93%;
+    --ring: 220 100% 50%;
+  }
+  
+  .hc-yellow-on-black {
+    --background: 0 0% 0%;
+    --foreground: 60 100% 50%; /* Yellow */
+    --card: 0 0% 0%;
+    --card-foreground: 60 100% 50%;
+    --popover: 0 0% 0%;
+    --popover-foreground: 60 100% 50%;
+    --primary: 0 0% 100%; /* White */
+    --primary-foreground: 0 0% 0%;
+    --secondary: 0 0% 13%;
+    --secondary-foreground: 60 100% 50%;
+    --muted: 0 0% 13%;
+    --muted-foreground: 60 100% 80%;
+    --accent: 210 100% 70%; /* Light Blue */
+    --accent-foreground: 0 0% 0%;
+    --destructive: 0 70% 60%; /* Red */
+    --destructive-foreground: 0 0% 0%;
+    --border: 60 100% 30%;
+    --input: 0 0% 13%;
+    --ring: 0 0% 100%;
+  }
+
 }
 
 @layer base {

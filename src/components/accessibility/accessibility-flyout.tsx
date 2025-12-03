@@ -12,6 +12,7 @@ import { cn } from '@/lib/utils';
 import type { AccessibilityModule } from './modules';
 import { RadioGroup, RadioGroupItem } from '../ui/radio-group';
 import { useAccessibilityPanel } from './accessibility-panel-provider';
+import { Slider } from '../ui/slider';
 
 interface AccessibilityFlyoutProps {
     module: AccessibilityModule;
@@ -96,6 +97,22 @@ export function AccessibilityFlyout({ module, isOpen, onClose }: AccessibilityFl
                                     </div>
                                 ))}
                             </RadioGroup>
+                        )}
+                        {feature.type === 'slider' && (
+                          <div className="pt-2">
+                            <Slider
+                              min={14}
+                              max={32}
+                              step={2}
+                              defaultValue={[currentValue || 16]}
+                              onValueChange={(value) => updateSetting(feature.key, value[0])}
+                            />
+                            <div className="flex justify-between text-xs text-muted-foreground mt-2">
+                              <span>14px</span>
+                              <span>{currentValue || 16}px</span>
+                              <span>32px</span>
+                            </div>
+                          </div>
                         )}
                       </div>
                   </div>
