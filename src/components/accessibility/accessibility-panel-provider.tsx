@@ -45,11 +45,13 @@ export function AccessibilityPanelProvider({ children }: { children: ReactNode }
 
   useEffect(() => {
     setIsProfileLoading(true);
-    // Simulate loading profile
+    // Simulate loading profile from a "database"
     setTimeout(() => {
       setAccessibilityProfile({
         largeText: 'normal',
         textToSpeech: false,
+        speechToText: false,
+        voiceNavigation: true,
         highContrast: false,
         dyslexiaFriendlyFont: true
       });
@@ -64,13 +66,13 @@ export function AccessibilityPanelProvider({ children }: { children: ReactNode }
   const isLoading = isUserLoading || isProfileLoading;
 
   const handleSettingsUpdate = async (settings: any) => {
-    if (!user) {
-        toast({ variant: 'destructive', title: 'Error', description: 'You must be logged in to save settings.' });
+    if (!user && !isUserLoading) { // Only show toast if user loading is complete
+        toast({ variant: 'destructive', title: 'Not Logged In', description: 'You must be logged in to save settings.' });
         return;
     }
     
-    // Mock saving the settings
-    console.log("Mock saving accessibility settings:", settings);
+    // Mock saving the settings to a "database"
+    console.log("Saving accessibility settings:", settings);
     setAccessibilityProfile(settings); // Optimistically update state
 
     toast({ title: 'Settings Saved', description: 'Your accessibility preferences have been updated.' });
@@ -86,8 +88,6 @@ export function AccessibilityPanelProvider({ children }: { children: ReactNode }
             module={moduleData} 
             isOpen={!!openModule} 
             onClose={() => setOpenModule(null)}
-            userProfile={userProfile}
-            onSettingsUpdate={handleSettingsUpdate}
         />
       )}
     </AccessibilityPanelContext.Provider>

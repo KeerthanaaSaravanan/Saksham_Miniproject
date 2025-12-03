@@ -7,31 +7,23 @@ import { Label } from './ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
 import { Save } from 'lucide-react';
 import { accessibilityModules } from './accessibility/modules';
+import { useAccessibilityPanel } from './accessibility/accessibility-panel-provider';
 
-export default function AccessibilityModules({ userProfile, onSettingsUpdate }: { userProfile?: any, onSettingsUpdate?: (settings: any) => void }) {
-  
+export default function AccessibilityModules() {
+  const { userProfile, handleSettingsUpdate } = useAccessibilityPanel();
   const [moduleSettings, setModuleSettings] = useState<{[key: string]: boolean}>({});
   const [isSaving, setIsSaving] = useState(false);
   
-  // Load initial state from user profile
+  // Load initial state from the provider
   useEffect(() => {
-    if (userProfile) {
-      const profile = userProfile;
-      
-      const newSettings: { [key: string]: boolean } = {};
-      accessibilityModules.forEach(module => {
-        module.features.forEach(feature => {
-            newSettings[feature.key] = !!profile[feature.key];
-        });
-      });
-      
-      setModuleSettings(newSettings as any);
+    if (userProfile?.accessibility_profile) {
+      setModuleSettings(userProfile.accessibility_profile as any);
     }
   }, [userProfile]);
 
   const handleSaveSettings = async () => {
     setIsSaving(true);
-    await onSettingsUpdate?.(moduleSettings);
+    await handleSettingsUpdate?.(moduleSettings);
     setIsSaving(false);
   };
 

@@ -11,16 +11,16 @@ import { Save, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { AccessibilityModule } from './modules';
 import { RadioGroup, RadioGroupItem } from '../ui/radio-group';
+import { useAccessibilityPanel } from './accessibility-panel-provider';
 
 interface AccessibilityFlyoutProps {
     module: AccessibilityModule;
     isOpen: boolean;
     onClose: () => void;
-    userProfile: any;
-    onSettingsUpdate: (settings: any) => Promise<void>;
 }
 
-export function AccessibilityFlyout({ module, isOpen, onClose, userProfile, onSettingsUpdate }: AccessibilityFlyoutProps) {
+export function AccessibilityFlyout({ module, isOpen, onClose }: AccessibilityFlyoutProps) {
+  const { userProfile, handleSettingsUpdate } = useAccessibilityPanel();
   const [moduleSettings, setModuleSettings] = useState<{[key: string]: any}>({});
   const [isSaving, setIsSaving] = useState(false);
   const IconComponent = module.icon;
@@ -38,7 +38,7 @@ export function AccessibilityFlyout({ module, isOpen, onClose, userProfile, onSe
     setIsSaving(true);
     // We need to merge with existing settings from other modules
     const fullSettings = { ...(userProfile?.accessibility_profile || {}), ...moduleSettings };
-    await onSettingsUpdate(fullSettings);
+    await handleSettingsUpdate(fullSettings);
     setIsSaving(false);
     onClose();
   };
@@ -103,7 +103,7 @@ export function AccessibilityFlyout({ module, isOpen, onClose, userProfile, onSe
                      <Checkbox 
                         id={feature.key}
                         checked={currentValue && !isDisabled}
-                        onCheckedChange={(checked) => updateSetting(feature.key, checked)}
+                        onCheckedChange={(checked) => updateSetting(feature.key, !!checked)}
                         disabled={isDisabled}
                         className="mt-1"
                     />

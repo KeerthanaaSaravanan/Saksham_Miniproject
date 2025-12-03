@@ -1,51 +1,14 @@
 
 'use client';
 
-import { useState, useEffect } from 'react';
 import AccessibilityModules from '@/components/AccessibilityModules';
-import { useUser } from '@/firebase';
-import { useToast } from '@/hooks/use-toast';
+import { useAccessibilityPanel } from '@/components/accessibility/accessibility-panel-provider';
 import { Skeleton } from '@/components/ui/skeleton';
 
 export default function AccessibilitySettingsPage() {
-    const { user, isUserLoading } = useUser();
-    const { toast } = useToast();
-    
-    // Mocking user profile and loading state
-    const [userProfile, setUserProfile] = useState<any>(null);
-    const [isLoading, setIsLoading] = useState(true);
+    const { isLoading } = useAccessibilityPanel();
 
-    useEffect(() => {
-        setIsLoading(true);
-        // Simulate fetching accessibility profile
-        setTimeout(() => {
-            const mockProfile = {
-                textToSpeech: false,
-                speechToText: false,
-                voiceNavigation: true,
-                highContrast: false,
-                largeText: 'normal',
-                dyslexiaFriendlyFont: true
-            };
-            setUserProfile(mockProfile);
-            setIsLoading(false);
-        }, 500);
-    }, []);
-    
-    const handleSettingsUpdate = async (settings: any) => {
-        if (!user) {
-            toast({ variant: 'destructive', title: 'Error', description: 'You must be logged in to save settings.' });
-            return;
-        }
-
-        // Mock saving settings
-        console.log("Mock saving accessibility settings:", settings);
-        setUserProfile(settings); // Optimistically update local state
-
-        toast({ title: 'Settings Saved', description: 'Your accessibility preferences have been updated.' });
-    };
-
-    if (isLoading || isUserLoading) {
+    if (isLoading) {
         return (
              <div className="container mx-auto py-6">
                 <div className="space-y-4 text-center">
@@ -63,10 +26,7 @@ export default function AccessibilitySettingsPage() {
 
     return (
         <div className="container mx-auto py-6">
-            <AccessibilityModules 
-                userProfile={userProfile}
-                onSettingsUpdate={handleSettingsUpdate}
-            />
+            <AccessibilityModules />
         </div>
     );
 }
