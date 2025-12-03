@@ -1,0 +1,10 @@
+/**
+ * @file Barrel file for exporting all AI flow schemas and types.
+ * This provides a single point of import for the Cloud Functions module.
+ */
+
+export * from '../../../../src/ai/flows/generate-practice-exam';
+export * from '../../../../src/ai/flows/extract-questions-from-document';
+export * from '../../../../src/ai/flows/auto-grade';
+export * from '../../../../src/ai/flows/parse-voice-command';
+export * from '../../../../src/ai/flows/simplify-text-for-sld';
