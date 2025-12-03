@@ -19,6 +19,7 @@ import { Textarea } from '../ui/textarea';
 import { useAccessibilityPanel } from '../accessibility/accessibility-panel-provider';
 import { getTTS } from '@/lib/actions/chatbot';
 import { useVoiceControl } from '../voice-control-provider';
+import { captureVoiceAnswer } from '@/lib/actions/voice-answer';
 
 interface ExamLayoutProps {
     exam: SelectedExamDetails;
@@ -83,7 +84,8 @@ export function ExamLayout({ exam, onTimeUp, isSubmitting }: ExamLayoutProps) {
 
 
     const readQuestionAndOptions = useCallback(() => {
-        const questionText = `Question ${activeQuestionIndex + 1}. ${activeQuestion.question}`;
+        const questionStem = activeQuestion.question.split(' ').slice(0, 12).join(' ');
+        const questionText = `Question ${activeQuestionIndex + 1}. ${questionStem}`;
         
         let optionsText = "";
         if (activeQuestion.type === 'mcq' && activeQuestion.options) {
@@ -173,9 +175,23 @@ export function ExamLayout({ exam, onTimeUp, isSubmitting }: ExamLayoutProps) {
             console.error("STT Error:", event.error);
             setIsSTTRecording(false);
         };
-        recognitionRef.current.onresult = (event: any) => {
+        recognitionRef.current.onresult = async (event: any) => {
             const transcript = event.results[0][0].transcript;
-            handleAnswerChange(questionId, answers[questionId] ? answers[questionId] + ' ' + transcript : transcript);
+            
+            const processedResult = await captureVoiceAnswer({
+                raw_transcript: transcript,
+                question_type: activeQuestion.type || 'short-answer',
+            });
+
+            if('error' in processedResult) {
+                toast({ variant: 'destructive', title: "Could not process voice answer", description: processedResult.error });
+                handleAnswerChange(questionId, transcript); // fallback to raw
+            } else if (processedResult.requires_clarify) {
+                playTTS("I didn't catch that clearly. Please try again or type your answer.");
+            }
+            else {
+                handleAnswerChange(questionId, processedResult.normalized_text);
+            }
         };
 
         recognitionRef.current.start();
