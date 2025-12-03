@@ -52,7 +52,8 @@ You are an AI grading assistant for educators. Your task is to evaluate a studen
     "question": "{{question}}",
     "correct_answer": "{{correctAnswer}}",
     "student_response": "{{studentAnswer}}",
-    "rubric": "{{rubric}}"
+    "rubric": "{{rubric}}",
+    "max_score": {{maxScore}}
 }`,
   config: {
     temperature: 0.1,
@@ -66,11 +67,11 @@ const autoGradeFlow = ai.defineFlow(
     outputSchema: AutoGradeOutputSchema,
   },
   async input => {
-    // Note: The user-provided contract mentions maxScore but it's not in the input.
-    // The prompt references max_score, but the schema has maxScore.
-    // Let's assume a default maxScore for now and correct the output field.
-    const tempMaxScore = 10;
     const {output} = await prompt(input);
-    return {...output!, maxScore: tempMaxScore};
+    // Ensure the output's maxScore matches the input's maxScore
+    if (output) {
+        output.maxScore = input.maxScore;
+    }
+    return output!;
   }
 );
