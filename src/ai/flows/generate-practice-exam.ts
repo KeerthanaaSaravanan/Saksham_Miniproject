@@ -6,7 +6,7 @@
  *
  * - generatePracticeExam - A function that generates practice questions.
  * - GeneratePracticeExamInput - The input type for the function.
- * - GeneratePracticeExamOutput - The return type for the function.
+ * - GeneratePracticeamOutput - The return type for the function.
  */
 
 import { ai } from '@/ai/genkit';
@@ -29,7 +29,7 @@ const questionSchema = z.object({
     type: questionTypesEnum.describe("The type of the question."),
     difficulty: z.enum(['easy', 'medium', 'hard']).describe("The difficulty level of the question."),
     stem: z.string().describe("The text of the question, phrased simply and without negative phrasing (<= 20 words)."),
-    options: z.array(z.string()).optional().describe("An array of 4 plausible options for MCQs."),
+    options: z.array(z.string().nullable()).optional().describe("An array of 4 plausible options for MCQs."),
     answer: z.string().describe("The correct answer to the question."),
     explanation: z.string().describe("A brief explanation of how to arrive at the correct answer (<=30 words)."),
 });
@@ -51,17 +51,16 @@ const prompt = ai.definePrompt({
   output: { schema: GeneratePracticeExamOutputSchema },
   system: `INTENT: "generate_practice_exam"
 INSTRUCTIONS:
-Create a set of practice questions based on the user's specifications.
-1. Create exactly the specified 'num_questions'.
-2. For each question, include a type label, difficulty (easy/medium/hard), and a unique 'id' (e.g., "q_001").
-3. For "mcq" type, provide exactly 4 options. Include distractors that are plausible but clearly incorrect.
-4. The 'answer' must be one of the provided options for MCQs.
-5. Provide a concise 'explanation' (<=30 words) for every question.
-6. Use simple, dyslexia-friendly phrasing. Keep question 'stem' length to 20 words or less for audio clarity.
-7. Avoid negative phrasing in question stems (e.g., "Which of these is NOT...").
-8. Return a valid JSON object containing a "questions" array.
+You are an expert AI for creating practice exams. Create exactly the specified 'num_questions' based on the user's context.
+1. For each question, include a 'type' label, a 'difficulty' (easy/medium/hard), and a unique 'id' (e.g., "q_001").
+2. For "mcq" type, provide exactly 4 options. Include distractors that are plausible but clearly incorrect.
+3. The 'answer' must be the full text of the correct answer, not the letter. For MCQs, it must exactly match one of the provided options.
+4. Provide a concise 'explanation' (<=30 words) for every question.
+5. Use simple, dyslexia-friendly phrasing. Keep the question 'stem' length to 20 words or less for audio clarity.
+6. Avoid negative phrasing in question stems (e.g., "Which of these is NOT...").
+7. Your final response must be a valid JSON object containing a "questions" array.
 
-Example for one item:
+EXAMPLE (1 item):
 {
  "id":"q_001",
  "type":"mcq",
@@ -81,7 +80,7 @@ Example for one item:
 }`,
   config: {
     temperature: 0.2,
-    maxOutputTokens: 1024,
+    maxOutputTokens: 2048,
   },
 });
 
