@@ -41,11 +41,11 @@ export async function parseVoiceCommand(
 }
 
 export async function getTTS(
-  text: string
+  input: TextToSpeechInput
 ): Promise<{ media: string } | { error: string }> {
   try {
     const textToSpeechFunc = httpsCallable<TextToSpeechInput, FlowOutput<TextToSpeechOutput>>(getFunctionsInstance(), 'textToSpeechFunc');
-    const result = await textToSpeechFunc(text);
+    const result = await textToSpeechFunc(input);
     return result.data.data;
   } catch (e: any) {
     console.error('TTS Action Error:', e);

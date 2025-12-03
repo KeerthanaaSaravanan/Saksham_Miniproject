@@ -1,6 +1,6 @@
 'use server';
 /**
- * @fileOverview A flow for converting text to speech.
+ * @fileOverview A flow for converting text to speech with different voice profiles.
  * 
  * - textToSpeech - A function that converts text to speech.
  * - TextToSpeechInput - The input type for the textToSpeech function.
@@ -11,7 +11,11 @@ import { ai } from '@/ai/genkit';
 import { z } from 'genkit';
 import wav from 'wav';
 
-const TextToSpeechInputSchema = z.string();
+const TextToSpeechInputSchema = z.object({
+    text: z.string().describe("The text to be converted to speech."),
+    profile: z.enum(['normal', 'slow_sld', 'fast']).optional().default('normal').describe("The voice profile to use."),
+});
+
 const TextToSpeechOutputSchema = z.object({
     media: z.string().describe("The base64 encoded audio data with data URI."),
 });
@@ -53,7 +57,32 @@ const textToSpeechFlow = ai.defineFlow(
       inputSchema: TextToSpeechInputSchema,
       outputSchema: TextToSpeechOutputSchema,
     },
-    async (query) => {
+    async (input) => {
+      let promptText = input.text;
+      let rate = "100%";
+      let pitch = "0st";
+      
+      // Sanitize text for SSML
+      const sanitizedText = input.text
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&apos;');
+
+      switch (input.profile) {
+          case 'slow_sld':
+              promptText = `<speak><prosody rate="85%"><p><s>${sanitizedText.replace(/\./g, '.</s><s><break time="500ms"/>')}</s></p></prosody></speak>`;
+              break;
+          case 'fast':
+              promptText = `<speak><prosody rate="115%"><p><s>${sanitizedText}</s></p></prosody></speak>`;
+              break;
+          case 'normal':
+          default:
+              promptText = `<speak><p><s>${sanitizedText}</s></p></speak>`;
+              break;
+      }
+        
       const { media } = await ai.generate({
         model: 'googleai/gemini-2.5-flash-preview-tts',
         config: {
@@ -64,8 +93,9 @@ const textToSpeechFlow = ai.defineFlow(
             },
           },
         },
-        prompt: query,
+        prompt: promptText,
       });
+
       if (!media) {
         throw new Error('no media returned');
       }

@@ -12,6 +12,7 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { getTTS } from '@/lib/actions/chatbot';
 import { cache } from '@/lib/idb-cache';
+import type { TextToSpeechInput } from '@/ai/flows/text-to-speech';
 
 interface UseTTSProps {
   onStart?: () => void;
@@ -20,7 +21,7 @@ interface UseTTSProps {
 }
 
 interface UseTTSResult {
-  play: (text: string) => void;
+  play: (text: string, profile?: TextToSpeechInput['profile']) => void;
   pause: () => void;
   resume: () => void;
   isLoading: boolean;
@@ -74,7 +75,7 @@ export function useTTS({ onStart, onEnd, onError }: UseTTSProps): UseTTSResult {
     };
   }, [onStart, onEnd, onError]);
 
-  const play = useCallback(async (text: string) => {
+  const play = useCallback(async (text: string, profile: TextToSpeechInput['profile'] = 'normal') => {
     if (!text || !audioRef.current) return;
     
     // If currently playing, stop it before starting new audio
@@ -85,10 +86,12 @@ export function useTTS({ onStart, onEnd, onError }: UseTTSProps): UseTTSResult {
 
     currentTextRef.current = text;
     setIsLoading(true);
+    
+    const cacheKey = `${profile}:${text}`;
 
     try {
       // 1. Check cache
-      const cachedAudio = await cache.get<string>(text);
+      const cachedAudio = await cache.get<string>(cacheKey);
       if (cachedAudio) {
         console.log('Playing from cache');
         audioRef.current.src = cachedAudio;
@@ -99,7 +102,7 @@ export function useTTS({ onStart, onEnd, onError }: UseTTSProps): UseTTSResult {
 
       // 2. Fetch from server
       console.log('Fetching from server');
-      const result = await getTTS(text);
+      const result = await getTTS({ text, profile });
 
       if ('error' in result) {
         throw new Error(result.error);
@@ -108,7 +111,7 @@ export function useTTS({ onStart, onEnd, onError }: UseTTSProps): UseTTSResult {
       // 3. Play and cache
       audioRef.current.src = result.media;
       audioRef.current.play();
-      await cache.set(text, result.media);
+      await cache.set(cacheKey, result.media);
 
     } catch (e: any) {
       console.error('TTS Error:', e);
