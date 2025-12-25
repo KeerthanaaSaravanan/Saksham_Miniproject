@@ -152,14 +152,14 @@ saksham/
 - Accessibility preferences persist per session
   
 
-##  ** Testing & Validation**
+##  **Testing & Validation**
 - Keyboard-only navigation testing
 - Screen reader compatibility checks
 - Color contrast & legibility testing
 - Exam integrity & submission validation
 
 
-##  ** Future Enhancements**
+##  **Future Enhancements**
 - Real-time AI exam proctoring indicators
 - Offline exam-attempt capability
 - Support for additional disabilities
