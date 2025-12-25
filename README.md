@@ -1,4 +1,11 @@
-## SAKSHAM – Accessible AI-Assisted Examination Platform
+
+# SAKSHAM 
+> **"Accessible AI-Assisted Examination Platform"**
+---
+### 🔗 Website: [Saksham](https://studio--securexchange-b63do.us-central1.hosted.app)<br/>
+### 🎥 Demo Video: [Watch on YouTube](https://youtu.be/nhXzRiLlDXI)
+---
+## 
 ---
 Saksham is an **accessibility-first online examination platform** built for  **differently-abled learners** — specifically:
 
@@ -176,4 +183,19 @@ Saksham is inspired by global accessibility standards and inclusive technology i
 - WCAG 2.2 Guidelines
 - Microsoft Inclusive Design Toolkit
 - UNESCO Inclusive Education Frameworks
-  
+
+## References
+-World Wide Web Consortium (W3C) — Web Content Accessibility Guidelines (WCAG 2.2)
+https://www.w3.org/TR/WCAG22/
+-W3C — ARIA Authoring Practices Guide (Accessible Rich Internet Applications)
+https://www.w3.org/TR/wai-aria-practices/
+-United Nations — Convention on the Rights of Persons with Disabilities (CRPD)
+https://www.un.org/development/desa/disabilities/convention-on-the-rights-of-persons-with-disabilities.html
+-Government of India — Guidelines for Indian Government Websites (GIGW) Accessibility Standards
+https://guidelines.india.gov.in/
+-World Health Organization — World Report on Disability
+https://www.who.int/publications/i/item/9789241564182
+-Microsoft Inclusive Design Toolkit
+https://inclusive.microsoft.design/
+
+
