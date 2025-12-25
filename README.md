@@ -183,17 +183,9 @@ Saksham is inspired by global accessibility standards and inclusive technology i
 - UNESCO Inclusive Education Frameworks
 
 ## References
--World Wide Web Consortium (W3C) — Web Content Accessibility Guidelines (WCAG 2.2)
-https://www.w3.org/TR/WCAG22/
--W3C — ARIA Authoring Practices Guide (Accessible Rich Internet Applications)
-https://www.w3.org/TR/wai-aria-practices/
--United Nations — Convention on the Rights of Persons with Disabilities (CRPD)
-https://www.un.org/development/desa/disabilities/convention-on-the-rights-of-persons-with-disabilities.html
--Government of India — Guidelines for Indian Government Websites (GIGW) Accessibility Standards
-https://guidelines.india.gov.in/
--World Health Organization — World Report on Disability
-https://www.who.int/publications/i/item/9789241564182
--Microsoft Inclusive Design Toolkit
-https://inclusive.microsoft.design/
-
-
+- [World Wide Web Consortium (W3C) — Web Content Accessibility Guidelines (WCAG 2.2)](https://www.w3.org/TR/WCAG22/)
+- [W3C — ARIA Authoring Practices Guide (Accessible Rich Internet Applications)](https://www.w3.org/TR/wai-aria-practices/)
+- [United Nations — Convention on the Rights of Persons with Disabilities (CRPD)](https://www.un.org/development/desa/disabilities/convention-on-the-rights-of-persons-with-disabilities.html)
+- [Government of India — Guidelines for Indian Government Websites (GIGW) Accessibility Standards](https://guidelines.india.gov.in/)
+- [World Health Organization — World Report on Disability](https://www.who.int/publications/i/item/9789241564182)
+- [Microsoft Inclusive Design Toolkit](https://inclusive.microsoft.design/)
