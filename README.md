@@ -1,12 +1,10 @@
 
-# SAKSHAM 
-> **"Accessible AI-Assisted Examination Platform"**
+## SAKSHAM - Accessible AI-Assisted Examination Platform
 ---
 ### 🔗 Website: [Saksham](https://studio--securexchange-b63do.us-central1.hosted.app)<br/>
 ### 🎥 Demo Video: [Watch on YouTube](https://youtu.be/nhXzRiLlDXI)
 ---
-## 
----
+
 Saksham is an **accessibility-first online examination platform** built for  **differently-abled learners** — specifically:
 
 -  Students with **Specific Learning Disabilities (Dyslexia & Dysgraphia)**
