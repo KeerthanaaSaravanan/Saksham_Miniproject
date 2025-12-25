@@ -1,184 +1,364 @@
-#  SAKSHAM – Autonomous Accessible Learning & Examination System
+### SAKSHAM – Accessible AI-Assisted Examination Platform
+Empowering independent digital examinations for learners with Visual Impairment and Specific Learning Disabilities
 
-## Description
-SAKSHAM is an AI-powered inclusive learning and examination platform designed specifically for students with disabilities. It integrates Speech-to-Text (STT), Text-to-Speech (TTS), simplified content modes, and real-time Firebase backend connectivity to ensure barrier-free education and dignified assessments for all learners.
+SAKSHAM is a Next.js and TypeScript-based accessible online examination platform designed to enable independent, secure, and dignity-first exams for:
 
----
+Blind users
 
-## About
-**SAKSHAM – Inclusive Learning & Assessment Platform** addresses the accessibility gaps in traditional online learning and examination systems. Students with visual impairments or Specific Learning Disabilities (SLD) often struggle with complex interfaces, text-heavy content, or inability to type answers.
+Low-vision users
 
-This platform provides an accessibility-first experience through voice command navigation, simplified content delivery, dyslexia-friendly UI, and adaptive examination flows. With the integration of Google Cloud STT/TTS and Firebase backend, the system ensures seamless, real-time, personalized support.
+Students with Dyslexia
 
----
+Students with Dysgraphia
 
-## Features
+The platform removes dependency on scribes or helpers by integrating:
 
-### ♿ 1. Visual Disability (Blind / Low Vision)
-- 🔊 **Text-to-Speech (TTS)** reads all questions, options, and instructions.
-- 🎤 **Speech-to-Text (STT)** allows answering via voice.
-- 🗣️ **Voice Command Navigation** (“Next”, “Repeat”, “Submit”).
-- ⌨️ **Keyboard-only navigation** using Tab & Enter.
-- 🔆 **High-contrast mode & large text mode** for low-vision users.
+AI Voice Navigation Assistant
 
-### 🧩 2. Specific Learning Disability (SLD – Dyslexia, Dysgraphia, Dyscalculia)
-- 📘 **Simplified Question Mode** for easier readability.
-- 🔊 **TTS assistance** for comprehension.
-- ✍️ **Handwriting Pad Input** for stylus-based answers.
-- 🅰️ **Dyslexia-friendly fonts & color themes**.
-- 📖 **Step-by-step question display** to avoid cognitive overload.
+Screen-reader friendly UI
 
-### 3. AI-Enabled Exam Engine
-- 📡 Real-time question delivery from Firestore.
-- 💾 Auto-save answers (local + cloud sync).
-- 🧭 Voice-driven navigation.
-- 📊 Automatic scoring via Cloud Functions.
-- 🔒 Secure, adaptive, and distraction-free exam mode.
+Customizable Accessibility Settings
 
-### 4. Secure Authentication & Backend
-- Firebase Authentication (Email/Phone/OAuth)
-- Real-time Firestore database
-- Firebase Storage (handwriting inputs, logs)
-- Offline sync support
-- Cloud Functions for scoring, analytics, and cleanup
+Error-free exam interaction flows
 
-### 5. Teacher/Admin Dashboard
-- Track student attempts
-- Accessibility usage analytics
-- Exam creation & scheduling
-- Real-time performance updates
+Secure Firebase-backed exam storage and submissions
 
----
+SAKSHAM focuses only on examinations (learning modules intentionally excluded).
 
-## 🛠️ Requirements
+### 🌟 Key Features
+Accessibility-First Design
 
-### ⚙ Operating System
-- Windows 10/11 (64-bit), macOS, or Ubuntu
+Large scalable typography
 
-### 💻 Development Environment
-- Node.js 18+
-- Firebase CLI
-- Flutter / React / Next.js (frontend)
-- Python 3.9+ (optional AI modules)
+Dyslexia-friendly fonts
 
-### 🧠 Cloud & AI Services
-- Google Cloud Speech-to-Text API  
-- Google Cloud Text-to-Speech API  
-- Firebase Authentication  
-- Firestore Database  
-- Firebase Storage  
-- Cloud Functions (Node.js)
+High-contrast themes
 
-### 📦 Additional Dependencies
-- TailwindCSS / Material UI for accessible UI  
-- Web Speech API  
-- OpenCV + MediaPipe (optional future upgrades)  
-- Git/GitHub for version control  
-- VS Code as IDE  
+Keyboard-only navigation
 
----
+Focus rings and skip navigation
 
-## 🧩 System Architecture
+Fully screen-reader compatible UI
 
-```
+AI Assistant for Blind Users
 
-User
-│
-├── Firebase Authentication
-│
-├── Accessibility Engine
-│     ├── Visual Disability Module (TTS, STT, Voice Nav)
-│     └── SLD Module (Simplified Text, TTS, Handwriting Pad)
-│
-├── Learning Module
-│     ├── Content Reader
-│     ├── Simplified Question Fetcher
-│     └── Handwriting Input System
-│
-├── Exam Engine
-│     ├── Real-Time Question Fetching
-│     ├── Auto-Save Answers
-│     ├── Voice Navigation
-│     └── Submission & Scoring
-│
-├── Firebase Firestore (Realtime)
-│     ├── users/
-│     ├── exams/
-│     ├── attempts/
-│     └── accessibility/
-│
-└── Cloud Functions
-├── Evaluation & Scoring
-├── Analytics Logs
-└── Data Cleanup Pipelines
+Voice-guided navigation
 
-```
+Speech-to-Text for answering
 
-*(Insert Architecture Diagram Screenshot Here)*  
-`Screenshot-Architecture.png`
+Text-to-Speech reading of:
 
----
+questions
 
-## 🖼️ Output
+options
 
-### **Output 1 – Accessibility Dashboard**
+timers
 
+warnings
 
-### **Output 2 – STT + TTS Enabled Exam Interface**
+Voice commands for:
 
+Start exam
 
-### **Output 3 – Simplified Question Mode (SLD)**
+Next/Previous question
 
+Mark for review
 
----
+Submit exam
 
-## 📈 Accuracy / Performance Metrics (Optional)
-- 🎤 Voice Command Accuracy: **98.3%**  
-- 🗣️ STT Interpretation Accuracy: **95.4%**  
-- 🔊 TTS Output Latency: **<150ms**  
+User Roles
 
-*(Adjust based on your actual evaluation)*
+Admin
 
----
+create/manage exams
 
-## 🎯 Results and Impact
-SAKSHAM significantly improves inclusivity by enabling blind and SLD students to learn and take exams independently.  
-The platform:
+schedule exams
 
-- Reduces dependency on human scribes  
-- Simplifies cognitive load for SLD learners  
-- Provides real-time voice-driven control  
-- Improves exam accuracy through AI-guided workflow  
-- Increases accessibility in digital education  
+manage question banks
 
-This project demonstrates how voice AI, adaptive UI, and real-time cloud infrastructure can create a more equitable and empowering educational experience.
+assign papers to learners
 
----
+monitor submissions
 
-## 📚 Articles Published / References
+Learner
 
-1. N. S. Gupta et al.,  
-   *“Enhancing Heart Disease Prediction Accuracy Through Hybrid ML Methods,”*  
-   EAI Endorsed Transactions on IoT, 2024.
+login with email/password
 
-2. A. A. Bin Zainuddin,  
-   *“Enhancing IoT Security via ML, AI & Blockchain,”*  
-   Data Science Insights, 2024.
+attempt assigned exams
 
-3. Google Cloud AI – Speech-to-Text Documentation  
-4. Firebase Documentation – Firestore, Auth, Functions  
-5. W3C Web Accessibility Initiative (WAI) Guidelines  
+use accessibility controls
 
----
+submit securely
 
-## 📦 License
-This project is licensed for academic and research purposes.  
-Contact the author for commercial usage permissions.
+### 🔐 Authentication & Security
 
----
+Built using Firebase Authentication:
 
-## 👩‍💻 Author
-**Keerthana Saravanan**  
+Email + Password login
 
+Auto-login persistence
 
-Just tell me!
+Role-based Firestore rules
+
+Session-based exam access control
+
+Prevention of multi-device simultaneous submissions
+
+### 🛠️ Tech Stack
+Frontend
+
+Next.js (App Router)
+
+TypeScript
+
+React Accessibility Hooks
+
+Tailwind CSS
+
+Headless UI
+
+Radix Primitives
+
+Backend
+
+Firebase Authentication
+
+Firestore Database
+
+Firebase Storage
+
+Firestore Security Rules
+
+Cloud Functions (optional future)
+
+AI Components
+
+Speech-to-Text
+
+Text-to-Speech
+
+Voice command intent detection
+
+Real-time voice feedback
+
+### 🧩 Supported Disabilities
+Visual Impairment
+
+complete voice navigation
+
+blind-friendly exam mode
+
+minimal visual clutter
+
+no drag–drop questions
+
+no color-based questions
+
+Low Vision
+
+zoom scaling up to 400%
+
+contrast & color inversion
+
+adjustable UI density
+
+enlarge radio buttons & checkboxes
+
+Dyslexia
+
+OpenDyslexic font option
+
+increased word spacing
+
+syllable-assisted text spacing
+
+text-to-speech questions
+
+distraction-reduced UI
+
+Dysgraphia
+
+speech-to-text answers
+
+option-based questions preferred
+
+large answer text boxes
+
+auto-saved typed answers
+
+### 🧭 System Workflow (High Level)
+
+User opens app
+
+Logs in through Firebase Authentication
+
+Learner role auto-detected
+
+Accessibility preferences requested/set
+
+For blind users → AI assistant activated from launch
+
+Learner sees assigned exams
+
+Exam integrity checks performed
+
+Exam started
+
+Answers saved in real-time to Firestore
+
+Submission validated & locked
+
+Admin views evaluation dashboard
+
+### 🗂️ Project Folder Structure
+Frontend – Next.js + TypeScript
+saksham-frontend/
+ ├─ app/
+ │   ├─ layout.tsx
+ │   ├─ page.tsx
+ │   ├─ exams/
+ │   ├─ auth/
+ │   ├─ accessibility/
+ │   ├─ settings/
+ │   └─ results/
+ ├─ components/
+ │   ├─ navbar/
+ │   ├─ buttons/
+ │   ├─ forms/
+ │   ├─ accessibility/
+ │   └─ voice-assistant/
+ ├─ context/
+ ├─ hooks/
+ ├─ lib/
+ ├─ types/
+ ├─ styles/
+ ├─ public/
+ └─ utils/
+
+Backend – Firebase
+saksham-backend/
+ ├─ firestore.rules
+ ├─ storage.rules
+ ├─ firestore.indexes.json
+ ├─ cloud-functions/
+ └─ scripts/
+
+### 🗃️ Firestore Schema Overview
+Collections
+users/
+exams/
+questions/
+submissions/
+accessibilityPreferences/
+examAssignments/
+
+Example Exam Schema
+examId
+title
+duration
+allowedRoles
+questionOrder
+schedule
+
+### 🧑‍🦯 Accessibility Settings (Persisted per user)
+
+font size
+
+font family (dyslexia mode)
+
+color scheme
+
+speech rate
+
+speech pitch
+
+keyboard mode vs mouse mode
+
+blind-mode (voice only)
+
+text spacing
+
+focus highlight thickness
+
+read-question-aloud toggle
+
+All stored in:
+
+accessibilityPreferences/{userId}
+
+### 🧪 Testing Strategy
+
+keyboard navigation testing
+
+NVDA/JAWS screen reader testing
+
+WCAG 2.2 AA compliance checks
+
+exam timer edge case validation
+
+network disconnect recovery
+
+answer autosave testing
+
+multi-tab restriction tests
+
+visually hidden text support
+
+### 📊 Results & Impact
+
+enables independent exam attempt
+
+removes need for scribes
+
+reduces exam anxiety
+
+supports fair evaluation
+
+improves accessibility compliance
+
+scalable for universities & boards
+
+### 🚀 Future Enhancements
+
+Offline exam writing mode
+
+AI proctoring for exam fairness
+
+Multilingual TTS/STT
+
+Braille display integration
+
+Advanced analytics dashboard
+
+Question difficulty adaptive engine
+
+Automated evaluation for long answers
+
+### 📄 License
+
+This project is designed for educational and social impact.
+License selection may be:
+
+MIT
+
+Apache 2.0
+
+Custom Non-Commercial License
+
+### 🤝 Contribution Guidelines
+
+Contributions welcome for:
+
+accessibility improvements
+
+performance optimization
+
+additional disability modules
+
+Submit:
+
+feature proposals
+
+accessibility audits
+
+pull requests
