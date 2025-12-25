@@ -1,364 +1,180 @@
-### SAKSHAM – Accessible AI-Assisted Examination Platform
-Empowering independent digital examinations for learners with Visual Impairment and Specific Learning Disabilities
+# SAKSHAM – Accessible AI-Assisted Examination Platform
 
-SAKSHAM is a Next.js and TypeScript-based accessible online examination platform designed to enable independent, secure, and dignity-first exams for:
+Saksham is an **accessibility-first online examination platform** built for  
+**differently-abled learners** — specifically:
 
-Blind users
-
-Low-vision users
-
-Students with Dyslexia
-
-Students with Dysgraphia
-
-The platform removes dependency on scribes or helpers by integrating:
-
-AI Voice Navigation Assistant
-
-Screen-reader friendly UI
-
-Customizable Accessibility Settings
-
-Error-free exam interaction flows
-
-Secure Firebase-backed exam storage and submissions
-
-SAKSHAM focuses only on examinations (learning modules intentionally excluded).
-
-### 🌟 Key Features
-Accessibility-First Design
-
-Large scalable typography
-
-Dyslexia-friendly fonts
-
-High-contrast themes
-
-Keyboard-only navigation
-
-Focus rings and skip navigation
-
-Fully screen-reader compatible UI
-
-AI Assistant for Blind Users
-
-Voice-guided navigation
-
-Speech-to-Text for answering
-
-Text-to-Speech reading of:
-
-questions
-
-options
-
-timers
-
-warnings
-
-Voice commands for:
-
-Start exam
-
-Next/Previous question
-
-Mark for review
-
-Submit exam
-
-User Roles
-
-Admin
-
-create/manage exams
-
-schedule exams
-
-manage question banks
-
-assign papers to learners
-
-monitor submissions
-
-Learner
-
-login with email/password
-
-attempt assigned exams
-
-use accessibility controls
-
-submit securely
-
-### 🔐 Authentication & Security
-
-Built using Firebase Authentication:
-
-Email + Password login
-
-Auto-login persistence
-
-Role-based Firestore rules
-
-Session-based exam access control
-
-Prevention of multi-device simultaneous submissions
-
-### 🛠️ Tech Stack
-Frontend
-
-Next.js (App Router)
-
-TypeScript
-
-React Accessibility Hooks
-
-Tailwind CSS
-
-Headless UI
-
-Radix Primitives
-
-Backend
-
-Firebase Authentication
-
-Firestore Database
-
-Firebase Storage
-
-Firestore Security Rules
-
-Cloud Functions (optional future)
-
-AI Components
-
-Speech-to-Text
-
-Text-to-Speech
-
-Voice command intent detection
-
-Real-time voice feedback
-
-### 🧩 Supported Disabilities
-Visual Impairment
-
-complete voice navigation
-
-blind-friendly exam mode
-
-minimal visual clutter
-
-no drag–drop questions
-
-no color-based questions
-
-Low Vision
-
-zoom scaling up to 400%
-
-contrast & color inversion
-
-adjustable UI density
-
-enlarge radio buttons & checkboxes
-
-Dyslexia
-
-OpenDyslexic font option
-
-increased word spacing
-
-syllable-assisted text spacing
-
-text-to-speech questions
-
-distraction-reduced UI
-
-Dysgraphia
-
-speech-to-text answers
-
-option-based questions preferred
-
-large answer text boxes
-
-auto-saved typed answers
-
-### 🧭 System Workflow (High Level)
-
-User opens app
-
-Logs in through Firebase Authentication
-
-Learner role auto-detected
-
-Accessibility preferences requested/set
-
-For blind users → AI assistant activated from launch
-
-Learner sees assigned exams
-
-Exam integrity checks performed
-
-Exam started
-
-Answers saved in real-time to Firestore
-
-Submission validated & locked
-
-Admin views evaluation dashboard
-
-### 🗂️ Project Folder Structure
-Frontend – Next.js + TypeScript
-saksham-frontend/
- ├─ app/
- │   ├─ layout.tsx
- │   ├─ page.tsx
- │   ├─ exams/
- │   ├─ auth/
- │   ├─ accessibility/
- │   ├─ settings/
- │   └─ results/
- ├─ components/
- │   ├─ navbar/
- │   ├─ buttons/
- │   ├─ forms/
- │   ├─ accessibility/
- │   └─ voice-assistant/
- ├─ context/
- ├─ hooks/
- ├─ lib/
- ├─ types/
- ├─ styles/
- ├─ public/
- └─ utils/
-
-Backend – Firebase
-saksham-backend/
- ├─ firestore.rules
- ├─ storage.rules
- ├─ firestore.indexes.json
- ├─ cloud-functions/
- └─ scripts/
-
-### 🗃️ Firestore Schema Overview
-Collections
-users/
-exams/
-questions/
-submissions/
-accessibilityPreferences/
-examAssignments/
-
-Example Exam Schema
-examId
-title
-duration
-allowedRoles
-questionOrder
-schedule
-
-### 🧑‍🦯 Accessibility Settings (Persisted per user)
-
-font size
-
-font family (dyslexia mode)
-
-color scheme
-
-speech rate
-
-speech pitch
-
-keyboard mode vs mouse mode
-
-blind-mode (voice only)
-
-text spacing
-
-focus highlight thickness
-
-read-question-aloud toggle
-
-All stored in:
-
-accessibilityPreferences/{userId}
-
-### 🧪 Testing Strategy
-
-keyboard navigation testing
-
-NVDA/JAWS screen reader testing
-
-WCAG 2.2 AA compliance checks
-
-exam timer edge case validation
-
-network disconnect recovery
-
-answer autosave testing
-
-multi-tab restriction tests
-
-visually hidden text support
-
-### 📊 Results & Impact
-
-enables independent exam attempt
-
-removes need for scribes
-
-reduces exam anxiety
-
-supports fair evaluation
-
-improves accessibility compliance
-
-scalable for universities & boards
-
-### 🚀 Future Enhancements
-
-Offline exam writing mode
-
-AI proctoring for exam fairness
-
-Multilingual TTS/STT
-
-Braille display integration
-
-Advanced analytics dashboard
-
-Question difficulty adaptive engine
-
-Automated evaluation for long answers
-
-### 📄 License
-
-This project is designed for educational and social impact.
-License selection may be:
-
-MIT
-
-Apache 2.0
-
-Custom Non-Commercial License
-
-### 🤝 Contribution Guidelines
-
-Contributions welcome for:
-
-accessibility improvements
-
-performance optimization
-
-additional disability modules
-
-Submit:
-
-feature proposals
-
-accessibility audits
-
-pull requests
+-  Students with **Specific Learning Disabilities (Dyslexia & Dysgraphia)**
+-  Students with **Visual Impairment (Low-Vision & Blind)**
+
+The platform ensures **independent, dignified, and barrier-free exam participation** through:
+
+-  Role-based access for **Admin & Learner**
+-  AI Voice Assistant for **Blind user navigation**
+-  Text-to-Speech & Speech-to-Text support
+-  Accessible UI with scalable fonts, contrast modes & keyboard navigation
+-  Secure exam flow with persistence, proctor-safe interactions & audit trails
+-  Built using **Next.js, TypeScript, Firebase Auth, Firestore & Storage**
+
+---
+
+##  **Project Objective**
+
+Saksham enables learners with disabilities to:
+
+- Take exams **independently without assistance**
+- Access navigation and exam interaction through **voice commands**
+- Use **personalized accessibility preferences**
+- Maintain **security, fairness, and exam integrity**
+
+The platform is focused **only on examination workflows** (no learning modules).
+
+---
+
+##  **User Roles**
+
+### 🧑‍🎓 Learner
+Supports two accessibility categories:
+
+- **SLD (Dyslexia / Dysgraphia)**
+  - Dyslexia-friendly fonts
+  - Adjustable line spacing
+  - Reduced cognitive load UI
+
+- **Visual Impairment (Low-Vision / Blind)**
+  - High-contrast mode
+  - Screen reader compatible
+  - AI Voice Assistant navigation
+  - Speech-based interaction
+
+### 🧑‍💼 Admin
+- Create & manage exams
+- Assign exams to learners
+- View submissions & reports
+
+---
+
+##  **Core Features**
+
+- 🔐 **Firebase Authentication (Email + Password)**
+- 🌩️ **Firestore-based Exam Schema & Access Control**
+- 🗂️ **Firebase Storage for Question Assets**
+- 🗣️ **AI Voice Assistant for Blind Users**
+- ♿ **Accessibility Settings Persistence**
+- 🧭 **Guided Exam Navigation**
+- 📝 **Timed & Structured Exam Interface**
+- 📤 **Secure Answer Submission**
+- 🧾 **Submission Lock & Integrity Rules**
+
+---
+
+##  **Tech Stack**
+
+**Frontend**
+- Next.js (App Router) + TypeScript  
+- Tailwind CSS  
+- Accessibility & ARIA Standards  
+
+**Backend / Cloud**
+- Firebase Authentication  
+- Firestore Database  
+- Firebase Storage  
+
+**Accessibility & Assistive Design**
+- ARIA Roles  
+- WCAG-compliant UI  
+- TTS / STT voice interaction support
+
+---
+
+## 📂 **Project Structure**
+
+```bash
+saksham/
+│
+├── src/
+│   ├── app/                     # Next.js App Router Pages
+│   │   ├── (admin)/             # Admin dashboard and admin-only pages
+│   │   │   ├── analytics/
+│   │   │   ├── dashboard/
+│   │   │   ├── examinations/
+│   │   │   ├── grading/
+│   │   │   └── settings/
+│   │   │
+│   │   ├── (learner)/           # Learner dashboard and exam pages
+│   │   │   ├── assessment/
+│   │   │   ├── dashboard/
+│   │   │   ├── flow/
+│   │   │   ├── help/
+│   │   │   ├── practice/
+│   │   │   ├── profiling/
+│   │   │   └── results/
+│   │   │
+│   │   ├── layout.tsx            # Global layout for all pages
+│   │   └── page.tsx              # Landing / Home page
+│   │
+│   ├── components/               # Reusable UI components
+│   │   ├── accessibility/
+│   │   ├── buttons/
+│   │   ├── cards/
+│   │   └── forms/
+│   │
+│   ├── hooks/                    # Custom React hooks (accessibility, exams, auth)
+│   ├── firebase/                 # Firebase config, auth, Firestore, storage
+│   ├── lib/                      # Utility functions & API calls
+│   ├── types/                    # TypeScript interfaces/types
+│   └── styles/                   # Tailwind config overrides / global styles
+│
+├── .env                          # Environment variables
+├── .env.local
+├── .gitignore
+├── next.config.ts
+├── tsconfig.json
+├── package.json
+├── tailwind.config.ts
+├── postcss.config.mjs
+├── firestore.rules                # Firestore security rules
+├── README.md                      # Project documentation
+└── apphosting.yaml                # Deployment config (Vercel / Firebase Hosting)
+
+```
+
+## Architecture Diagram:
+<img width="2816" height="1536" alt="ARCI" src="https://github.com/user-attachments/assets/a2c57de3-9d6b-4711-ba43-b5c920a4984e" />
+
+
+## Flow Diagram:
+<img width="2816" height="1536" alt="Gemini_Generated_Image_ws4amrws4amrws4a" src="https://github.com/user-attachments/assets/0e345ec0-db28-49ee-a2ca-c476b39557fa" />
+
+
+##  **Security & Integrity Rules**
+- Only assigned learners can access an exam 
+- Submissions are locked after completion 
+- Role-based read/write access
+- Accessibility preferences persist per session
+  
+
+##  ** Testing & Validation**
+- Keyboard-only navigation testing
+- Screen reader compatibility checks
+- Color contrast & legibility testing
+- Exam integrity & submission validation
+
+
+##  ** Future Enhancements**
+- Real-time AI exam proctoring indicators
+- Offline exam-attempt capability
+- Support for additional disabilities
+- Multilingual accessibility voice interface
+
+## License
+
+This project follows a dignity-first accessibility mission philosophy.
+Use ethically and responsibly in inclusive education environments.
+
+##  Acknowledgements
+
+Saksham is inspired by global accessibility standards and inclusive technology initiatives:
+- WCAG 2.2 Guidelines
+- Microsoft Inclusive Design Toolkit
+- UNESCO Inclusive Education Frameworks
+  
